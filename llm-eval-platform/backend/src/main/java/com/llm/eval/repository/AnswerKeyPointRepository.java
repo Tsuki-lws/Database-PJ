@@ -20,13 +20,8 @@ public interface AnswerKeyPointRepository extends JpaRepository<AnswerKeyPoint, 
      */
     List<AnswerKeyPoint> findByStandardAnswerStandardAnswerId(Integer standardAnswerId);
     
-    /**
-     * 根据重要性级别查询关键点
-     * 
-     * @param importance 重要性级别
-     * @return 关键点列表
-     */
-    List<AnswerKeyPoint> findByImportance(Integer importance);
+    // 暂时不需要此方法，已注释
+    // List<AnswerKeyPoint> findByPointType(AnswerKeyPoint.PointType pointType);
     
     /**
      * 删除某个标准答案的所有关键点

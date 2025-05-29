@@ -1,3 +1,4 @@
+/*
 package com.llm.eval.service;
 
 import com.llm.eval.dto.EvaluationBatchDTO;
@@ -30,3 +31,4 @@ public interface EvaluationBatchService {
     
     Optional<EvaluationBatchDTO> updateBatchMetrics(Integer batchId);
 } 
+*/ 
