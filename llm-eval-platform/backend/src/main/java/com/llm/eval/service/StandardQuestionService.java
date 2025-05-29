@@ -1,0 +1,90 @@
+package com.llm.eval.service;
+
+import com.llm.eval.model.StandardQuestion;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+public interface StandardQuestionService {
+    
+    /**
+     * Get all standard questions
+     * 
+     * @return List of all standard questions
+     */
+    List<StandardQuestion> getAllStandardQuestions();
+    
+    /**
+     * Get a standard question by ID
+     * 
+     * @param id The ID of the standard question
+     * @return The standard question if found
+     */
+    Optional<StandardQuestion> getStandardQuestionById(Integer id);
+    
+    /**
+     * Get standard questions by category ID
+     * 
+     * @param categoryId The ID of the category
+     * @return List of standard questions in the category
+     */
+    List<StandardQuestion> getStandardQuestionsByCategoryId(Integer categoryId);
+    
+    /**
+     * Get standard questions by tag ID
+     * 
+     * @param tagId The ID of the tag
+     * @return List of standard questions with the tag
+     */
+    List<StandardQuestion> getStandardQuestionsByTagId(Integer tagId);
+    
+    /**
+     * Get standard questions without a standard answer
+     * 
+     * @return List of standard questions without a standard answer
+     */
+    List<StandardQuestion> getQuestionsWithoutStandardAnswers();
+    
+    /**
+     * Create a new standard question
+     * 
+     * @param standardQuestion The standard question to create
+     * @return The created standard question
+     */
+    StandardQuestion createStandardQuestion(StandardQuestion standardQuestion);
+    
+    /**
+     * Update a standard question
+     * 
+     * @param id The ID of the standard question to update
+     * @param standardQuestion The updated standard question
+     * @return The updated standard question
+     */
+    StandardQuestion updateStandardQuestion(Integer id, StandardQuestion standardQuestion);
+    
+    /**
+     * Add tags to a standard question
+     * 
+     * @param questionId The ID of the standard question
+     * @param tagIds The IDs of the tags to add
+     * @return The updated standard question
+     */
+    StandardQuestion addTagsToQuestion(Integer questionId, Set<Integer> tagIds);
+    
+    /**
+     * Remove tags from a standard question
+     * 
+     * @param questionId The ID of the standard question
+     * @param tagIds The IDs of the tags to remove
+     * @return The updated standard question
+     */
+    StandardQuestion removeTagsFromQuestion(Integer questionId, Set<Integer> tagIds);
+    
+    /**
+     * Delete a standard question
+     * 
+     * @param id The ID of the standard question to delete
+     */
+    void deleteStandardQuestion(Integer id);
+} 
