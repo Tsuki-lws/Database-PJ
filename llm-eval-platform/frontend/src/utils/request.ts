@@ -22,12 +22,20 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   response => {
     const res = response.data
-    return res
+    if (res.code !== 200) {
+      ElMessage({
+        message: res.message || '请求失败',
+        type: 'error',
+        duration: 5 * 1000
+      })
+      return Promise.reject(new Error(res.message || '请求失败'))
+    }
+    return res.data
   },
   error => {
     console.log('err' + error)
     ElMessage({
-      message: error.message,
+      message: error.message || '请求失败',
       type: 'error',
       duration: 5 * 1000
     })

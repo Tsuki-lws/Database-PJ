@@ -1,8 +1,6 @@
 package com.llm.eval.service.impl;
 
-import com.llm.eval.model.AnswerKeyPoint;
 import com.llm.eval.model.StandardAnswer;
-import com.llm.eval.repository.AnswerKeyPointRepository;
 import com.llm.eval.repository.StandardAnswerRepository;
 import com.llm.eval.repository.StandardQuestionRepository;
 import com.llm.eval.service.StandardAnswerService;
@@ -12,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,16 +18,13 @@ public class StandardAnswerServiceImpl implements StandardAnswerService {
     
     private final StandardAnswerRepository standardAnswerRepository;
     private final StandardQuestionRepository standardQuestionRepository;
-    private final AnswerKeyPointRepository keyPointRepository;
     
     @Autowired
     public StandardAnswerServiceImpl(
             StandardAnswerRepository standardAnswerRepository,
-            StandardQuestionRepository standardQuestionRepository,
-            AnswerKeyPointRepository keyPointRepository) {
+            StandardQuestionRepository standardQuestionRepository) {
         this.standardAnswerRepository = standardAnswerRepository;
         this.standardQuestionRepository = standardQuestionRepository;
-        this.keyPointRepository = keyPointRepository;
     }
     
     @Override
@@ -138,88 +132,5 @@ public class StandardAnswerServiceImpl implements StandardAnswerService {
     @Transactional
     public void deleteStandardAnswer(Integer id) {
         standardAnswerRepository.deleteById(id);
-    }
-    
-    // AnswerKeyPoint相关方法实现
-    
-    @Override
-    @Transactional
-    public AnswerKeyPoint addKeyPoint(Integer answerId, AnswerKeyPoint keyPoint) {
-        StandardAnswer answer = standardAnswerRepository.findById(answerId)
-                .orElseThrow(() -> new EntityNotFoundException("Standard answer not found with id: " + answerId));
-        
-        // 设置关联关系
-        keyPoint.setStandardAnswer(answer);
-        
-        // 设置默认值
-        keyPoint.setCreatedAt(LocalDateTime.now());
-        keyPoint.setUpdatedAt(LocalDateTime.now());
-        
-        // 保存并返回
-        return keyPointRepository.save(keyPoint);
-    }
-    
-    @Override
-    public List<AnswerKeyPoint> getKeyPointsByAnswerId(Integer answerId) {
-        StandardAnswer answer = standardAnswerRepository.findById(answerId)
-                .orElseThrow(() -> new EntityNotFoundException("Standard answer not found with id: " + answerId));
-        
-        // 如果关键点集合未初始化，返回空列表
-        if (answer.getKeyPoints() == null) {
-            return new ArrayList<>();
-        }
-        
-        return answer.getKeyPoints();
-    }
-    
-    @Override
-    @Transactional
-    public AnswerKeyPoint updateKeyPoint(Integer answerId, Integer keyPointId, AnswerKeyPoint keyPoint) {
-        // 验证答案存在
-        if (!standardAnswerRepository.existsById(answerId)) {
-            throw new EntityNotFoundException("Standard answer not found with id: " + answerId);
-        }
-        
-        // 获取现有关键点
-        AnswerKeyPoint existingKeyPoint = keyPointRepository.findById(keyPointId)
-                .orElseThrow(() -> new EntityNotFoundException("Key point not found with id: " + keyPointId));
-        
-        // 验证关键点属于指定答案
-        if (!existingKeyPoint.getStandardAnswer().getStandardAnswerId().equals(answerId)) {
-            throw new IllegalArgumentException("Key point does not belong to the specified answer");
-        }
-        
-        // 更新属性
-        existingKeyPoint.setPointText(keyPoint.getPointText());
-        existingKeyPoint.setPointOrder(keyPoint.getPointOrder());
-        existingKeyPoint.setPointWeight(keyPoint.getPointWeight());
-        existingKeyPoint.setPointType(keyPoint.getPointType());
-        existingKeyPoint.setExampleText(keyPoint.getExampleText());
-        existingKeyPoint.setUpdatedAt(LocalDateTime.now());
-        existingKeyPoint.setVersion(existingKeyPoint.getVersion() + 1);
-        
-        // 保存并返回
-        return keyPointRepository.save(existingKeyPoint);
-    }
-    
-    @Override
-    @Transactional
-    public void deleteKeyPoint(Integer answerId, Integer keyPointId) {
-        // 验证答案存在
-        if (!standardAnswerRepository.existsById(answerId)) {
-            throw new EntityNotFoundException("Standard answer not found with id: " + answerId);
-        }
-        
-        // 获取关键点
-        AnswerKeyPoint keyPoint = keyPointRepository.findById(keyPointId)
-                .orElseThrow(() -> new EntityNotFoundException("Key point not found with id: " + keyPointId));
-        
-        // 验证关键点属于指定答案
-        if (!keyPoint.getStandardAnswer().getStandardAnswerId().equals(answerId)) {
-            throw new IllegalArgumentException("Key point does not belong to the specified answer");
-        }
-        
-        // 删除关键点
-        keyPointRepository.delete(keyPoint);
     }
 } 

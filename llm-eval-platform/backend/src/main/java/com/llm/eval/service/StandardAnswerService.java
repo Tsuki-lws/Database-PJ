@@ -1,6 +1,5 @@
 package com.llm.eval.service;
 
-import com.llm.eval.model.AnswerKeyPoint;
 import com.llm.eval.model.StandardAnswer;
 
 import java.util.List;
@@ -70,39 +69,4 @@ public interface StandardAnswerService {
      * @param id The ID of the standard answer to delete
      */
     void deleteStandardAnswer(Integer id);
-    
-    /**
-     * Add a key point to a standard answer
-     * 
-     * @param answerId The ID of the standard answer
-     * @param keyPoint The key point to add
-     * @return The created key point
-     */
-    AnswerKeyPoint addKeyPoint(Integer answerId, AnswerKeyPoint keyPoint);
-    
-    /**
-     * Get all key points for a standard answer
-     * 
-     * @param answerId The ID of the standard answer
-     * @return List of key points for the answer
-     */
-    List<AnswerKeyPoint> getKeyPointsByAnswerId(Integer answerId);
-    
-    /**
-     * Update a key point
-     * 
-     * @param answerId The ID of the standard answer
-     * @param keyPointId The ID of the key point to update
-     * @param keyPoint The updated key point
-     * @return The updated key point
-     */
-    AnswerKeyPoint updateKeyPoint(Integer answerId, Integer keyPointId, AnswerKeyPoint keyPoint);
-    
-    /**
-     * Delete a key point
-     * 
-     * @param answerId The ID of the standard answer
-     * @param keyPointId The ID of the key point to delete
-     */
-    void deleteKeyPoint(Integer answerId, Integer keyPointId);
 } 

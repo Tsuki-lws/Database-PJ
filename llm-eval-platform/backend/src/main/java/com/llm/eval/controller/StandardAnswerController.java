@@ -28,13 +28,13 @@ public class StandardAnswerController {
     @GetMapping
     @Operation(summary = "获取所有标准答案")
     public ResponseEntity<List<com.llm.eval.model.StandardAnswer>> getAllAnswers() {
-        return ResponseEntity.ok(answerService.getAllStandardAnswers());
+        return ResponseEntity.ok(answerService.getAllAnswers());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取标准答案")
     public ResponseEntity<com.llm.eval.model.StandardAnswer> getAnswerById(@PathVariable("id") Integer id) {
-        return answerService.getStandardAnswerById(id)
+        return answerService.getAnswerById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -43,14 +43,14 @@ public class StandardAnswerController {
     @Operation(summary = "获取问题的所有标准答案")
     public ResponseEntity<List<com.llm.eval.model.StandardAnswer>> getAnswersByQuestionId(
             @PathVariable("questionId") Integer questionId) {
-        return ResponseEntity.ok(answerService.getStandardAnswersByQuestionId(questionId));
+        return ResponseEntity.ok(answerService.getAnswersByQuestionId(questionId));
     }
 
     @GetMapping("/question/{questionId}/final")
     @Operation(summary = "获取问题的最终标准答案")
     public ResponseEntity<com.llm.eval.model.StandardAnswer> getFinalAnswerByQuestionId(
             @PathVariable("questionId") Integer questionId) {
-        return answerService.getFinalStandardAnswerByQuestionId(questionId)
+        return answerService.getFinalAnswerByQuestionId(questionId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -59,7 +59,7 @@ public class StandardAnswerController {
     @Operation(summary = "创建新标准答案")
     public ResponseEntity<com.llm.eval.model.StandardAnswer> createAnswer(
             @Valid @RequestBody com.llm.eval.model.StandardAnswer answer) {
-        com.llm.eval.model.StandardAnswer createdAnswer = answerService.createStandardAnswer(answer);
+        com.llm.eval.model.StandardAnswer createdAnswer = answerService.createAnswer(answer);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdAnswer);
     }
 
@@ -69,7 +69,7 @@ public class StandardAnswerController {
             @PathVariable("id") Integer id,
             @Valid @RequestBody com.llm.eval.model.StandardAnswer answer) {
         try {
-            com.llm.eval.model.StandardAnswer updatedAnswer = answerService.updateStandardAnswer(id, answer);
+            com.llm.eval.model.StandardAnswer updatedAnswer = answerService.updateAnswer(id, answer);
             return ResponseEntity.ok(updatedAnswer);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
@@ -80,7 +80,7 @@ public class StandardAnswerController {
     @Operation(summary = "删除标准答案")
     public ResponseEntity<Void> deleteAnswer(@PathVariable("id") Integer id) {
         try {
-            answerService.deleteStandardAnswer(id);
+            answerService.deleteAnswer(id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
@@ -91,7 +91,7 @@ public class StandardAnswerController {
     @Operation(summary = "设置为最终标准答案")
     public ResponseEntity<com.llm.eval.model.StandardAnswer> setAsFinalAnswer(@PathVariable("id") Integer id) {
         try {
-            com.llm.eval.model.StandardAnswer finalAnswer = answerService.markAnswerAsFinal(id);
+            com.llm.eval.model.StandardAnswer finalAnswer = answerService.setAsFinalAnswer(id);
             return ResponseEntity.ok(finalAnswer);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

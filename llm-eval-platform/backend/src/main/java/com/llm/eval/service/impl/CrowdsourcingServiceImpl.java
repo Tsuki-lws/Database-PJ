@@ -291,15 +291,12 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
         
         // 创建标准答案
         StandardAnswer standardAnswer = new StandardAnswer();
-        standardAnswer.setStandardQuestion(question);
-        standardAnswer.setAnswer(answer.getContent());
-        standardAnswer.setSourceType(StandardAnswer.SourceType.crowdsourced);
-        standardAnswer.setSourceId(answer.getId());
-        standardAnswer.setSelectionReason("众包答案 #" + answer.getId() + " 提升为标准答案");
+        standardAnswer.setQuestionId(question.getId());
+        standardAnswer.setContent(answer.getContent());
+        standardAnswer.setSource("众包答案 #" + answer.getId());
         standardAnswer.setIsFinal(false);
         standardAnswer.setCreatedAt(LocalDateTime.now());
         standardAnswer.setUpdatedAt(LocalDateTime.now());
-        standardAnswer.setVersion(1);
         
         StandardAnswer savedStandardAnswer = standardAnswerRepository.save(standardAnswer);
         

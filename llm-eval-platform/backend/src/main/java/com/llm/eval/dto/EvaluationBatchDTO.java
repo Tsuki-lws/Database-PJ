@@ -1,4 +1,3 @@
-/*
 package com.llm.eval.dto;
 
 import com.llm.eval.model.EvaluationBatch.EvaluationMethod;
@@ -33,4 +32,3 @@ public class EvaluationBatchDTO {
     private Integer completedQuestions;
     private Double averageScore;
 } 
-*/ 
