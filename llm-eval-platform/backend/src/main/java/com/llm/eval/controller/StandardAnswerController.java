@@ -28,13 +28,13 @@ public class StandardAnswerController {
     @GetMapping
     @Operation(summary = "获取所有标准答案")
     public ResponseEntity<List<com.llm.eval.model.StandardAnswer>> getAllAnswers() {
-        return ResponseEntity.ok(answerService.getAllAnswers());
+        return ResponseEntity.ok(answerService.getAllStandardAnswers());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取标准答案")
     public ResponseEntity<com.llm.eval.model.StandardAnswer> getAnswerById(@PathVariable("id") Integer id) {
-        return answerService.getAnswerById(id)
+        return answerService.getStandardAnswerById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -43,14 +43,14 @@ public class StandardAnswerController {
     @Operation(summary = "获取问题的所有标准答案")
     public ResponseEntity<List<com.llm.eval.model.StandardAnswer>> getAnswersByQuestionId(
             @PathVariable("questionId") Integer questionId) {
-        return ResponseEntity.ok(answerService.getAnswersByQuestionId(questionId));
+        return ResponseEntity.ok(answerService.getStandardAnswersByQuestionId(questionId));
     }
 
     @GetMapping("/question/{questionId}/final")
     @Operation(summary = "获取问题的最终标准答案")
     public ResponseEntity<com.llm.eval.model.StandardAnswer> getFinalAnswerByQuestionId(
             @PathVariable("questionId") Integer questionId) {
-        return answerService.getFinalAnswerByQuestionId(questionId)
+        return answerService.getFinalStandardAnswerByQuestionId(questionId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -59,7 +59,7 @@ public class StandardAnswerController {
     @Operation(summary = "创建新标准答案")
     public ResponseEntity<com.llm.eval.model.StandardAnswer> createAnswer(
             @Valid @RequestBody com.llm.eval.model.StandardAnswer answer) {
-        com.llm.eval.model.StandardAnswer createdAnswer = answerService.createAnswer(answer);
+        com.llm.eval.model.StandardAnswer createdAnswer = answerService.createStandardAnswer(answer);        
         return ResponseEntity.status(HttpStatus.CREATED).body(createdAnswer);
     }
 
@@ -69,7 +69,7 @@ public class StandardAnswerController {
             @PathVariable("id") Integer id,
             @Valid @RequestBody com.llm.eval.model.StandardAnswer answer) {
         try {
-            com.llm.eval.model.StandardAnswer updatedAnswer = answerService.updateAnswer(id, answer);
+            com.llm.eval.model.StandardAnswer updatedAnswer = answerService.updateStandardAnswer(id, answer);
             return ResponseEntity.ok(updatedAnswer);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
@@ -80,7 +80,7 @@ public class StandardAnswerController {
     @Operation(summary = "删除标准答案")
     public ResponseEntity<Void> deleteAnswer(@PathVariable("id") Integer id) {
         try {
-            answerService.deleteAnswer(id);
+            answerService.deleteStandardAnswer(id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
@@ -91,7 +91,7 @@ public class StandardAnswerController {
     @Operation(summary = "设置为最终标准答案")
     public ResponseEntity<com.llm.eval.model.StandardAnswer> setAsFinalAnswer(@PathVariable("id") Integer id) {
         try {
-            com.llm.eval.model.StandardAnswer finalAnswer = answerService.setAsFinalAnswer(id);
+            com.llm.eval.model.StandardAnswer finalAnswer = answerService.markAnswerAsFinal(id);
             return ResponseEntity.ok(finalAnswer);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
@@ -105,8 +105,9 @@ public class StandardAnswerController {
             @PathVariable("id") Integer answerId,
             @Valid @RequestBody com.llm.eval.model.AnswerKeyPoint keyPoint) {
         try {
-            com.llm.eval.model.AnswerKeyPoint createdKeyPoint = answerService.addKeyPoint(answerId, keyPoint);
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdKeyPoint);
+            // 这里需要实现 addKeyPoint 方法，目前接口中没有这个方法
+            // 临时返回 null，需要在服务接口和实现类中添加该方法
+            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
@@ -116,7 +117,9 @@ public class StandardAnswerController {
     @Operation(summary = "获取答案的所有关键点")
     public ResponseEntity<List<com.llm.eval.model.AnswerKeyPoint>> getKeyPointsByAnswerId(
             @PathVariable("id") Integer answerId) {
-        return ResponseEntity.ok(answerService.getKeyPointsByAnswerId(answerId));
+        // 这里需要实现 getKeyPointsByAnswerId 方法，目前接口中没有这个方法
+        // 临时返回空列表，需要在服务接口和实现类中添加该方法
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
     }
     
     @PutMapping("/{id}/key-points/{keyPointId}")
@@ -126,8 +129,9 @@ public class StandardAnswerController {
             @PathVariable("keyPointId") Integer keyPointId,
             @Valid @RequestBody com.llm.eval.model.AnswerKeyPoint keyPoint) {
         try {
-            com.llm.eval.model.AnswerKeyPoint updatedKeyPoint = answerService.updateKeyPoint(answerId, keyPointId, keyPoint);
-            return ResponseEntity.ok(updatedKeyPoint);
+            // 这里需要实现 updateKeyPoint 方法，目前接口中没有这个方法
+            // 临时返回 null，需要在服务接口和实现类中添加该方法
+            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
@@ -139,8 +143,9 @@ public class StandardAnswerController {
             @PathVariable("id") Integer answerId,
             @PathVariable("keyPointId") Integer keyPointId) {
         try {
-            answerService.deleteKeyPoint(answerId, keyPointId);
-            return ResponseEntity.noContent().build();
+            // 这里需要实现 deleteKeyPoint 方法，目前接口中没有这个方法
+            // 需要在服务接口和实现类中添加该方法
+            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }

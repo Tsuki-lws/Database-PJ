@@ -10,7 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/questions")
@@ -27,13 +30,13 @@ public class StandardQuestionController {
     @GetMapping
     @Operation(summary = "获取所有标准问题")
     public ResponseEntity<List<com.llm.eval.model.StandardQuestion>> getAllQuestions() {
-        return ResponseEntity.ok(questionService.getAllQuestions());
+        return ResponseEntity.ok(questionService.getAllStandardQuestions());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取标准问题")
     public ResponseEntity<com.llm.eval.model.StandardQuestion> getQuestionById(@PathVariable("id") Integer id) {
-        return questionService.getQuestionById(id)
+        return questionService.getStandardQuestionById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -42,27 +45,27 @@ public class StandardQuestionController {
     @Operation(summary = "获取特定分类下的问题")
     public ResponseEntity<List<com.llm.eval.model.StandardQuestion>> getQuestionsByCategory(
             @PathVariable("categoryId") Integer categoryId) {
-        return ResponseEntity.ok(questionService.getQuestionsByCategory(categoryId));
+        return ResponseEntity.ok(questionService.getStandardQuestionsByCategoryId(categoryId));
     }
 
     @GetMapping("/tag/{tagId}")
     @Operation(summary = "获取特定标签下的问题")
     public ResponseEntity<List<com.llm.eval.model.StandardQuestion>> getQuestionsByTag(
             @PathVariable("tagId") Integer tagId) {
-        return ResponseEntity.ok(questionService.getQuestionsByTag(tagId));
+        return ResponseEntity.ok(questionService.getStandardQuestionsByTagId(tagId));
     }
 
     @GetMapping("/without-answer")
     @Operation(summary = "获取无标准答案的问题")
     public ResponseEntity<List<com.llm.eval.model.StandardQuestion>> getQuestionsWithoutAnswer() {
-        return ResponseEntity.ok(questionService.getQuestionsWithoutStandardAnswer());
+        return ResponseEntity.ok(questionService.getQuestionsWithoutStandardAnswers());
     }
 
     @PostMapping
     @Operation(summary = "创建新标准问题")
     public ResponseEntity<com.llm.eval.model.StandardQuestion> createQuestion(
             @Valid @RequestBody com.llm.eval.model.StandardQuestion question) {
-        com.llm.eval.model.StandardQuestion createdQuestion = questionService.createQuestion(question);
+        com.llm.eval.model.StandardQuestion createdQuestion = questionService.createStandardQuestion(question);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdQuestion);
     }
 
@@ -72,7 +75,7 @@ public class StandardQuestionController {
             @PathVariable("id") Integer id,
             @Valid @RequestBody com.llm.eval.model.StandardQuestion question) {
         try {
-            com.llm.eval.model.StandardQuestion updatedQuestion = questionService.updateQuestion(id, question);
+            com.llm.eval.model.StandardQuestion updatedQuestion = questionService.updateStandardQuestion(id, question);
             return ResponseEntity.ok(updatedQuestion);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
@@ -83,7 +86,7 @@ public class StandardQuestionController {
     @Operation(summary = "删除标准问题")
     public ResponseEntity<Void> deleteQuestion(@PathVariable("id") Integer id) {
         try {
-            questionService.deleteQuestion(id);
+            questionService.deleteStandardQuestion(id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
@@ -96,7 +99,8 @@ public class StandardQuestionController {
             @PathVariable("id") Integer questionId,
             @PathVariable("tagId") Integer tagId) {
         try {
-            questionService.addTagToQuestion(questionId, tagId);
+            Set<Integer> tagIds = new HashSet<>(Collections.singletonList(tagId));
+            questionService.addTagsToQuestion(questionId, tagIds);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -109,10 +113,11 @@ public class StandardQuestionController {
             @PathVariable("id") Integer questionId,
             @PathVariable("tagId") Integer tagId) {
         try {
-            questionService.removeTagFromQuestion(questionId, tagId);
+            Set<Integer> tagIds = new HashSet<>(Collections.singletonList(tagId));
+            questionService.removeTagsFromQuestion(questionId, tagIds);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
     }
-} 
+}
