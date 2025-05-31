@@ -16,6 +16,7 @@ public class DatasetVersionDTO {
     private String description;
     private LocalDate releaseDate;
     private Boolean isPublished;
+    private Boolean isLatest;
     private Integer questionCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -48,4 +49,4 @@ public class DatasetVersionDTO {
         
         return dto;
     }
-} 
+}

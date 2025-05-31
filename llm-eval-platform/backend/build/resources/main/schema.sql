@@ -1,3 +1,7 @@
+-- 设置字符集
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 -- 原始问题表
 CREATE TABLE raw_questions (
     question_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -44,7 +48,7 @@ CREATE TABLE tags (
     description TEXT
 ) COMMENT='问题标签';
 
--- 用户表（移到前面，确保在引用它的表之前创建）
+-- 用户表（优先创建，被许多表引用）
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
@@ -101,6 +105,24 @@ CREATE TABLE standard_question_tags (
     FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE CASCADE,
     UNIQUE KEY (standard_question_id, tag_id)
 ) COMMENT='问题与标签的多对多关系';
+
+-- 众包任务表（提前创建，解决循环引用问题）
+CREATE TABLE crowdsourcing_tasks (
+    task_id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL COMMENT '任务标题',
+    description TEXT COMMENT '任务描述',
+    task_type ENUM('answer_collection', 'answer_review', 'answer_rating') DEFAULT 'answer_collection' COMMENT '任务类型',
+    creator_id INT NOT NULL COMMENT '创建人ID',
+    question_count INT DEFAULT 0 COMMENT '问题数量',
+    min_answers_per_question INT DEFAULT 1 COMMENT '每个问题最少需要的答案数',
+    reward_info TEXT COMMENT '奖励信息',
+    start_time TIMESTAMP NULL COMMENT '开始时间',
+    end_time TIMESTAMP NULL COMMENT '结束时间',
+    status ENUM('draft', 'ongoing', 'completed', 'cancelled') DEFAULT 'draft',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (creator_id) REFERENCES users(user_id) ON DELETE CASCADE
+) COMMENT='众包任务管理';
 
 -- 众包候选答案表
 CREATE TABLE crowdsourced_answers (
@@ -402,24 +424,6 @@ CREATE TABLE judge_tasks (
     FOREIGN KEY (judge_model_id) REFERENCES llm_models(model_id) ON DELETE CASCADE
 ) COMMENT='裁判模型评测任务';
 
--- 众包任务表
-CREATE TABLE crowdsourcing_tasks (
-    task_id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL COMMENT '任务标题',
-    description TEXT COMMENT '任务描述',
-    task_type ENUM('answer_collection', 'answer_review', 'answer_rating') DEFAULT 'answer_collection' COMMENT '任务类型',
-    creator_id INT NOT NULL COMMENT '创建人ID',
-    question_count INT DEFAULT 0 COMMENT '问题数量',
-    min_answers_per_question INT DEFAULT 1 COMMENT '每个问题最少需要的答案数',
-    reward_info TEXT COMMENT '奖励信息',
-    start_time TIMESTAMP NULL COMMENT '开始时间',
-    end_time TIMESTAMP NULL COMMENT '结束时间',
-    status ENUM('draft', 'ongoing', 'completed', 'cancelled') DEFAULT 'draft',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (creator_id) REFERENCES users(user_id) ON DELETE CASCADE
-) COMMENT='众包任务管理';
-
 -- 众包任务-问题关联表
 CREATE TABLE crowdsourcing_task_questions (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -617,4 +621,4 @@ BEGIN
         version = current_version + 1
     WHERE key_point_id = p_key_point_id;
 END //
-DELIMITER ;
+DELIMITER ; 

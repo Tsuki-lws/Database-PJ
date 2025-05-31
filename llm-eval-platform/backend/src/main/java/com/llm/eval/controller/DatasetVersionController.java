@@ -125,4 +125,58 @@ public class DatasetVersionController {
             return ResponseEntity.badRequest().body(null);
         }
     }
-} 
+
+    // 新增版本管理端点
+
+    @GetMapping("/paged")
+    @Operation(summary = "分页获取数据集版本列表")
+    public ResponseEntity<com.llm.eval.dto.PagedResponseDTO<com.llm.eval.dto.DatasetVersionDTO>> getVersionsPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Boolean isPublished) {
+        try {
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+
+            com.llm.eval.dto.PagedResponseDTO<com.llm.eval.dto.DatasetVersionDTO> result;
+            if (isPublished != null) {
+                result = datasetVersionService.getVersionsByPublishStatus(isPublished, pageable);
+            } else {
+                result = datasetVersionService.getVersionsPaged(pageable);
+            }
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @PostMapping("/{id}/unpublish")
+    @Operation(summary = "取消发布数据集版本")
+    public ResponseEntity<com.llm.eval.model.DatasetVersion> unpublishDatasetVersion(@PathVariable("id") Integer id) {
+        try {
+            com.llm.eval.model.DatasetVersion unpublishedVersion = datasetVersionService.unpublishDatasetVersion(id);
+            return ResponseEntity.ok(unpublishedVersion);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/latest-published")
+    @Operation(summary = "获取最新发布的版本")
+    public ResponseEntity<com.llm.eval.dto.DatasetVersionDTO> getLatestPublishedVersion() {
+        try {
+            com.llm.eval.dto.DatasetVersionDTO versionDTO = datasetVersionService.getLatestPublishedVersion();
+            return ResponseEntity.ok(versionDTO);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/check-name")
+    @Operation(summary = "检查版本名称是否已存在")
+    public ResponseEntity<java.util.Map<String, Object>> checkVersionName(@RequestParam String name) {
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("exists", datasetVersionService.isVersionNameExists(name));
+        return ResponseEntity.ok(response);
+    }
+}

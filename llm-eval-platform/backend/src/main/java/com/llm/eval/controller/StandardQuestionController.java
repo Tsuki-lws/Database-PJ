@@ -1,10 +1,17 @@
 package com.llm.eval.controller;
 
+import com.llm.eval.dto.PagedResponseDTO;
+import com.llm.eval.dto.StandardQuestionWithoutAnswerDTO;
 import com.llm.eval.model.StandardQuestion;
 import com.llm.eval.service.StandardQuestionService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -53,12 +60,44 @@ public class StandardQuestionController {
     public ResponseEntity<List<com.llm.eval.model.StandardQuestion>> getQuestionsByTag(
             @PathVariable("tagId") Integer tagId) {
         return ResponseEntity.ok(questionService.getStandardQuestionsByTagId(tagId));
-    }
-
-    @GetMapping("/without-answer")
+    }    @GetMapping("/without-answer")
     @Operation(summary = "获取无标准答案的问题")
-    public ResponseEntity<List<com.llm.eval.model.StandardQuestion>> getQuestionsWithoutAnswer() {
+    public ResponseEntity<List<StandardQuestion>> getQuestionsWithoutAnswer() {
         return ResponseEntity.ok(questionService.getQuestionsWithoutStandardAnswers());
+    }
+    
+    @GetMapping("/without-answer/paged")
+    @Operation(summary = "分页获取无标准答案的问题")
+    public ResponseEntity<PagedResponseDTO<StandardQuestionWithoutAnswerDTO>> getQuestionsWithoutAnswerPaged(
+            @Parameter(description = "页码（从1开始）") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "分类ID") @RequestParam(required = false) Integer categoryId,
+            @Parameter(description = "问题类型") @RequestParam(required = false) StandardQuestion.QuestionType questionType,
+            @Parameter(description = "难度级别") @RequestParam(required = false) StandardQuestion.DifficultyLevel difficulty,
+            @Parameter(description = "排序字段") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "排序方向") @RequestParam(defaultValue = "desc") String sortDir) {
+        
+        // 创建排序对象
+        Sort sort = Sort.by(sortDir.equalsIgnoreCase("desc") ? 
+                Sort.Direction.DESC : Sort.Direction.ASC, sortBy);
+        
+        // 创建分页对象 (Spring分页从0开始)
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+        
+        // 获取分页数据
+        Page<StandardQuestion> questionPage = questionService.getQuestionsWithoutStandardAnswersWithFilters(
+                categoryId, questionType, difficulty, pageable);
+        
+        // 转换为DTO
+        List<StandardQuestionWithoutAnswerDTO> dtoList = questionPage.getContent().stream()
+                .map(StandardQuestionWithoutAnswerDTO::fromEntity)
+                .toList();
+        
+        // 构建响应
+        PagedResponseDTO<StandardQuestionWithoutAnswerDTO> response = 
+                PagedResponseDTO.fromPageWithMapper(questionPage, dtoList);
+        
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping

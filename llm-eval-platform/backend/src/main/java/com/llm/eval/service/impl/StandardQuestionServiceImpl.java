@@ -7,6 +7,8 @@ import com.llm.eval.repository.TagRepository;
 import com.llm.eval.service.StandardQuestionService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,10 +52,24 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {
     public List<StandardQuestion> getStandardQuestionsByTagId(Integer tagId) {
         return standardQuestionRepository.findByTagId(tagId);
     }
-    
-    @Override
+      @Override
     public List<StandardQuestion> getQuestionsWithoutStandardAnswers() {
         return standardQuestionRepository.findWithoutStandardAnswers();
+    }
+    
+    @Override
+    public Page<StandardQuestion> getQuestionsWithoutStandardAnswers(Pageable pageable) {
+        return standardQuestionRepository.findWithoutStandardAnswers(pageable);
+    }
+    
+    @Override
+    public Page<StandardQuestion> getQuestionsWithoutStandardAnswersWithFilters(
+            Integer categoryId,
+            StandardQuestion.QuestionType questionType,
+            StandardQuestion.DifficultyLevel difficulty,
+            Pageable pageable) {
+        return standardQuestionRepository.findWithoutStandardAnswersWithFilters(
+                categoryId, questionType, difficulty, pageable);
     }
     
     @Override

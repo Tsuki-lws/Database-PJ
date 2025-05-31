@@ -2,11 +2,15 @@ package com.llm.eval.service.impl;
 
 import com.llm.eval.model.DatasetVersion;
 import com.llm.eval.model.StandardQuestion;
+import com.llm.eval.dto.DatasetVersionDTO;
+import com.llm.eval.dto.PagedResponseDTO;
 import com.llm.eval.repository.DatasetVersionRepository;
 import com.llm.eval.repository.StandardQuestionRepository;
 import com.llm.eval.service.DatasetVersionService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -176,4 +180,113 @@ public class DatasetVersionServiceImpl implements DatasetVersionService {
     public void deleteDatasetVersion(Integer id) {
         datasetVersionRepository.deleteById(id);
     }
-} 
+    
+    // 添加缺少的版本管理方法
+    
+    @Override
+    @Transactional
+    public DatasetVersion unpublishDatasetVersion(Integer id) {
+        DatasetVersion version = datasetVersionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Dataset version not found with id: " + id));
+        
+        version.setIsPublished(false);
+        version.setUpdatedAt(LocalDateTime.now());
+        
+        return datasetVersionRepository.save(version);
+    }
+    
+    @Override
+    public PagedResponseDTO<DatasetVersionDTO> getVersionsPaged(Pageable pageable) {
+        Page<DatasetVersion> page = datasetVersionRepository.findAll(pageable);
+        List<DatasetVersionDTO> dtos = page.getContent().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        return PagedResponseDTO.fromPageWithMapper(page, dtos);
+    }
+    
+    @Override
+    public PagedResponseDTO<DatasetVersionDTO> getVersionsByPublishStatus(Boolean isPublished, Pageable pageable) {
+        Page<DatasetVersion> page = datasetVersionRepository.findByIsPublished(isPublished, pageable);
+        List<DatasetVersionDTO> dtos = page.getContent().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        return PagedResponseDTO.fromPageWithMapper(page, dtos);
+    }
+    
+    @Override
+    public DatasetVersionDTO getVersionDTOById(Integer versionId) {
+        DatasetVersion version = datasetVersionRepository.findById(versionId)
+                .orElseThrow(() -> new EntityNotFoundException("Dataset version not found with id: " + versionId));
+        return convertToDTO(version);
+    }
+    
+    @Override
+    @Transactional
+    public DatasetVersionDTO createVersionEnhanced(String name, String description, List<Integer> questionIds, Integer baseVersionId) {
+        // 检查版本名称是否已存在
+        if (isVersionNameExists(name)) {
+            throw new IllegalArgumentException("Version name already exists: " + name);
+        }
+        
+        // 创建新版本
+        DatasetVersion newVersion = new DatasetVersion();
+        newVersion.setName(name);
+        newVersion.setDescription(description);
+        newVersion.setCreatedAt(LocalDateTime.now());
+        newVersion.setUpdatedAt(LocalDateTime.now());
+        newVersion.setIsPublished(false);
+          // 如果指定了基础版本，复制其信息
+        if (baseVersionId != null) {
+            DatasetVersion baseVersion = datasetVersionRepository.findById(baseVersionId)
+                    .orElseThrow(() -> new EntityNotFoundException("Base version not found with id: " + baseVersionId));
+            // 由于DatasetVersion没有version字段，我们可以在描述中说明这是基于其他版本的
+            if (description == null || description.isEmpty()) {
+                newVersion.setDescription("Based on version: " + baseVersion.getName());
+            }
+        }
+        
+        // 保存版本
+        newVersion = datasetVersionRepository.save(newVersion);
+        
+        // 添加问题
+        if (questionIds != null && !questionIds.isEmpty()) {
+            Set<Integer> questionIdSet = new HashSet<>(questionIds);
+            newVersion = addQuestionsToDatasetVersion(newVersion.getVersionId(), questionIdSet);
+        }
+        
+        return convertToDTO(newVersion);
+    }
+    
+    @Override
+    public boolean isVersionNameExists(String name) {
+        return datasetVersionRepository.existsByName(name);
+    }
+    
+    @Override
+    public DatasetVersionDTO getLatestPublishedVersion() {
+        List<DatasetVersion> publishedVersions = datasetVersionRepository.findByIsPublishedTrueOrderByCreatedAtDesc();
+        if (publishedVersions.isEmpty()) {
+            return null;
+        }
+        return convertToDTO(publishedVersions.get(0));
+    }    // 辅助方法：转换为DTO
+    private DatasetVersionDTO convertToDTO(DatasetVersion version) {
+        DatasetVersionDTO dto = new DatasetVersionDTO();
+        dto.setVersionId(version.getVersionId());
+        dto.setName(version.getName());
+        dto.setDescription(version.getDescription());
+        dto.setReleaseDate(version.getReleaseDate());
+        dto.setCreatedAt(version.getCreatedAt());
+        dto.setUpdatedAt(version.getUpdatedAt());
+        dto.setQuestionCount(version.getQuestionCount());
+        dto.setIsPublished(version.getIsPublished());
+        dto.setIsLatest(isLatestVersion(version));
+        return dto;
+    }
+    
+    // 辅助方法：判断是否为最新版本
+    private boolean isLatestVersion(DatasetVersion version) {
+        List<DatasetVersion> allVersions = datasetVersionRepository.findAllByOrderByCreatedAtDesc();
+        return !allVersions.isEmpty() && allVersions.get(0).getVersionId().equals(version.getVersionId());
+    }
+}

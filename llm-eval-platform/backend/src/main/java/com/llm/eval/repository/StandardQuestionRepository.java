@@ -1,8 +1,11 @@
 package com.llm.eval.repository;
 
 import com.llm.eval.model.StandardQuestion;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -27,6 +30,10 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
            "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true)")
     List<StandardQuestion> findWithoutStandardAnswers();
     
+    @Query("SELECT sq FROM StandardQuestion sq WHERE sq.standardQuestionId NOT IN " +
+           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true)")
+    Page<StandardQuestion> findWithoutStandardAnswers(Pageable pageable);
+    
     @Query("SELECT COUNT(sq) FROM StandardQuestion sq WHERE sq.standardQuestionId NOT IN " +
            "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true)")
     long countWithoutStandardAnswers();
@@ -46,4 +53,31 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
            "((:sourceQuestionId IS NULL AND sq.sourceQuestion IS NULL) OR " +
            "(sq.sourceQuestion.questionId = :sourceQuestionId))")
     Optional<StandardQuestion> findByQuestionAndSourceQuestionId(String question, Integer sourceQuestionId);
+    
+    /**
+     * 分页查询没有标准答案的问题，支持按分类、类型、难度过滤
+     */
+    @Query("SELECT sq FROM StandardQuestion sq WHERE sq.standardQuestionId NOT IN " +
+           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true) " +
+           "AND (:categoryId IS NULL OR sq.category.categoryId = :categoryId) " +
+           "AND (:questionType IS NULL OR sq.questionType = :questionType) " +
+           "AND (:difficulty IS NULL OR sq.difficulty = :difficulty)")
+    Page<StandardQuestion> findWithoutStandardAnswersWithFilters(
+            @Param("categoryId") Integer categoryId,
+            @Param("questionType") StandardQuestion.QuestionType questionType,
+            @Param("difficulty") StandardQuestion.DifficultyLevel difficulty,
+            Pageable pageable);
+    
+    /**
+     * 统计没有标准答案的问题数量，支持按分类、类型、难度过滤
+     */
+    @Query("SELECT COUNT(sq) FROM StandardQuestion sq WHERE sq.standardQuestionId NOT IN " +
+           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true) " +
+           "AND (:categoryId IS NULL OR sq.category.categoryId = :categoryId) " +
+           "AND (:questionType IS NULL OR sq.questionType = :questionType) " +
+           "AND (:difficulty IS NULL OR sq.difficulty = :difficulty)")
+    long countWithoutStandardAnswersWithFilters(
+            @Param("categoryId") Integer categoryId,
+            @Param("questionType") StandardQuestion.QuestionType questionType,
+            @Param("difficulty") StandardQuestion.DifficultyLevel difficulty);
 } 

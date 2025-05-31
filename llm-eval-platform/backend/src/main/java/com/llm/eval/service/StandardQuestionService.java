@@ -1,6 +1,8 @@
 package com.llm.eval.service;
 
 import com.llm.eval.model.StandardQuestion;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,13 +40,34 @@ public interface StandardQuestionService {
      * @return List of standard questions with the tag
      */
     List<StandardQuestion> getStandardQuestionsByTagId(Integer tagId);
-    
-    /**
+      /**
      * Get standard questions without a standard answer
      * 
      * @return List of standard questions without a standard answer
      */
     List<StandardQuestion> getQuestionsWithoutStandardAnswers();
+    
+    /**
+     * Get standard questions without a standard answer with pagination
+     * 
+     * @param pageable 分页参数
+     * @return Page of standard questions without a standard answer
+     */
+    Page<StandardQuestion> getQuestionsWithoutStandardAnswers(Pageable pageable);
+      /**
+     * Get standard questions without a standard answer with pagination and filters
+     * 
+     * @param categoryId 分类ID (可选)
+     * @param questionType 问题类型 (可选)
+     * @param difficulty 难度级别 (可选)
+     * @param pageable 分页参数
+     * @return Page of standard questions without a standard answer
+     */
+    Page<StandardQuestion> getQuestionsWithoutStandardAnswersWithFilters(
+            Integer categoryId,
+            StandardQuestion.QuestionType questionType,
+            StandardQuestion.DifficultyLevel difficulty,
+            Pageable pageable);
     
     /**
      * Create a new standard question

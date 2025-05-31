@@ -428,4 +428,353 @@ Content-Type: multipart/form-data
   "failedCount": 0,
   "totalCount": 20
 }
-``` 
+```
+
+## 标准问题查询模块扩展接口
+
+### 1. 分页查询无标准答案的问题
+
+```
+GET /api/questions/without-answer/paged
+```
+
+**请求参数：**
+
+- `page` (int, optional): 页码，从0开始，默认为0
+- `size` (int, optional): 每页大小，默认为10
+- `categoryId` (Long, optional): 分类ID过滤
+- `questionType` (String, optional): 问题类型过滤
+- `difficulty` (String, optional): 难度级别过滤
+
+**示例请求：**
+```
+GET /api/questions/without-answer/paged?page=0&size=20&categoryId=1&difficulty=MEDIUM
+```
+
+**响应：**
+
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "questionTitle": "如何优化数据库查询性能？",
+      "questionBody": "在处理大量数据时，如何有效优化数据库查询性能？",
+      "categoryId": 1,
+      "categoryName": "数据库",
+      "questionType": "技术问题",
+      "difficulty": "MEDIUM",
+      "createTime": "2024-01-15T10:30:00",
+      "updateTime": "2024-01-15T10:30:00",
+      "tags": ["数据库", "性能优化", "SQL"],
+      "sourceInfo": {
+        "source": "stackoverflow",
+        "sourceId": 123,
+        "sourceUrl": "https://stackoverflow.com/questions/123"
+      }
+    }
+  ],
+  "page": {
+    "number": 0,
+    "size": 20,
+    "totalElements": 150,
+    "totalPages": 8,
+    "first": true,
+    "last": false,
+    "numberOfElements": 20
+  }
+}
+```
+
+### 2. 获取无标准答案问题统计详情
+
+```
+GET /api/stats/without-standard-answer/details
+```
+
+**请求参数：**
+
+- `page` (int, optional): 页码，从0开始，默认为0
+- `size` (int, optional): 每页大小，默认为10
+- `categoryId` (Long, optional): 分类ID过滤
+- `questionType` (String, optional): 问题类型过滤
+- `difficulty` (String, optional): 难度级别过滤
+
+**示例请求：**
+```
+GET /api/stats/without-standard-answer/details?page=0&size=15&categoryId=2
+```
+
+**响应：**
+
+```json
+{
+  "summary": {
+    "totalCount": 150,
+    "filteredCount": 75
+  },
+  "questions": {
+    "content": [
+      {
+        "id": 5,
+        "questionTitle": "Spring Boot自动配置原理",
+        "questionBody": "请解释Spring Boot的自动配置是如何工作的？",
+        "categoryId": 2,
+        "categoryName": "Java框架",
+        "questionType": "概念理解",
+        "difficulty": "HARD",
+        "createTime": "2024-01-20T14:15:00",
+        "updateTime": "2024-01-20T14:15:00",
+        "tags": ["Spring Boot", "自动配置", "框架"],
+        "sourceInfo": {
+          "source": "github",
+          "sourceId": 456,
+          "sourceUrl": "https://github.com/issues/456"
+        }
+      }
+    ],
+    "page": {
+      "number": 0,
+      "size": 15,
+      "totalElements": 75,
+      "totalPages": 5,
+      "first": true,
+      "last": false,
+      "numberOfElements": 15
+    }
+  }
+}
+```
+
+## 版本管理模块接口
+
+### 1. 创建数据集版本
+
+```
+POST /api/dataset-versions
+```
+
+**请求参数：**
+
+```json
+{
+  "datasetId": 1,
+  "versionName": "v1.0.0",
+  "description": "初始版本，包含基础问题集",
+  "questionIds": [1, 2, 3, 4, 5],
+  "baseVersionId": null
+}
+```
+
+**响应：**
+
+```json
+{
+  "success": true,
+  "message": "数据集版本创建成功",
+  "versionId": 10,
+  "versionInfo": {
+    "id": 10,
+    "datasetId": 1,
+    "versionName": "v1.0.0",
+    "description": "初始版本，包含基础问题集",
+    "questionCount": 5,
+    "createTime": "2024-01-25T09:00:00",
+    "status": "ACTIVE"
+  }
+}
+```
+
+### 2. 获取数据集版本列表
+
+```
+GET /api/dataset-versions/{datasetId}
+```
+
+**路径参数：**
+- `datasetId` (Long): 数据集ID
+
+**请求参数：**
+- `page` (int, optional): 页码，默认为0
+- `size` (int, optional): 每页大小，默认为10
+
+**响应：**
+
+```json
+{
+  "content": [
+    {
+      "id": 10,
+      "versionName": "v1.0.0",
+      "description": "初始版本，包含基础问题集",
+      "questionCount": 5,
+      "createTime": "2024-01-25T09:00:00",
+      "status": "ACTIVE",
+      "isLatest": true
+    },
+    {
+      "id": 11,
+      "versionName": "v1.1.0",
+      "description": "添加了高难度问题",
+      "questionCount": 8,
+      "createTime": "2024-01-26T10:30:00",
+      "status": "ACTIVE",
+      "isLatest": false
+    }
+  ],
+  "page": {
+    "number": 0,
+    "size": 10,
+    "totalElements": 2,
+    "totalPages": 1,
+    "first": true,
+    "last": true,
+    "numberOfElements": 2
+  }
+}
+```
+
+### 3. 创建标准问题版本
+
+```
+POST /api/standard-questions/{questionId}/versions
+```
+
+**路径参数：**
+- `questionId` (Long): 标准问题ID
+
+**请求参数：**
+
+```json
+{
+  "versionName": "v2.0",
+  "changeReason": "更新了问题描述，增加了更多细节",
+  "questionTitle": "如何优化数据库查询性能？（更新版）",
+  "questionBody": "在处理大量数据时，如何有效优化数据库查询性能？请提供具体的优化策略和工具。",
+  "standardAnswer": "数据库查询性能优化可以从以下几个方面入手：1. 索引优化 2. 查询语句优化 3. 数据库配置调优...",
+  "referenceAnswers": ["参考答案1", "参考答案2"]
+}
+```
+
+**响应：**
+
+```json
+{
+  "success": true,
+  "message": "标准问题版本创建成功",
+  "versionId": 25,
+  "versionInfo": {
+    "id": 25,
+    "questionId": 1,
+    "versionName": "v2.0",
+    "changeReason": "更新了问题描述，增加了更多细节",
+    "createTime": "2024-01-25T11:15:00",
+    "status": "ACTIVE",
+    "isLatest": true
+  }
+}
+```
+
+### 4. 获取标准问题版本历史
+
+```
+GET /api/standard-questions/{questionId}/versions
+```
+
+**路径参数：**
+- `questionId` (Long): 标准问题ID
+
+**响应：**
+
+```json
+{
+  "questionId": 1,
+  "currentVersion": "v2.0",
+  "versions": [
+    {
+      "id": 24,
+      "versionName": "v1.0",
+      "changeReason": "初始版本",
+      "createTime": "2024-01-20T09:00:00",
+      "status": "ARCHIVED",
+      "isLatest": false
+    },
+    {
+      "id": 25,
+      "versionName": "v2.0",
+      "changeReason": "更新了问题描述，增加了更多细节",
+      "createTime": "2024-01-25T11:15:00",
+      "status": "ACTIVE",
+      "isLatest": true
+    }
+  ]
+}
+```
+
+### 5. 比较标准问题版本差异
+
+```
+GET /api/standard-questions/versions/compare
+```
+
+**请求参数：**
+- `fromVersionId` (Long): 源版本ID
+- `toVersionId` (Long): 目标版本ID
+
+**响应：**
+
+```json
+{
+  "comparison": {
+    "fromVersion": {
+      "id": 24,
+      "versionName": "v1.0",
+      "createTime": "2024-01-20T09:00:00"
+    },
+    "toVersion": {
+      "id": 25,
+      "versionName": "v2.0",
+      "createTime": "2024-01-25T11:15:00"
+    },
+    "differences": {
+      "questionTitle": {
+        "changed": true,
+        "oldValue": "如何优化数据库查询性能？",
+        "newValue": "如何优化数据库查询性能？（更新版）"
+      },
+      "questionBody": {
+        "changed": true,
+        "oldValue": "在处理大量数据时，如何有效优化数据库查询性能？",
+        "newValue": "在处理大量数据时，如何有效优化数据库查询性能？请提供具体的优化策略和工具。"
+      },
+      "standardAnswer": {
+        "changed": true,
+        "oldValue": "数据库查询性能优化主要包括索引优化...",
+        "newValue": "数据库查询性能优化可以从以下几个方面入手：1. 索引优化 2. 查询语句优化 3. 数据库配置调优..."
+      }
+    }
+  }
+}
+```
+
+## 错误响应格式
+
+所有接口在出现错误时返回统一格式：
+
+```json
+{
+  "success": false,
+  "message": "错误描述",
+  "errorCode": "ERROR_CODE",
+  "timestamp": "2024-01-25T12:00:00",
+  "path": "/api/questions/without-answer/paged"
+}
+```
+
+**常见错误码：**
+
+- `INVALID_PARAMETER`: 请求参数无效
+- `RESOURCE_NOT_FOUND`: 资源不存在
+- `VERSION_CONFLICT`: 版本冲突
+- `PAGINATION_ERROR`: 分页参数错误
+- `FILTER_ERROR`: 过滤条件错误
