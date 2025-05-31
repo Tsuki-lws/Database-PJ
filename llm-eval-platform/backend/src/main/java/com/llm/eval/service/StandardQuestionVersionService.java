@@ -11,8 +11,7 @@ import java.util.List;
  * 标准问题版本管理服务接口
  */
 public interface StandardQuestionVersionService {
-    
-    /**
+      /**
      * 创建标准问题的新版本
      * @param questionId 标准问题ID
      * @param versionName 版本名称
@@ -24,17 +23,17 @@ public interface StandardQuestionVersionService {
      * @param changedBy 修改人ID
      * @return 创建的版本信息
      */
-    StandardQuestionVersionDTO createQuestionVersion(Long questionId, String versionName, String changeReason, 
+    StandardQuestionVersionDTO createQuestionVersion(Integer questionId, String versionName, String changeReason, 
                                                    String questionTitle, String questionBody, 
                                                    String standardAnswer, List<String> referenceAnswers, 
-                                                   Long changedBy);
+                                                   Integer changedBy);
     
     /**
      * 获取标准问题的版本历史
      * @param questionId 标准问题ID
      * @return 版本历史列表
      */
-    List<StandardQuestionVersionDTO> getQuestionVersionHistory(Long questionId);
+    List<StandardQuestionVersionDTO> getQuestionVersionHistory(Integer questionId);
     
     /**
      * 获取标准问题的版本历史（分页）
@@ -42,21 +41,21 @@ public interface StandardQuestionVersionService {
      * @param pageable 分页参数
      * @return 分页的版本历史
      */
-    PagedResponseDTO<StandardQuestionVersionDTO> getQuestionVersionHistoryPaged(Long questionId, Pageable pageable);
+    PagedResponseDTO<StandardQuestionVersionDTO> getQuestionVersionHistoryPaged(Integer questionId, Pageable pageable);
     
     /**
      * 根据版本ID获取版本详情
      * @param versionId 版本ID
      * @return 版本详情
      */
-    StandardQuestionVersionDTO getVersionById(Long versionId);
+    StandardQuestionVersionDTO getVersionById(Integer versionId);
     
     /**
      * 获取标准问题的最新版本
      * @param questionId 标准问题ID
      * @return 最新版本信息
      */
-    StandardQuestionVersionDTO getLatestVersion(Long questionId);
+    StandardQuestionVersionDTO getLatestVersion(Integer questionId);
     
     /**
      * 比较两个版本的差异
@@ -64,28 +63,27 @@ public interface StandardQuestionVersionService {
      * @param toVersionId 目标版本ID
      * @return 版本比较结果
      */
-    VersionComparisonDTO compareVersions(Long fromVersionId, Long toVersionId);
+    VersionComparisonDTO compareVersions(Integer fromVersionId, Integer toVersionId);
     
     /**
      * 获取下一个版本号
      * @param questionId 标准问题ID
      * @return 下一个版本号
      */
-    Integer getNextVersionNumber(Long questionId);
-    
-    /**
+    Integer getNextVersionNumber(Integer questionId);
+      /**
      * 统计标准问题的版本数量
      * @param questionId 标准问题ID
      * @return 版本数量
      */
-    Long countVersionsByQuestionId(Long questionId);
+    long countVersionsByQuestionId(Integer questionId);
     
     /**
      * 根据修改人获取版本列表
      * @param changedBy 修改人ID
      * @return 版本列表
      */
-    List<StandardQuestionVersionDTO> getVersionsByChangedBy(Long changedBy);
+    List<StandardQuestionVersionDTO> getVersionsByChangedBy(Integer changedBy);
     
     /**
      * 获取指定时间范围内的版本
@@ -104,12 +102,12 @@ public interface StandardQuestionVersionService {
      * @param changedBy 操作人ID
      * @return 新创建的版本信息
      */
-    StandardQuestionVersionDTO rollbackToVersion(Long questionId, Long targetVersionId, 
-                                                String changeReason, Long changedBy);
+    StandardQuestionVersionDTO rollbackToVersion(Integer questionId, Integer targetVersionId, 
+                                                String changeReason, Integer changedBy);
     
     /**
      * 删除版本（软删除）
      * @param versionId 版本ID
      */
-    void deleteVersion(Long versionId);
+    void deleteVersion(Integer versionId);
 }

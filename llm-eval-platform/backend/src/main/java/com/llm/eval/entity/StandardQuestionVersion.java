@@ -10,20 +10,19 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "standard_question_versions")
 public class StandardQuestionVersion {
-    
-    @Id
+      @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "version_id")
-    private Long versionId;
+    private Integer versionId;
     
     @Column(name = "standard_question_id", nullable = false)
-    private Long standardQuestionId;
+    private Integer standardQuestionId;
     
     @Column(name = "question", nullable = false, columnDefinition = "TEXT")
     private String question;
     
     @Column(name = "category_id")
-    private Long categoryId;
+    private Integer categoryId;
       @Enumerated(EnumType.STRING)
     @Column(name = "question_type")
     private StandardQuestion.QuestionType questionType;
@@ -34,9 +33,8 @@ public class StandardQuestionVersion {
     
     @Column(name = "version", nullable = false)
     private Integer version;
-    
-    @Column(name = "changed_by")
-    private Long changedBy;
+      @Column(name = "changed_by")
+    private Integer changedBy;
     
     @Column(name = "change_reason", columnDefinition = "TEXT")
     private String changeReason;
@@ -65,26 +63,23 @@ public class StandardQuestionVersion {
     
     // Constructors
     public StandardQuestionVersion() {}
-    
-    public StandardQuestionVersion(Long standardQuestionId, String question, Integer version, String changeReason) {
+      public StandardQuestionVersion(Integer standardQuestionId, String question, Integer version, String changeReason) {
         this.standardQuestionId = standardQuestionId;
         this.question = question;
         this.version = version;
         this.changeReason = changeReason;
     }
+      // Getters and Setters
+    public Integer getVersionId() { return versionId; }
+    public void setVersionId(Integer versionId) { this.versionId = versionId; }
     
-    // Getters and Setters
-    public Long getVersionId() { return versionId; }
-    public void setVersionId(Long versionId) { this.versionId = versionId; }
-    
-    public Long getStandardQuestionId() { return standardQuestionId; }
-    public void setStandardQuestionId(Long standardQuestionId) { this.standardQuestionId = standardQuestionId; }
+    public Integer getStandardQuestionId() { return standardQuestionId; }
+    public void setStandardQuestionId(Integer standardQuestionId) { this.standardQuestionId = standardQuestionId; }
     
     public String getQuestion() { return question; }
     public void setQuestion(String question) { this.question = question; }
-    
-    public Long getCategoryId() { return categoryId; }
-    public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
+      public Integer getCategoryId() { return categoryId; }
+    public void setCategoryId(Integer categoryId) { this.categoryId = categoryId; }
       public StandardQuestion.QuestionType getQuestionType() { return questionType; }
     public void setQuestionType(StandardQuestion.QuestionType questionType) { this.questionType = questionType; }
     
@@ -93,9 +88,8 @@ public class StandardQuestionVersion {
     
     public Integer getVersion() { return version; }
     public void setVersion(Integer version) { this.version = version; }
-    
-    public Long getChangedBy() { return changedBy; }
-    public void setChangedBy(Long changedBy) { this.changedBy = changedBy; }
+      public Integer getChangedBy() { return changedBy; }
+    public void setChangedBy(Integer changedBy) { this.changedBy = changedBy; }
     
     public String getChangeReason() { return changeReason; }
     public void setChangeReason(String changeReason) { this.changeReason = changeReason; }

@@ -33,12 +33,11 @@ public interface DatasetQuestionMappingRepository extends JpaRepository<DatasetQ
      * 检查版本中是否包含特定问题
      */
     boolean existsByVersionIdAndStandardQuestionId(Integer versionId, Integer standardQuestionId);
-    
-    /**
+      /**
      * 统计版本中的问题数量
      */
     @Query("SELECT COUNT(dqm) FROM DatasetQuestionMapping dqm WHERE dqm.versionId = :versionId")
-    Long countQuestionsByVersionId(@Param("versionId") Integer versionId);
+    long countQuestionsByVersionId(@Param("versionId") Integer versionId);
     
     /**
      * 获取版本中的所有问题ID

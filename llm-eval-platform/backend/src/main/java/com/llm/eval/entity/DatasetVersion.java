@@ -10,11 +10,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "dataset_versions")
 public class DatasetVersion {
-    
-    @Id
+      @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "version_id")
-    private Long versionId;
+    private Integer versionId;
     
     @Column(name = "name", nullable = false, length = 100)
     private String name;
@@ -55,10 +54,9 @@ public class DatasetVersion {
         this.name = name;
         this.description = description;
     }
-    
-    // Getters and Setters
-    public Long getVersionId() { return versionId; }
-    public void setVersionId(Long versionId) { this.versionId = versionId; }
+      // Getters and Setters
+    public Integer getVersionId() { return versionId; }
+    public void setVersionId(Integer versionId) { this.versionId = versionId; }
     
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

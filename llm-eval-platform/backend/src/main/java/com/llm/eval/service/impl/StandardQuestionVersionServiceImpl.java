@@ -34,22 +34,40 @@ public class StandardQuestionVersionServiceImpl implements StandardQuestionVersi
     private StandardQuestionRepository questionRepository;
     
     @Override
-    public StandardQuestionVersionDTO createQuestionVersion(Long questionId, String versionName, String changeReason,
+    public StandardQuestionVersionDTO createQuestionVersion(Integer questionId, String versionName, String changeReason,
                                                           String questionTitle, String questionBody,
                                                           String standardAnswer, List<String> referenceAnswers,
-                                                          Long changedBy) {
+                                                          Integer changedBy) {
+        // 参数验证
+        if (questionId == null) {
+            throw new IllegalArgumentException("问题ID不能为空");
+        }
+        
+        if (questionBody == null || questionBody.trim().isEmpty()) {
+            throw new IllegalArgumentException("问题内容不能为空");
+        }
+        
+        if (changedBy == null) {
+            throw new IllegalArgumentException("修改人ID不能为空");
+        }
+        
         // 获取下一个版本号
         Integer nextVersion = getNextVersionNumber(questionId);
-          // 创建新版本记录
+        
+        // 创建新版本记录
         StandardQuestionVersion version = new StandardQuestionVersion();
-        version.setStandardQuestionId(questionId.intValue());
+        version.setStandardQuestionId(questionId);
         version.setQuestion(questionBody);
         version.setVersion(nextVersion);
         version.setChangeReason(changeReason);
-        version.setChangedBy(changedBy.intValue());// 获取标准问题信息以设置其他字段
-        StandardQuestion question = questionRepository.findById(questionId.intValue())
+        version.setChangedBy(changedBy);
+        version.setCreatedAt(LocalDateTime.now());
+        
+        // 获取标准问题信息以设置其他字段
+        StandardQuestion question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new RuntimeException("标准问题不存在: " + questionId));
-          // 设置类别ID - 从category对象中获取
+        
+        // 设置类别ID - 从category对象中获取
         if (question.getCategory() != null) {
             version.setCategoryId(question.getCategory().getCategoryId());
         }
@@ -60,14 +78,13 @@ public class StandardQuestionVersionServiceImpl implements StandardQuestionVersi
         
         // 更新标准问题的当前内容
         question.setQuestion(questionBody);
-        // 更新标准答案等...
         questionRepository.save(question);
         
         return convertToDTO(savedVersion);
     }
     
     @Override
-    public List<StandardQuestionVersionDTO> getQuestionVersionHistory(Long questionId) {
+    public List<StandardQuestionVersionDTO> getQuestionVersionHistory(Integer questionId) {
         List<StandardQuestionVersion> versions = versionRepository
                 .findByStandardQuestionIdOrderByVersionDesc(questionId);
         return versions.stream()
@@ -76,10 +93,11 @@ public class StandardQuestionVersionServiceImpl implements StandardQuestionVersi
     }
     
     @Override
-    public PagedResponseDTO<StandardQuestionVersionDTO> getQuestionVersionHistoryPaged(Long questionId, Pageable pageable) {
+    public PagedResponseDTO<StandardQuestionVersionDTO> getQuestionVersionHistoryPaged(Integer questionId, Pageable pageable) {
         Page<StandardQuestionVersion> versionsPage = versionRepository
                 .findByStandardQuestionIdOrderByVersionDesc(questionId, pageable);
-          List<StandardQuestionVersionDTO> versionDTOs = versionsPage.getContent().stream()
+        
+        List<StandardQuestionVersionDTO> versionDTOs = versionsPage.getContent().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
         
@@ -87,14 +105,14 @@ public class StandardQuestionVersionServiceImpl implements StandardQuestionVersi
     }
     
     @Override
-    public StandardQuestionVersionDTO getVersionById(Long versionId) {
+    public StandardQuestionVersionDTO getVersionById(Integer versionId) {
         StandardQuestionVersion version = versionRepository.findById(versionId)
                 .orElseThrow(() -> new RuntimeException("版本不存在: " + versionId));
         return convertToDTO(version);
     }
     
     @Override
-    public StandardQuestionVersionDTO getLatestVersion(Long questionId) {
+    public StandardQuestionVersionDTO getLatestVersion(Integer questionId) {
         StandardQuestionVersion version = versionRepository
                 .findLatestVersionByQuestionId(questionId)
                 .orElseThrow(() -> new RuntimeException("问题版本不存在: " + questionId));
@@ -102,7 +120,7 @@ public class StandardQuestionVersionServiceImpl implements StandardQuestionVersi
     }
     
     @Override
-    public VersionComparisonDTO compareVersions(Long fromVersionId, Long toVersionId) {
+    public VersionComparisonDTO compareVersions(Integer fromVersionId, Integer toVersionId) {
         StandardQuestionVersion fromVersion = versionRepository.findById(fromVersionId)
                 .orElseThrow(() -> new RuntimeException("源版本不存在: " + fromVersionId));
         StandardQuestionVersion toVersion = versionRepository.findById(toVersionId)
@@ -143,19 +161,18 @@ public class StandardQuestionVersionServiceImpl implements StandardQuestionVersi
     }
     
     @Override
-    public Integer getNextVersionNumber(Long questionId) {
+    public Integer getNextVersionNumber(Integer questionId) {
         Integer maxVersion = versionRepository.findMaxVersionByQuestionId(questionId)
                 .orElse(0);
         return maxVersion + 1;
     }
-    
-    @Override
-    public Long countVersionsByQuestionId(Long questionId) {
+      @Override
+    public long countVersionsByQuestionId(Integer questionId) {
         return versionRepository.countVersionsByQuestionId(questionId);
     }
     
     @Override
-    public List<StandardQuestionVersionDTO> getVersionsByChangedBy(Long changedBy) {
+    public List<StandardQuestionVersionDTO> getVersionsByChangedBy(Integer changedBy) {
         List<StandardQuestionVersion> versions = versionRepository
                 .findByChangedByOrderByCreatedAtDesc(changedBy);
         return versions.stream()
@@ -173,8 +190,8 @@ public class StandardQuestionVersionServiceImpl implements StandardQuestionVersi
     }
     
     @Override
-    public StandardQuestionVersionDTO rollbackToVersion(Long questionId, Long targetVersionId,
-                                                      String changeReason, Long changedBy) {
+    public StandardQuestionVersionDTO rollbackToVersion(Integer questionId, Integer targetVersionId,
+                                                      String changeReason, Integer changedBy) {
         StandardQuestionVersion targetVersion = versionRepository.findById(targetVersionId)
                 .orElseThrow(() -> new RuntimeException("目标版本不存在: " + targetVersionId));
         
@@ -184,7 +201,7 @@ public class StandardQuestionVersionServiceImpl implements StandardQuestionVersi
     }
     
     @Override
-    public void deleteVersion(Long versionId) {
+    public void deleteVersion(Integer versionId) {
         versionRepository.deleteById(versionId);
     }
     

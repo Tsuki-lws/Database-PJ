@@ -3,6 +3,7 @@ package com.llm.eval.controller;
 import com.llm.eval.dto.PagedResponseDTO;
 import com.llm.eval.dto.StandardQuestionVersionDTO;
 import com.llm.eval.dto.VersionComparisonDTO;
+import com.llm.eval.model.ApiResponse;
 import com.llm.eval.service.StandardQuestionVersionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,17 +27,20 @@ import java.util.Map;
 public class StandardQuestionVersionController {
     
     @Autowired
-    private StandardQuestionVersionService versionService;
-    
-    /**
+    private StandardQuestionVersionService versionService;    /**
      * 创建标准问题版本
      */
     @PostMapping("/{questionId}/versions")
     @Operation(summary = "创建标准问题版本")
-    public ResponseEntity<Map<String, Object>> createQuestionVersion(
-            @PathVariable Long questionId,
+    public ApiResponse<Map<String, Object>> createQuestionVersion(
+            @PathVariable Integer questionId,
             @RequestBody CreateVersionRequest request) {
         try {
+            
+            if (request.getQuestionBody() == null || request.getQuestionBody().trim().isEmpty()) {
+                return ApiResponse.error("问题内容不能为空");
+            }
+            
             StandardQuestionVersionDTO versionDTO = versionService.createQuestionVersion(
                     questionId,
                     request.getVersionName(),
@@ -48,28 +52,25 @@ public class StandardQuestionVersionController {
                     request.getChangedBy()
             );
             
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "标准问题版本创建成功");
-            response.put("versionId", versionDTO.getVersionId());
-            response.put("versionInfo", versionDTO);
+            Map<String, Object> data = new HashMap<>();
+            data.put("versionId", versionDTO.getVersionId());
+            data.put("versionInfo", versionDTO);
+            data.put("message", "标准问题版本创建成功");
             
-            return ResponseEntity.ok(response);
+            return ApiResponse.success(data);
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.error("参数错误: " + e.getMessage());
         } catch (Exception e) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "创建失败: " + e.getMessage());
-            return ResponseEntity.badRequest().body(response);
+            return ApiResponse.error("创建失败: " + e.getMessage());
         }
     }
-    
-    /**
+      /**
      * 获取标准问题版本历史
      */
     @GetMapping("/{questionId}/versions")
     @Operation(summary = "获取标准问题版本历史")
     public ResponseEntity<Map<String, Object>> getQuestionVersionHistory(
-            @PathVariable Long questionId,
+            @PathVariable Integer questionId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         try {
@@ -101,13 +102,12 @@ public class StandardQuestionVersionController {
             return ResponseEntity.badRequest().body(response);
         }
     }
-    
-    /**
+      /**
      * 获取版本详情
      */
     @GetMapping("/versions/{versionId}")
     @Operation(summary = "获取版本详情")
-    public ResponseEntity<StandardQuestionVersionDTO> getVersionById(@PathVariable Long versionId) {
+    public ResponseEntity<StandardQuestionVersionDTO> getVersionById(@PathVariable Integer versionId) {
         try {
             StandardQuestionVersionDTO versionDTO = versionService.getVersionById(versionId);
             return ResponseEntity.ok(versionDTO);
@@ -115,13 +115,12 @@ public class StandardQuestionVersionController {
             return ResponseEntity.notFound().build();
         }
     }
-    
-    /**
+      /**
      * 获取最新版本
      */
     @GetMapping("/{questionId}/versions/latest")
     @Operation(summary = "获取标准问题的最新版本")
-    public ResponseEntity<StandardQuestionVersionDTO> getLatestVersion(@PathVariable Long questionId) {
+    public ResponseEntity<StandardQuestionVersionDTO> getLatestVersion(@PathVariable Integer questionId) {
         try {
             StandardQuestionVersionDTO versionDTO = versionService.getLatestVersion(questionId);
             return ResponseEntity.ok(versionDTO);
@@ -129,15 +128,14 @@ public class StandardQuestionVersionController {
             return ResponseEntity.notFound().build();
         }
     }
-    
-    /**
+      /**
      * 比较版本差异
      */
     @GetMapping("/versions/compare")
     @Operation(summary = "比较标准问题版本差异")
     public ResponseEntity<Map<String, Object>> compareVersions(
-            @RequestParam Long fromVersionId,
-            @RequestParam Long toVersionId) {
+            @RequestParam Integer fromVersionId,
+            @RequestParam Integer toVersionId) {
         try {
             VersionComparisonDTO comparison = versionService.compareVersions(fromVersionId, toVersionId);
             
@@ -152,15 +150,14 @@ public class StandardQuestionVersionController {
             return ResponseEntity.badRequest().body(response);
         }
     }
-    
-    /**
+      /**
      * 回滚到指定版本
      */
     @PostMapping("/{questionId}/versions/{targetVersionId}/rollback")
     @Operation(summary = "回滚到指定版本")
     public ResponseEntity<Map<String, Object>> rollbackToVersion(
-            @PathVariable Long questionId,
-            @PathVariable Long targetVersionId,
+            @PathVariable Integer questionId,
+            @PathVariable Integer targetVersionId,
             @RequestBody RollbackRequest request) {
         try {
             StandardQuestionVersionDTO versionDTO = versionService.rollbackToVersion(
@@ -184,15 +181,13 @@ public class StandardQuestionVersionController {
             return ResponseEntity.badRequest().body(response);
         }
     }
-    
-    /**
+      /**
      * 获取版本统计信息
      */
     @GetMapping("/{questionId}/versions/stats")
     @Operation(summary = "获取标准问题版本统计信息")
-    public ResponseEntity<Map<String, Object>> getVersionStats(@PathVariable Long questionId) {
-        try {
-            Long versionCount = versionService.countVersionsByQuestionId(questionId);
+    public ResponseEntity<Map<String, Object>> getVersionStats(@PathVariable Integer questionId) {        try {
+            long versionCount = versionService.countVersionsByQuestionId(questionId);
             StandardQuestionVersionDTO latestVersion = versionService.getLatestVersion(questionId);
             
             Map<String, Object> response = new HashMap<>();
@@ -208,13 +203,12 @@ public class StandardQuestionVersionController {
             return ResponseEntity.badRequest().body(response);
         }
     }
-    
-    /**
+      /**
      * 删除版本
      */
     @DeleteMapping("/versions/{versionId}")
     @Operation(summary = "删除版本")
-    public ResponseEntity<Map<String, Object>> deleteVersion(@PathVariable Long versionId) {
+    public ResponseEntity<Map<String, Object>> deleteVersion(@PathVariable Integer versionId) {
         try {
             versionService.deleteVersion(versionId);
             
@@ -228,18 +222,17 @@ public class StandardQuestionVersionController {
             response.put("success", false);
             response.put("message", "删除失败: " + e.getMessage());
             return ResponseEntity.badRequest().body(response);
-        }
-    }
+        }    }
     
     // 请求体类
     public static class CreateVersionRequest {
         private String versionName;
         private String changeReason;
         private String questionTitle;
-        private String questionBody;
+        private String questionBody; // 必需字段
         private String standardAnswer;
         private List<String> referenceAnswers;
-        private Long changedBy;
+        private Integer changedBy; // 必需字段：变更人ID
         
         // Getters and Setters
         public String getVersionName() { return versionName; }
@@ -260,18 +253,17 @@ public class StandardQuestionVersionController {
         public List<String> getReferenceAnswers() { return referenceAnswers; }
         public void setReferenceAnswers(List<String> referenceAnswers) { this.referenceAnswers = referenceAnswers; }
         
-        public Long getChangedBy() { return changedBy; }
-        public void setChangedBy(Long changedBy) { this.changedBy = changedBy; }
-    }
+        public Integer getChangedBy() { return changedBy; }
+        public void setChangedBy(Integer changedBy) { this.changedBy = changedBy; }    }
     
     public static class RollbackRequest {
         private String changeReason;
-        private Long changedBy;
+        private Integer changedBy;
         
         public String getChangeReason() { return changeReason; }
         public void setChangeReason(String changeReason) { this.changeReason = changeReason; }
         
-        public Long getChangedBy() { return changedBy; }
-        public void setChangedBy(Long changedBy) { this.changedBy = changedBy; }
+        public Integer getChangedBy() { return changedBy; }
+        public void setChangedBy(Integer changedBy) { this.changedBy = changedBy; }
     }
 }

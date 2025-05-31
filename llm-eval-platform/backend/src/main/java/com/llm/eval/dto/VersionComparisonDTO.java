@@ -11,28 +11,22 @@ public class VersionComparisonDTO {
     private VersionInfo fromVersion;
     private VersionInfo toVersion;
     private Map<String, FieldDifference> differences;
-    
-    public static class VersionInfo {
-        private Long id;
+      public static class VersionInfo {
+        private Integer id;
         private String versionName;
         private String createTime;
         
         public VersionInfo() {}
-        public VersionInfo(Long id, String versionName, String createTime) {
+        
+        public VersionInfo(Integer id, String versionName, String createTime) {
             this.id = id;
             this.versionName = versionName;
             this.createTime = createTime;
         }
         
-        public VersionInfo(Integer id, String versionName, String createTime) {
-            this.id = id != null ? id.longValue() : null;
-            this.versionName = versionName;
-            this.createTime = createTime;
-        }
-        
         // Getters and Setters
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
+        public Integer getId() { return id; }
+        public void setId(Integer id) { this.id = id; }
         
         public String getVersionName() { return versionName; }
         public void setVersionName(String versionName) { this.versionName = versionName; }

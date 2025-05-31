@@ -9,17 +9,16 @@ import com.llm.eval.model.StandardQuestion;
 @Entity
 @Table(name = "dataset_question_mapping")
 public class DatasetQuestionMapping {
-    
-    @Id
+      @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "mapping_id")
-    private Long mappingId;
+    private Integer mappingId;
     
     @Column(name = "version_id", nullable = false)
-    private Long versionId;
+    private Integer versionId;
     
     @Column(name = "standard_question_id", nullable = false)
-    private Long standardQuestionId;
+    private Integer standardQuestionId;
     
     // 关联的数据集版本
     @ManyToOne(fetch = FetchType.LAZY)
@@ -33,21 +32,19 @@ public class DatasetQuestionMapping {
     
     // Constructors
     public DatasetQuestionMapping() {}
-    
-    public DatasetQuestionMapping(Long versionId, Long standardQuestionId) {
+      public DatasetQuestionMapping(Integer versionId, Integer standardQuestionId) {
         this.versionId = versionId;
         this.standardQuestionId = standardQuestionId;
     }
+      // Getters and Setters
+    public Integer getMappingId() { return mappingId; }
+    public void setMappingId(Integer mappingId) { this.mappingId = mappingId; }
     
-    // Getters and Setters
-    public Long getMappingId() { return mappingId; }
-    public void setMappingId(Long mappingId) { this.mappingId = mappingId; }
+    public Integer getVersionId() { return versionId; }
+    public void setVersionId(Integer versionId) { this.versionId = versionId; }
     
-    public Long getVersionId() { return versionId; }
-    public void setVersionId(Long versionId) { this.versionId = versionId; }
-    
-    public Long getStandardQuestionId() { return standardQuestionId; }
-    public void setStandardQuestionId(Long standardQuestionId) { this.standardQuestionId = standardQuestionId; }
+    public Integer getStandardQuestionId() { return standardQuestionId; }
+    public void setStandardQuestionId(Integer standardQuestionId) { this.standardQuestionId = standardQuestionId; }
     
     public DatasetVersion getDatasetVersion() { return datasetVersion; }
     public void setDatasetVersion(DatasetVersion datasetVersion) { this.datasetVersion = datasetVersion; }

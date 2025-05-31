@@ -116,21 +116,19 @@ public class VersionManagementServiceImpl implements VersionManagementService {
             throw new RuntimeException("数据集版本不存在: " + versionId);
         }
         datasetVersionRepository.deleteById(versionId);
-    }    
-    @Override
+    }      @Override
     public List<StandardQuestionVersionDTO> getQuestionVersionHistory(Integer questionId) {
         List<StandardQuestionVersion> versions = questionVersionRepository
-            .findByStandardQuestionIdOrderByVersionDesc(questionId.longValue());
+            .findByStandardQuestionIdOrderByVersionDesc(questionId);
         
         return versions.stream()
             .map(this::convertToQuestionVersionDTO)
             .collect(Collectors.toList());
     }
-    
-    @Override
+      @Override
     public PagedResponseDTO<StandardQuestionVersionDTO> getQuestionVersionHistory(Integer questionId, Pageable pageable) {
         Page<StandardQuestionVersion> versionsPage = questionVersionRepository
-            .findByStandardQuestionIdOrderByVersionDesc(questionId.longValue(), pageable);
+            .findByStandardQuestionIdOrderByVersionDesc(questionId, pageable);
         
         List<StandardQuestionVersionDTO> versionDTOs = versionsPage.getContent().stream()
             .map(this::convertToQuestionVersionDTO)
@@ -149,27 +147,24 @@ public class VersionManagementServiceImpl implements VersionManagementService {
             )
         );
     }
-    
-    @Override
+      @Override
     public Optional<StandardQuestionVersionDTO> getQuestionVersionById(Integer versionId) {
-        return questionVersionRepository.findById(versionId.longValue())
+        return questionVersionRepository.findById(versionId)
             .map(this::convertToQuestionVersionDTO);
     }
-    
-    @Override
+      @Override
     public Optional<StandardQuestionVersionDTO> getLatestQuestionVersion(Integer questionId) {
-        return questionVersionRepository.findLatestVersionByQuestionId(questionId.longValue())
+        return questionVersionRepository.findLatestVersionByQuestionId(questionId)
             .map(this::convertToQuestionVersionDTO);
-    }    
-    @Override
+    }    @Override
     public StandardQuestionVersionDTO rollbackQuestionToVersion(Integer questionId, Integer targetVersion) {
         // 查找目标版本
         StandardQuestionVersion targetVersionEntity = questionVersionRepository
-            .findByStandardQuestionIdAndVersion(questionId.longValue(), targetVersion)
+            .findByStandardQuestionIdAndVersion(questionId, targetVersion)
             .orElseThrow(() -> new RuntimeException("目标版本不存在: " + targetVersion));
         
         // 获取当前最大版本号并创建新版本
-        Integer nextVersion = questionVersionRepository.findMaxVersionByQuestionId(questionId.longValue())
+        Integer nextVersion = questionVersionRepository.findMaxVersionByQuestionId(questionId)
             .map(maxVersion -> maxVersion + 1)
             .orElse(1);
         
@@ -280,10 +275,9 @@ public class VersionManagementServiceImpl implements VersionManagementService {
         dto.setChangedBy(version.getChangedBy());
         dto.setChangeReason(version.getChangeReason());
         dto.setCreatedAt(version.getCreatedAt());
-        
-        // 判断是否为最新版本
+          // 判断是否为最新版本
         Optional<Integer> maxVersion = questionVersionRepository
-            .findMaxVersionByQuestionId(version.getStandardQuestionId().longValue());
+            .findMaxVersionByQuestionId(version.getStandardQuestionId());
         dto.setIsLatest(maxVersion.map(max -> max.equals(version.getVersion())).orElse(false));
           return dto;
     }
