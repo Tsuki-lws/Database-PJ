@@ -1,9 +1,6 @@
 package com.llm.eval.service;
 
 import com.llm.eval.dto.*;
-import com.llm.eval.model.DatasetVersion;
-import com.llm.eval.model.StandardQuestionVersion;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -32,6 +29,11 @@ public interface VersionManagementService {
      * 发布数据集版本
      */
     DatasetVersionDTO publishDatasetVersion(Integer versionId);
+    
+    /**
+     * 更新数据集版本
+     */
+    DatasetVersionDTO updateDatasetVersion(Integer versionId, UpdateDatasetVersionRequest request);
     
     /**
      * 获取最新的数据集版本

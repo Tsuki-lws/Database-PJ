@@ -111,6 +111,51 @@ public class VersionManagementServiceImpl implements VersionManagementService {
     }
     
     @Override
+    public DatasetVersionDTO updateDatasetVersion(Integer versionId, UpdateDatasetVersionRequest request) {
+        DatasetVersion version = datasetVersionRepository.findById(versionId)
+            .orElseThrow(() -> new RuntimeException("数据集版本不存在: " + versionId));
+        
+        // 如果要更新版本名称，检查名称是否已存在（除了当前版本）
+        if (request.getVersionName() != null && !request.getVersionName().equals(version.getName())) {
+            if (datasetVersionRepository.existsByName(request.getVersionName())) {
+                throw new RuntimeException("版本名称已存在: " + request.getVersionName());
+            }
+            version.setName(request.getVersionName());
+        }
+        
+        // 更新基本属性
+        if (request.getDescription() != null) {
+            version.setDescription(request.getDescription());
+        }
+        
+        if (request.getReleaseDate() != null) {
+            version.setReleaseDate(request.getReleaseDate());
+        }
+        
+        // 更新发布状态
+        if (request.getIsPublished() != null) {
+            version.setIsPublished(request.getIsPublished());
+            if (request.getIsPublished() && version.getReleaseDate() == null) {
+                version.setReleaseDate(java.time.LocalDate.now());
+            }
+        }
+        
+        // 更新问题列表
+        if (request.getQuestionIds() != null) {
+            Set<StandardQuestion> questions = standardQuestionRepository.findAllById(request.getQuestionIds())
+                    .stream()
+                    .collect(Collectors.toSet());
+            version.setQuestions(questions);
+            version.setQuestionCount(questions.size());
+        }
+        
+        version.setUpdatedAt(java.time.LocalDateTime.now());
+        version = datasetVersionRepository.save(version);
+        
+        return convertToDatasetVersionDTO(version, false);
+    }
+    
+    @Override
     public void deleteDatasetVersion(Integer versionId) {
         if (!datasetVersionRepository.existsById(versionId)) {
             throw new RuntimeException("数据集版本不存在: " + versionId);

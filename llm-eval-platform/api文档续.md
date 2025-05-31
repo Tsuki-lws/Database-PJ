@@ -634,7 +634,72 @@ GET /api/dataset-versions/{datasetId}
 }
 ```
 
-### 3. 创建标准问题版本
+### 3. 修改数据集版本相关信息
+
+```
+PUT /api/dataset-versions/{versionId}
+```
+
+**路径参数：**
+- `versionId` (Integer): 数据集版本ID
+
+**请求参数：**
+
+```json
+{
+  "versionName": "v1.2.0",
+  "description": "更新版本描述，添加了新的问题分类",
+  "releaseDate": "2024-01-27T10:00:00",
+  "questionIds": [1, 2, 3, 4, 5, 6, 7],
+  "isPublished": true
+}
+```
+
+**请求字段说明：**
+- `versionName` (String, optional): 版本名称，如果提供则进行更新
+- `description` (String, optional): 版本描述，如果提供则进行更新
+- `releaseDate` (LocalDateTime, optional): 发布日期，如果提供则进行更新
+- `questionIds` (List<Integer>, optional): 关联的问题ID列表，如果提供则更新问题关联关系
+- `isPublished` (Boolean, optional): 是否发布，如果为true则发布版本
+
+**响应：**
+
+```json
+{
+  "success": true,
+  "message": "数据集版本修改成功",
+  "versionInfo": {
+    "id": 10,
+    "datasetId": 1,
+    "versionName": "v1.2.0",
+    "description": "更新版本描述，添加了新的问题分类",
+    "questionCount": 7,
+    "createTime": "2024-01-25T09:00:00",
+    "updateTime": "2024-01-27T14:30:00",
+    "releaseDate": "2024-01-27T10:00:00",
+    "isPublished": true,
+    "status": "ACTIVE"
+  }
+}
+```
+
+**错误响应示例：**
+
+```json
+{
+  "success": false,
+  "message": "修改失败: 版本名称已存在"
+}
+```
+
+**功能说明：**
+- 支持选择性更新：只有在请求中提供的字段才会被更新
+- 版本名称唯一性检查：如果提供新的版本名称，会检查是否与现有版本冲突
+- 问题列表更新：如果提供questionIds，会更新版本关联的问题列表并自动更新问题数量
+- 发布状态管理：设置isPublished为true时会自动设置发布时间（如果未提供releaseDate）
+- 自动时间戳：系统会自动更新updateTime字段
+
+### 4. 创建标准问题版本
 
 ```
 POST /api/standard-questions/{questionId}/versions
@@ -675,7 +740,7 @@ POST /api/standard-questions/{questionId}/versions
 }
 ```
 
-### 4. 获取标准问题版本历史
+### 5. 获取标准问题版本历史
 
 ```
 GET /api/standard-questions/{questionId}/versions
@@ -711,7 +776,7 @@ GET /api/standard-questions/{questionId}/versions
 }
 ```
 
-### 5. 比较标准问题版本差异
+### 6. 比较标准问题版本差异
 
 ```
 GET /api/standard-questions/versions/compare

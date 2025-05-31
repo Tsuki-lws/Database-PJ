@@ -89,8 +89,7 @@ public class VersionManagementController {
             ));
         }
     }
-    
-    /**
+      /**
      * 获取最新数据集版本
      */
     @GetMapping("/dataset-versions/latest")
@@ -99,7 +98,30 @@ public class VersionManagementController {
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
-    
+
+    /**
+     * 修改数据集版本
+     */
+    @PutMapping("/dataset-versions/{versionId}")
+    public ResponseEntity<Map<String, Object>> updateDatasetVersion(
+            @PathVariable Integer versionId,
+            @RequestBody UpdateDatasetVersionRequest request) {
+        try {
+            DatasetVersionDTO versionDTO = versionManagementService.updateDatasetVersion(versionId, request);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "数据集版本修改成功",
+                "versionInfo", versionDTO
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", "修改失败: " + e.getMessage()
+            ));
+        }
+    }
+
     /**
      * 删除数据集版本
      */
