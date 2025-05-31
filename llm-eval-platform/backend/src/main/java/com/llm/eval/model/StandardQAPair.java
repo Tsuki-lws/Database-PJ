@@ -1,13 +1,17 @@
 package com.llm.eval.model;
 
-import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "standard_qa_pairs")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class StandardQAPair {
     
     @Id
@@ -15,19 +19,19 @@ public class StandardQAPair {
     @Column(name = "qa_id")
     private Integer qaId;
     
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "standard_question_id", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "standard_question_id")
     private StandardQuestion standardQuestion;
     
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "standard_answer_id", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "standard_answer_id")
     private StandardAnswer standardAnswer;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "source_question_id")
     private RawQuestion sourceQuestion;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "source_answer_id")
     private RawAnswer sourceAnswer;
     

@@ -1,5 +1,3 @@
--- Active: 1742875045293@@127.0.0.1@3306@lab1_database
-
 -- 原始问题表
 CREATE TABLE raw_questions (
     question_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -46,6 +44,20 @@ CREATE TABLE tags (
     description TEXT
 ) COMMENT='问题标签';
 
+-- 用户表（移到前面，确保在引用它的表之前创建）
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    user_type ENUM('admin', 'regular', 'expert', 'reviewer') DEFAULT 'regular' COMMENT '用户类型',
+    email VARCHAR(255),
+    profile TEXT COMMENT '用户简介',
+    expertise_areas TEXT COMMENT '专业领域',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL COMMENT '软删除标记'
+) COMMENT='用户表';
+
 -- 标准问题表
 CREATE TABLE standard_questions (
     standard_question_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -89,20 +101,6 @@ CREATE TABLE standard_question_tags (
     FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE CASCADE,
     UNIQUE KEY (standard_question_id, tag_id)
 ) COMMENT='问题与标签的多对多关系';
-
--- 用户表
-CREATE TABLE users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    user_type ENUM('admin', 'regular', 'expert', 'reviewer') DEFAULT 'regular' COMMENT '用户类型',
-    email VARCHAR(255),
-    profile TEXT COMMENT '用户简介',
-    expertise_areas TEXT COMMENT '专业领域',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME NULL COMMENT '软删除标记'
-) COMMENT='用户表';
 
 -- 众包候选答案表
 CREATE TABLE crowdsourced_answers (
@@ -385,6 +383,24 @@ CREATE TABLE evaluation_prompt_templates (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) COMMENT='评测提示模板';
+
+-- 裁判任务表
+CREATE TABLE judge_tasks (
+    task_id INT AUTO_INCREMENT PRIMARY KEY,
+    batch_id INT NOT NULL COMMENT '关联的评测批次',
+    llm_answer_id INT NOT NULL COMMENT '待评测的LLM回答',
+    standard_answer_id INT NOT NULL COMMENT '标准答案',
+    judge_model_id INT NOT NULL COMMENT '裁判模型',
+    status ENUM('pending', 'in_progress', 'completed', 'failed') DEFAULT 'pending',
+    result_score DECIMAL(5,2) COMMENT '评分结果',
+    result_reason TEXT COMMENT '评分理由',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP NULL COMMENT '完成时间',
+    FOREIGN KEY (batch_id) REFERENCES evaluation_batches(batch_id) ON DELETE CASCADE,
+    FOREIGN KEY (llm_answer_id) REFERENCES llm_answers(llm_answer_id) ON DELETE CASCADE,
+    FOREIGN KEY (standard_answer_id) REFERENCES standard_answers(standard_answer_id) ON DELETE CASCADE,
+    FOREIGN KEY (judge_model_id) REFERENCES llm_models(model_id) ON DELETE CASCADE
+) COMMENT='裁判模型评测任务';
 
 -- 众包任务表
 CREATE TABLE crowdsourcing_tasks (

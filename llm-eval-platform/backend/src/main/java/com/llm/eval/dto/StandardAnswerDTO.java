@@ -1,28 +1,81 @@
 package com.llm.eval.dto;
 
 import com.llm.eval.model.StandardAnswer;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 导入标准答案的DTO
+ */
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class StandardAnswerDTO {
     
+    /**
+     * 关联的标准问题ID
+     */
     private Integer standardAnswerId;
+    
+    /**
+     * 关联的标准问题ID
+     */
     private Integer standardQuestionId;
+    
+    /**
+     * 标准答案内容
+     */
     private String answer;
+    
+    /**
+     * 关联的原始回答ID
+     */
     private Integer sourceAnswerId;
-    private StandardAnswer.SourceType sourceType;
-    private Integer sourceId;
-    private String selectionReason;
-    private Integer selectedBy;
-    private Boolean isFinal;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private Integer version;
+    
+    /**
+     * 标准答案来源类型
+     */
+    private String sourceType;
+    
+    /**
+     * 关键点列表
+     */
     private List<KeyPointDTO> keyPoints;
+    
+    /**
+     * 内部类：关键点DTO
+     */
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class KeyPointDTO {
+        
+        /**
+         * 关键点描述
+         */
+        private String pointText;
+        
+        /**
+         * 评分权重
+         */
+        private BigDecimal pointWeight;
+        
+        /**
+         * 评分点类型
+         */
+        private String pointType;
+        
+        /**
+         * 示例内容
+         */
+        private String exampleText;
+    }
     
     public static StandardAnswerDTO fromEntity(StandardAnswer entity) {
         if (entity == null) {
@@ -42,18 +95,15 @@ public class StandardAnswerDTO {
             dto.setSourceAnswerId(entity.getSourceAnswer().getAnswerId());
         }
         
-        dto.setSourceType(entity.getSourceType());
-        dto.setSourceId(entity.getSourceId());
-        dto.setSelectionReason(entity.getSelectionReason());
-        dto.setSelectedBy(entity.getSelectedBy());
-        dto.setIsFinal(entity.getIsFinal());
-        dto.setCreatedAt(entity.getCreatedAt());
-        dto.setUpdatedAt(entity.getUpdatedAt());
-        dto.setVersion(entity.getVersion());
+        dto.setSourceType(entity.getSourceType().toString());
         
         if (entity.getKeyPoints() != null) {
             dto.setKeyPoints(entity.getKeyPoints().stream()
-                    .map(KeyPointDTO::fromEntity)
+                    .map(point -> new KeyPointDTO(
+                            point.getPointText(), 
+                            point.getPointWeight(), 
+                            point.getPointType().toString(), 
+                            point.getExampleText()))
                     .collect(Collectors.toList()));
         }
         
