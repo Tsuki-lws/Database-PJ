@@ -2,60 +2,109 @@ import request from '../utils/request'
 
 export interface StandardQuestion {
   standardQuestionId?: number
-  originalQuestionId?: number
-  version?: number
-  content: string
-  questionType: string
-  difficultyLevel?: string
+  question: string
   categoryId?: number
-  status?: string
+  questionType: 'single_choice' | 'multiple_choice' | 'simple_fact' | 'subjective'
+  difficulty?: 'easy' | 'medium' | 'hard'
+  sourceQuestionId?: number
+  status?: 'draft' | 'pending_review' | 'approved' | 'rejected'
   createdAt?: string
-  createdBy?: number
-  isLatest?: boolean
-  parentQuestionId?: number
+  updatedAt?: string
+  version?: number
+  tags?: number[]
 }
 
 export interface QueryParams {
-  current?: number
+  page?: number
   size?: number
   questionType?: string
   categoryId?: number
+  difficulty?: string
+  status?: string
+  keyword?: string
 }
 
+// 获取标准问题列表
 export function getQuestionList(params: QueryParams) {
   return request({
-    url: '/api/v1/questions/standard/page',
+    url: '/api/questions',
     method: 'get',
     params
   })
 }
 
+// 获取标准问题详情
 export function getQuestionById(id: number) {
   return request({
-    url: `/api/v1/questions/standard/${id}`,
+    url: `/api/questions/${id}`,
     method: 'get'
   })
 }
 
+// 创建标准问题
 export function createQuestion(data: StandardQuestion) {
   return request({
-    url: '/api/v1/questions/standard',
+    url: '/api/questions',
     method: 'post',
     data
   })
 }
 
+// 更新标准问题
 export function updateQuestion(id: number, data: StandardQuestion) {
   return request({
-    url: `/api/v1/questions/standard/${id}`,
+    url: `/api/questions/${id}`,
     method: 'put',
     data
   })
 }
 
-export function getLatestVersion(originalId: number) {
+// 删除标准问题
+export function deleteQuestion(id: number) {
   return request({
-    url: `/api/v1/questions/standard/latest/${originalId}`,
+    url: `/api/questions/${id}`,
+    method: 'delete'
+  })
+}
+
+// 获取问题的标签
+export function getQuestionTags(id: number) {
+  return request({
+    url: `/api/tags/question/${id}`,
+    method: 'get'
+  })
+}
+
+// 添加标签到问题
+export function addTagToQuestion(questionId: number, tagIds: number[]) {
+  return request({
+    url: `/api/tags/question/${questionId}`,
+    method: 'post',
+    data: tagIds
+  })
+}
+
+// 获取未录入标准答案的问题列表
+export function getQuestionsWithoutAnswer(params: QueryParams) {
+  return request({
+    url: '/api/questions/without-answer',
+    method: 'get',
+    params
+  })
+}
+
+// 根据分类获取问题
+export function getQuestionsByCategory(categoryId: number) {
+  return request({
+    url: `/api/questions/category/${categoryId}`,
+    method: 'get'
+  })
+}
+
+// 根据标签获取问题
+export function getQuestionsByTag(tagId: number) {
+  return request({
+    url: `/api/questions/tag/${tagId}`,
     method: 'get'
   })
 } 

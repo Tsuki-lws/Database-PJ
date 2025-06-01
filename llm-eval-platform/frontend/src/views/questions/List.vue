@@ -1,132 +1,338 @@
 <template>
-  <div class="question-list">
-    <div class="header">
+  <div class="question-list-container">
+    <div class="page-header">
       <h2>标准问题列表</h2>
-      <el-button type="primary" @click="$router.push('/questions/create')">
-        创建问题
+      <el-button type="primary" @click="navigateToCreate">
+        <el-icon><Plus /></el-icon>创建问题
       </el-button>
     </div>
 
-    <el-form :inline="true" class="search-form">
-      <el-form-item label="问题类型">
-        <el-select v-model="queryParams.questionType" placeholder="选择问题类型" clearable>
-          <el-option label="主观题" value="subjective" />
-          <el-option label="客观题" value="objective" />
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="loadQuestions">查询</el-button>
-        <el-button @click="resetQuery">重置</el-button>
-      </el-form-item>
-    </el-form>
+    <!-- 搜索和筛选 -->
+    <el-card shadow="never" class="filter-container">
+      <el-form :model="queryParams" label-width="80px" :inline="true">
+        <el-form-item label="关键词">
+          <el-input v-model="queryParams.keyword" placeholder="问题内容" clearable @keyup.enter="handleSearch"></el-input>
+        </el-form-item>
+        <el-form-item label="分类">
+          <el-select v-model="queryParams.categoryId" placeholder="全部分类" clearable>
+            <el-option v-for="item in categoryOptions" :key="item.value" :label="item.label" :value="item.value"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="queryParams.questionType" placeholder="全部类型" clearable>
+            <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="难度">
+          <el-select v-model="queryParams.difficulty" placeholder="全部难度" clearable>
+            <el-option v-for="item in difficultyOptions" :key="item.value" :label="item.label" :value="item.value"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryParams.status" placeholder="全部状态" clearable>
+            <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-    <el-table :data="questionList" style="width: 100%" v-loading="loading">
-      <el-table-column prop="standardQuestionId" label="ID" width="80" />
-      <el-table-column prop="content" label="问题内容" show-overflow-tooltip />
-      <el-table-column prop="questionType" label="问题类型" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.questionType === 'subjective' ? 'success' : 'info'">
-            {{ row.questionType === 'subjective' ? '主观题' : '客观题' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="version" label="版本" width="80" />
-      <el-table-column prop="createdAt" label="创建时间" width="180" />
-      <el-table-column label="操作" width="150" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="$router.push(`/questions/edit/${row.standardQuestionId}`)">
-            编辑
-          </el-button>
-          <el-button link type="primary" @click="viewHistory(row)">
-            历史版本
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <!-- 问题列表 -->
+    <el-card shadow="never" class="list-card">
+      <el-table v-loading="loading" :data="questionList" style="width: 100%">
+        <el-table-column prop="standardQuestionId" label="ID" width="80" />
+        <el-table-column prop="question" label="问题内容" show-overflow-tooltip>
+          <template #default="scope">
+            <el-link type="primary" @click="navigateToDetail(scope.row.standardQuestionId)">
+              {{ scope.row.question }}
+            </el-link>
+          </template>
+        </el-table-column>
+        <el-table-column prop="categoryName" label="分类" width="120" />
+        <el-table-column prop="questionType" label="类型" width="120">
+          <template #default="scope">
+            <el-tag :type="getQuestionTypeTag(scope.row.questionType)">
+              {{ formatQuestionType(scope.row.questionType) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="difficulty" label="难度" width="100">
+          <template #default="scope">
+            <el-tag :type="getDifficultyTag(scope.row.difficulty)">
+              {{ formatDifficulty(scope.row.difficulty) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="120">
+          <template #default="scope">
+            <el-tag :type="getStatusTag(scope.row.status)">
+              {{ formatStatus(scope.row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createdAt" label="创建时间" width="180" />
+        <el-table-column fixed="right" label="操作" width="180">
+          <template #default="scope">
+            <el-button link type="primary" @click="navigateToDetail(scope.row.standardQuestionId)">查看</el-button>
+            <el-button link type="primary" @click="navigateToEdit(scope.row.standardQuestionId)">编辑</el-button>
+            <el-button link type="danger" @click="handleDelete(scope.row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <div class="pagination">
-      <el-pagination
-        v-model:current-page="queryParams.current"
-        v-model:page-size="queryParams.size"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
-    </div>
+      <!-- 分页 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="queryParams.page"
+          v-model:page-size="queryParams.size"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="total"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { getQuestionList } from '@/api/question'
-import type { StandardQuestion, QueryParams } from '@/api/question'
+import { useRouter } from 'vue-router'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
+import { getQuestionList, deleteQuestion, QueryParams } from '@/api/question'
+import { getAllCategories } from '@/api/category'
 
+const router = useRouter()
 const loading = ref(false)
+const questionList = ref([])
 const total = ref(0)
-const questionList = ref<StandardQuestion[]>([])
 
+// 查询参数
 const queryParams = reactive<QueryParams>({
-  current: 1,
-  size: 10
+  page: 1,
+  size: 10,
+  keyword: '',
+  categoryId: undefined,
+  questionType: undefined,
+  difficulty: undefined,
+  status: undefined
 })
 
-const loadQuestions = async () => {
+// 分类选项
+const categoryOptions = ref([])
+
+// 问题类型选项
+const typeOptions = [
+  { value: 'single_choice', label: '单选题' },
+  { value: 'multiple_choice', label: '多选题' },
+  { value: 'simple_fact', label: '简单事实题' },
+  { value: 'subjective', label: '主观题' }
+]
+
+// 难度选项
+const difficultyOptions = [
+  { value: 'easy', label: '简单' },
+  { value: 'medium', label: '中等' },
+  { value: 'hard', label: '困难' }
+]
+
+// 状态选项
+const statusOptions = [
+  { value: 'draft', label: '草稿' },
+  { value: 'pending_review', label: '待审核' },
+  { value: 'approved', label: '已通过' },
+  { value: 'rejected', label: '已拒绝' }
+]
+
+// 获取问题列表
+const getList = async () => {
   loading.value = true
   try {
     const res = await getQuestionList(queryParams)
-    questionList.value = res.records
-    total.value = res.total
+    questionList.value = res.list || []
+    total.value = res.total || 0
+  } catch (error) {
+    console.error('获取问题列表失败', error)
   } finally {
     loading.value = false
   }
 }
 
-const resetQuery = () => {
-  queryParams.questionType = undefined
-  queryParams.current = 1
-  loadQuestions()
+// 获取分类选项
+const getCategories = async () => {
+  try {
+    const res = await getAllCategories()
+    categoryOptions.value = res.map((item: any) => ({
+      value: item.categoryId,
+      label: item.name
+    }))
+  } catch (error) {
+    console.error('获取分类列表失败', error)
+  }
 }
 
+// 格式化问题类型
+const formatQuestionType = (type: string) => {
+  const map: Record<string, string> = {
+    'single_choice': '单选题',
+    'multiple_choice': '多选题',
+    'simple_fact': '简单事实题',
+    'subjective': '主观题'
+  }
+  return map[type] || type
+}
+
+// 获取问题类型标签类型
+const getQuestionTypeTag = (type: string) => {
+  const map: Record<string, string> = {
+    'single_choice': 'info',
+    'multiple_choice': 'warning',
+    'simple_fact': 'success',
+    'subjective': 'primary'
+  }
+  return map[type] || ''
+}
+
+// 格式化难度
+const formatDifficulty = (difficulty: string) => {
+  const map: Record<string, string> = {
+    'easy': '简单',
+    'medium': '中等',
+    'hard': '困难'
+  }
+  return map[difficulty] || difficulty
+}
+
+// 获取难度标签类型
+const getDifficultyTag = (difficulty: string) => {
+  const map: Record<string, string> = {
+    'easy': 'success',
+    'medium': 'warning',
+    'hard': 'danger'
+  }
+  return map[difficulty] || ''
+}
+
+// 格式化状态
+const formatStatus = (status: string) => {
+  const map: Record<string, string> = {
+    'draft': '草稿',
+    'pending_review': '待审核',
+    'approved': '已通过',
+    'rejected': '已拒绝'
+  }
+  return map[status] || status
+}
+
+// 获取状态标签类型
+const getStatusTag = (status: string) => {
+  const map: Record<string, string> = {
+    'draft': 'info',
+    'pending_review': 'warning',
+    'approved': 'success',
+    'rejected': 'danger'
+  }
+  return map[status] || ''
+}
+
+// 搜索
+const handleSearch = () => {
+  queryParams.page = 1
+  getList()
+}
+
+// 重置查询条件
+const resetQuery = () => {
+  queryParams.keyword = ''
+  queryParams.categoryId = undefined
+  queryParams.questionType = undefined
+  queryParams.difficulty = undefined
+  queryParams.status = undefined
+  handleSearch()
+}
+
+// 每页数量变化
 const handleSizeChange = (val: number) => {
   queryParams.size = val
-  loadQuestions()
+  getList()
 }
 
+// 当前页变化
 const handleCurrentChange = (val: number) => {
-  queryParams.current = val
-  loadQuestions()
+  queryParams.page = val
+  getList()
 }
 
-const viewHistory = (row: StandardQuestion) => {
-  // TODO: 实现查看历史版本功能
+// 删除问题
+const handleDelete = (row: any) => {
+  ElMessageBox.confirm(
+    `确认删除问题 "${row.question}" 吗？`,
+    '删除确认',
+    {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(async () => {
+    try {
+      await deleteQuestion(row.standardQuestionId)
+      ElMessage.success('删除成功')
+      getList()
+    } catch (error) {
+      console.error('删除问题失败', error)
+    }
+  }).catch(() => {})
+}
+
+// 导航到创建页面
+const navigateToCreate = () => {
+  router.push('/questions/create')
+}
+
+// 导航到详情页面
+const navigateToDetail = (id: number) => {
+  router.push(`/questions/detail/${id}`)
+}
+
+// 导航到编辑页面
+const navigateToEdit = (id: number) => {
+  router.push(`/questions/edit/${id}`)
 }
 
 onMounted(() => {
-  loadQuestions()
+  getList()
+  getCategories()
 })
 </script>
 
 <style scoped>
-.question-list {
+.question-list-container {
   padding: 20px;
 }
 
-.header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.search-form {
+.filter-container {
   margin-bottom: 20px;
 }
 
-.pagination {
-  margin-top: 20px;
+.list-card {
+  margin-bottom: 20px;
+}
+
+.pagination-container {
   display: flex;
   justify-content: flex-end;
+  margin-top: 20px;
 }
 </style> 

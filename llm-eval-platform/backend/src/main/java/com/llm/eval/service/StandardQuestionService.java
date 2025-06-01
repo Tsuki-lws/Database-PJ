@@ -105,9 +105,18 @@ public interface StandardQuestionService {
     StandardQuestion removeTagsFromQuestion(Integer questionId, Set<Integer> tagIds);
     
     /**
+     * Update the category of a standard question
+     * 
+     * @param questionId The ID of the standard question
+     * @param categoryId The ID of the new category (can be null to remove category)
+     * @return The updated standard question
+     */
+    StandardQuestion updateQuestionCategory(Integer questionId, Integer categoryId);
+    
+    /**
      * Delete a standard question
      * 
      * @param id The ID of the standard question to delete
      */
     void deleteStandardQuestion(Integer id);
-} 
+}

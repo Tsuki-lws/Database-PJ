@@ -1,12 +1,13 @@
 package com.llm.eval.service.impl;
 
+import com.llm.eval.model.QuestionCategory;
 import com.llm.eval.model.StandardQuestion;
 import com.llm.eval.model.Tag;
+import com.llm.eval.repository.QuestionCategoryRepository;
 import com.llm.eval.repository.StandardQuestionRepository;
 import com.llm.eval.repository.TagRepository;
 import com.llm.eval.service.StandardQuestionService;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,17 +21,17 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-public class StandardQuestionServiceImpl implements StandardQuestionService {
-    
-    private final StandardQuestionRepository standardQuestionRepository;
+public class StandardQuestionServiceImpl implements StandardQuestionService {    private final StandardQuestionRepository standardQuestionRepository;
     private final TagRepository tagRepository;
+    private final QuestionCategoryRepository categoryRepository;
     
-    @Autowired
     public StandardQuestionServiceImpl(
             StandardQuestionRepository standardQuestionRepository,
-            TagRepository tagRepository) {
+            TagRepository tagRepository,
+            QuestionCategoryRepository categoryRepository) {
         this.standardQuestionRepository = standardQuestionRepository;
         this.tagRepository = tagRepository;
+        this.categoryRepository = categoryRepository;
     }
     
     @Override
@@ -157,7 +158,29 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {
     
     @Override
     @Transactional
+    public StandardQuestion updateQuestionCategory(Integer questionId, Integer categoryId) {
+        StandardQuestion question = standardQuestionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Standard question not found with id: " + questionId));
+        
+        // If categoryId is null, remove the category
+        if (categoryId == null) {
+            question.setCategory(null);
+        } else {
+            // Verify the category exists and set it
+            QuestionCategory category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new EntityNotFoundException("Category not found with id: " + categoryId));
+            question.setCategory(category);
+        }
+        
+        question.setUpdatedAt(LocalDateTime.now());
+        question.setVersion(question.getVersion() + 1);
+        
+        return standardQuestionRepository.save(question);
+    }
+    
+    @Override
+    @Transactional
     public void deleteStandardQuestion(Integer id) {
         standardQuestionRepository.deleteById(id);
     }
-} 
+}

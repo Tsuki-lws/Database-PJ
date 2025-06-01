@@ -7,7 +7,7 @@ import com.llm.eval.service.StandardQuestionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,11 +25,8 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/questions")
 @Tag(name = "Standard Question API", description = "标准问题管理接口")
-public class StandardQuestionController {
+public class StandardQuestionController {    private final StandardQuestionService questionService;
 
-    private final StandardQuestionService questionService;
-
-    @Autowired
     public StandardQuestionController(StandardQuestionService questionService) {
         this.questionService = questionService;
     }
@@ -157,6 +154,34 @@ public class StandardQuestionController {
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+      @PutMapping("/{id}/category")
+    @Operation(summary = "更新问题的分类")
+    public ResponseEntity<com.llm.eval.model.StandardQuestion> updateQuestionCategory(
+            @PathVariable("id") Integer questionId,
+            @RequestBody CategoryUpdateRequest request) {
+        try {
+            com.llm.eval.model.StandardQuestion updatedQuestion = 
+                questionService.updateQuestionCategory(questionId, request.getCategoryId());
+            return ResponseEntity.ok(updatedQuestion);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    // 请求体类
+    public static class CategoryUpdateRequest {
+        private Integer categoryId;
+        
+        public Integer getCategoryId() {
+            return categoryId;
+        }
+        
+        public void setCategoryId(Integer categoryId) {
+            this.categoryId = categoryId;
         }
     }
 }

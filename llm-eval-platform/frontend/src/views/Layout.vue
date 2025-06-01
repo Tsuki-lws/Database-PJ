@@ -12,6 +12,8 @@
           <el-icon><HomeFilled /></el-icon>
           <span>首页</span>
         </el-menu-item>
+        
+        <!-- 标准问题管理 -->
         <el-sub-menu index="/questions">
           <template #title>
             <el-icon><Document /></el-icon>
@@ -19,6 +21,55 @@
           </template>
           <el-menu-item index="/questions">问题列表</el-menu-item>
           <el-menu-item index="/questions/create">创建问题</el-menu-item>
+        </el-sub-menu>
+        
+        <!-- 标准答案管理 -->
+        <el-sub-menu index="/answers">
+          <template #title>
+            <el-icon><ChatLineSquare /></el-icon>
+            <span>答案管理</span>
+          </template>
+          <el-menu-item index="/answers">答案列表</el-menu-item>
+        </el-sub-menu>
+        
+        <!-- 众包任务管理 -->
+        <el-sub-menu index="/crowdsourcing">
+          <template #title>
+            <el-icon><Service /></el-icon>
+            <span>众包任务</span>
+          </template>
+          <el-menu-item index="/crowdsourcing">任务列表</el-menu-item>
+          <el-menu-item index="/crowdsourcing/create">创建任务</el-menu-item>
+        </el-sub-menu>
+        
+        <!-- 数据集版本管理 -->
+        <el-sub-menu index="/datasets">
+          <template #title>
+            <el-icon><Files /></el-icon>
+            <span>数据集管理</span>
+          </template>
+          <el-menu-item index="/datasets">数据集列表</el-menu-item>
+          <el-menu-item index="/datasets/create">创建数据集</el-menu-item>
+        </el-sub-menu>
+        
+        <!-- 模型评测管理 -->
+        <el-sub-menu index="/evaluations">
+          <template #title>
+            <el-icon><DataAnalysis /></el-icon>
+            <span>模型评测</span>
+          </template>
+          <el-menu-item index="/evaluations">评测列表</el-menu-item>
+          <el-menu-item index="/evaluations/create">创建评测</el-menu-item>
+        </el-sub-menu>
+        
+        <!-- 分类和标签管理 -->
+        <el-sub-menu index="/system">
+          <template #title>
+            <el-icon><Setting /></el-icon>
+            <span>系统管理</span>
+          </template>
+          <el-menu-item index="/categories">分类管理</el-menu-item>
+          <el-menu-item index="/tags">标签管理</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>
@@ -37,7 +88,15 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { HomeFilled, Document } from '@element-plus/icons-vue'
+import { 
+  HomeFilled, 
+  Document, 
+  ChatLineSquare, 
+  Service, 
+  Files, 
+  DataAnalysis, 
+  Setting 
+} from '@element-plus/icons-vue'
 
 const route = useRoute()
 
