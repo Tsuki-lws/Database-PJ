@@ -1,0 +1,217 @@
+import request from '../utils/request'
+
+/**
+ * 获取评测批次列表
+ * @param params 查询参数
+ * @returns 评测批次列表
+ */
+export function getEvaluationBatches(params: any) {
+  return request({
+    url: '/api/evaluations/batches',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取评测批次详情
+ * @param batchId 评测批次ID
+ * @returns 评测批次详情
+ */
+export function getEvaluationBatchById(batchId: number) {
+  return request({
+    url: `/api/evaluations/batches/${batchId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 创建评测批次
+ * @param data 评测批次数据
+ * @returns 创建结果
+ */
+export function createEvaluationBatch(data: any) {
+  return request({
+    url: '/api/evaluations/batches',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 开始执行评测批次
+ * @param batchId 评测批次ID
+ * @returns 执行结果
+ */
+export function startEvaluationBatch(batchId: number) {
+  return request({
+    url: `/api/evaluations/batches/${batchId}/start`,
+    method: 'post'
+  })
+}
+
+/**
+ * 获取评测结果
+ * @param batchId 评测批次ID
+ * @param params 查询参数
+ * @returns 评测结果
+ */
+export function getEvaluationResults(batchId: number, params?: any) {
+  return request({
+    url: `/api/evaluations/batches/${batchId}/results`,
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取评测结果详情
+ * @param batchId 评测批次ID
+ * @param questionId 问题ID
+ * @returns 评测结果详情
+ */
+export function getEvaluationResultDetail(batchId: number, questionId: number) {
+  return request({
+    url: `/api/evaluations/batches/${batchId}/results/${questionId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 获取待评测的回答
+ * @param params 查询参数
+ * @returns 待评测回答列表
+ */
+export function getUnevaluatedAnswers(params?: any) {
+  return request({
+    url: '/api/evaluations/unevaluated',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取评测详情
+ * @param answerId 回答ID
+ * @returns 评测详情
+ */
+export function getEvaluationDetail(answerId: number) {
+  return request({
+    url: `/api/evaluations/detail/${answerId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 提交人工评测结果
+ * @param data 评测数据
+ * @returns 提交结果
+ */
+export function submitManualEvaluation(data: any) {
+  return request({
+    url: '/api/evaluations/manual',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 获取模型列表
+ * @returns 模型列表
+ */
+export function getModelList() {
+  return request({
+    url: '/api/models',
+    method: 'get'
+  })
+}
+
+/**
+ * 导出评测结果
+ * @param batchId 评测批次ID
+ * @param format 导出格式 (csv, excel, json)
+ * @returns 导出文件
+ */
+export function exportEvaluationResults(batchId: number, format: string = 'csv') {
+  return request({
+    url: `/api/evaluations/batches/${batchId}/export`,
+    method: 'get',
+    params: { format },
+    responseType: 'blob'
+  })
+}
+
+// 获取评测结果列表
+export function getEvaluationResultsList(batchId: number, params: any) {
+  return request({
+    url: `/api/evaluation-batches/${batchId}/results`,
+    method: 'get',
+    params
+  })
+}
+
+// 获取评测结果详情
+export function getEvaluationResultDetailList(id: number) {
+  return request({
+    url: `/api/evaluations/${id}`,
+    method: 'get'
+  })
+}
+
+// 获取待评测的答案列表
+export function getUnevaluatedAnswersList(params: any) {
+  return request({
+    url: '/api/evaluations/unevaluated',
+    method: 'get',
+    params
+  })
+}
+
+// 获取评测详情（用于人工评测）
+export function getEvaluationDetailList(answerId: number) {
+  return request({
+    url: `/api/evaluations/detail/${answerId}`,
+    method: 'get'
+  })
+}
+
+// 提交人工评测结果
+export function submitManualEvaluationList(data: any) {
+  return request({
+    url: '/api/evaluations/manual',
+    method: 'post',
+    data
+  })
+}
+
+// 导入评测结果
+export function importEvaluationResultsList(batchId: number, file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return request({
+    url: `/api/evaluation-batches/${batchId}/import`,
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+// 获取模型评分统计
+export function getModelScoreStatisticsList(batchId: number) {
+  return request({
+    url: `/api/evaluation-batches/${batchId}/statistics`,
+    method: 'get'
+  })
+}
+
+// 获取模型对比数据
+export function getModelComparisonDataList(modelIds: number[]) {
+  return request({
+    url: '/api/evaluations/comparison',
+    method: 'get',
+    params: { modelIds: modelIds.join(',') }
+  })
+} 

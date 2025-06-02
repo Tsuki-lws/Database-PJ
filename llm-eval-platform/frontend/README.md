@@ -1,5 +1,50 @@
-# Vue 3 + TypeScript + Vite
+# LLM评测平台前端
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## 系统功能
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+### 标准问答管理
+- 标准问题管理：创建、编辑、查询标准问题
+- 标准答案管理：创建、编辑、查询标准答案
+
+### 原始问答管理
+- 原始问题管理：导入、查询原始问题
+- 原始回答管理：查询、编辑原始回答
+- 转换功能：将原始问题/回答转换为标准问题/答案
+
+### 众包任务管理
+- 众包任务创建与管理
+- 众包答案收集界面
+- 众包答案审核与评分
+
+### 数据集管理
+- 数据集版本管理
+- 数据集问题管理
+
+### 评测功能
+- 评测批次管理
+- 评测结果查询与分析
+- 模型回答对比分析
+
+### 系统管理
+- 分类管理
+- 标签管理
+- 数据导入导出
+
+## 技术栈
+- Vue 3
+- TypeScript
+- Element Plus
+- Vite
+
+## 安装与运行
+
+```bash
+# 安装依赖
+npm install
+
+# 开发模式运行
+npm run dev
+
+# 构建生产版本
+npm run build
+```

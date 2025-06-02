@@ -1,62 +1,111 @@
-# LLM评估平台数据库设置指南
+# LLM评测平台
 
-## 问题描述
-使用默认字符集创建MySQL数据库时，中文注释（如 `COMMENT '来源平台的问题ID'`）可能会显示为乱码。
-此外，原始schema.sql文件中存在表创建顺序问题，导致出现 `Failed to open the referenced table 'users'` 错误。
+这是一个大语言模型（LLM）评测平台，用于评估和比较不同大语言模型的性能。
 
-## 解决方案
-需要使用支持中文的字符集（utf8mb4）创建数据库，并按正确的表创建顺序执行脚本。
+## 功能特点
 
-### 方法一：使用fixed-schema-order.sql脚本（推荐）
-1. 在MySQL中执行以下命令：
-```sql
-source /path/to/llm-eval-platform/backend/src/main/resources/init-db.sql
-source /path/to/llm-eval-platform/backend/src/main/resources/fixed-schema-order.sql
-```
+### 评测功能
+- 支持自动评测、人工评测和评判模型评测
+- 支持对单个问题进行人工评测
+- 支持批量评测和结果分析
+- 支持多维度评测（准确性、完整性、清晰度等）
+- 支持关键点评估
 
-### 方法二：手动创建数据库并导入修复的schema
-1. 创建数据库并设置字符集：
-```sql
-CREATE DATABASE llm_eval_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
+### 数据管理
+- 原始问题和回答管理
+- 标准问题和标准答案管理
+- 数据集版本管理
+- 众包任务管理
 
-2. 使用数据库：
-```sql
-USE llm_eval_db;
-```
+### 导入导出
+- 支持导入模型回答（单条）
+- 支持导入模型评测结果（单条）
+- 支持批量导入评测结果（JSON、CSV、Excel格式）
+- 支持导出评测结果
 
-3. 设置连接字符集：
-```sql
-SET NAMES utf8mb4;
-SET CHARACTER SET utf8mb4;
-```
+### 结果分析
+- 模型评测结果对比
+- 评测结果可视化
+- 按分类、难度等维度分析
 
-4. 导入修复后的schema.sql：
-```sql
-source /path/to/llm-eval-platform/backend/src/main/resources/fixed-schema-order.sql
-```
+## 项目结构
 
-### 方法三：命令行一次性执行
+### 前端
+- 基于Vue 3 + TypeScript + Element Plus
+- 采用组件化开发
+- 使用Vue Router进行路由管理
+
+### 后端
+- 基于Spring Boot
+- RESTful API设计
+- 使用JPA进行数据访问
+- 支持多种数据库
+
+## 主要页面
+
+1. 首页：展示评测概览和快速操作
+2. 评测列表：管理评测批次
+3. 评测详情：查看评测基本信息和进度
+4. 评测结果：查看评测结果详情和分析
+5. 人工评测：对单个问题进行人工评测
+6. 模型回答导入：导入单条模型回答
+7. 模型评测导入：导入单条模型评测结果
+8. 评测结果导入：批量导入评测结果
+
+## 开发指南
+
+### 环境要求
+- Node.js 16+
+- JDK 11+
+- Maven 3.6+
+
+### 前端开发
 ```bash
-mysql -u username -p --default-character-set=utf8mb4 -e "CREATE DATABASE IF NOT EXISTS llm_eval_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -u username -p --default-character-set=utf8mb4 llm_eval_db < /path/to/llm-eval-platform/backend/src/main/resources/fixed-schema-order.sql
+# 进入前端目录
+cd frontend
+
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
 ```
 
-## 表创建顺序问题说明
-原始schema.sql中的错误是由于表创建顺序不正确导致的，主要问题是：
-1. `users` 表被多个表引用，但创建顺序靠后
-2. `crowdsourcing_tasks` 和 `crowdsourced_answers` 之间存在循环引用
+### 后端开发
+```bash
+# 进入后端目录
+cd backend
 
-fixed-schema-order.sql文件解决了这些问题，通过合理安排表的创建顺序：
-1. 首先创建基础表（如users表）
-2. 然后创建依赖这些基础表的表
-3. 最后创建有复杂依赖关系的表
+# 编译项目
+mvn clean package
 
-## 验证字符集设置
-使用以下命令确认数据库字符集设置：
-```sql
-SHOW VARIABLES LIKE 'character_set%';
-SHOW CREATE DATABASE llm_eval_db;
+# 运行项目
+java -jar target/llm-eval-platform.jar
 ```
 
-正确设置后，数据库的字符集应为utf8mb4，中文注释将正常显示。 
+## API文档
+
+### 评测相关API
+- `GET /api/evaluations/batches`: 获取评测批次列表
+- `GET /api/evaluations/batches/{batchId}`: 获取评测批次详情
+- `POST /api/evaluations/batches`: 创建评测批次
+- `POST /api/evaluations/batches/{batchId}/start`: 开始执行评测批次
+- `GET /api/evaluations/batches/{batchId}/results`: 获取评测结果
+- `GET /api/evaluations/batches/{batchId}/results/{questionId}`: 获取评测结果详情
+- `GET /api/evaluations/unevaluated`: 获取待评测的回答
+- `GET /api/evaluations/detail/{answerId}`: 获取评测详情
+- `POST /api/evaluations/manual`: 提交人工评测结果
+- `GET /api/evaluations/batches/{batchId}/export`: 导出评测结果
+
+### 问题相关API
+- `GET /api/questions/search`: 搜索标准问题
+- `GET /api/questions/{questionId}`: 获取问题详情
+- `GET /api/questions`: 获取问题列表
+- `POST /api/questions`: 创建问题
+- `PUT /api/questions/{questionId}`: 更新问题
+- `DELETE /api/questions/{questionId}`: 删除问题
+
+### 导入相关API
+- `POST /api/import/model-answer`: 导入单条模型回答
+- `GET /api/answers/search`: 搜索模型回答
+- `GET /api/answers/{answerId}`: 获取模型回答详情 

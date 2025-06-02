@@ -1,98 +1,152 @@
 <template>
   <div class="home-container">
+    <div class="welcome-section">
+      <h1>欢迎使用 LLM 评测平台</h1>
+      <p>本平台提供大语言模型评测、对比和分析功能，帮助您更好地了解和评估模型性能。</p>
+    </div>
+
     <el-row :gutter="20">
-      <el-col :span="24">
-        <h1 class="welcome-title">欢迎使用 LLM 评测平台</h1>
-        <p class="welcome-subtitle">一站式大语言模型评测解决方案</p>
-      </el-col>
-    </el-row>
-
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-cards">
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-icon">
-            <el-icon><Document /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.questionCount }}</div>
-            <div class="stat-label">标准问题</div>
+      <el-col :span="16">
+        <!-- 评测概览 -->
+        <el-card shadow="hover" class="overview-card">
+          <template #header>
+            <div class="card-header">
+              <span>评测概览</span>
+              <el-button text @click="navigateTo('/evaluations')">查看全部</el-button>
+            </div>
+          </template>
+          <el-row :gutter="20">
+            <el-col :span="6">
+              <div class="stat-item">
+                <div class="stat-value">{{ stats.totalModels }}</div>
+                <div class="stat-label">评测模型</div>
+              </div>
+            </el-col>
+            <el-col :span="6">
+              <div class="stat-item">
+                <div class="stat-value">{{ stats.totalDatasets }}</div>
+                <div class="stat-label">数据集</div>
+              </div>
+            </el-col>
+            <el-col :span="6">
+              <div class="stat-item">
+                <div class="stat-value">{{ stats.totalQuestions }}</div>
+                <div class="stat-label">评测问题</div>
+              </div>
+            </el-col>
+            <el-col :span="6">
+              <div class="stat-item">
+                <div class="stat-value">{{ stats.completedEvaluations }}</div>
+                <div class="stat-label">已完成评测</div>
+              </div>
+            </el-col>
+          </el-row>
+          
+          <div class="chart-container">
+            <h3>模型评分对比</h3>
+            <div class="chart-placeholder">
+              <div class="chart-content">
+                <div class="model-score" v-for="(score, index) in modelScores" :key="index">
+                  <div class="model-name">{{ score.name }}</div>
+                  <div class="score-bar-container">
+                    <div class="score-bar" :style="{ width: score.score * 10 + '%', backgroundColor: score.color }">
+                      {{ score.score.toFixed(2) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-icon">
-            <el-icon><ChatLineSquare /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.answerCount }}</div>
-            <div class="stat-label">标准答案</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-icon">
-            <el-icon><Files /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.datasetCount }}</div>
-            <div class="stat-label">数据集版本</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-icon">
-            <el-icon><DataAnalysis /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.evaluationCount }}</div>
-            <div class="stat-label">评测批次</div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 快速入口 -->
-    <el-row :gutter="20" class="quick-access">
-      <el-col :span="24">
-        <h2 class="section-title">快速入口</h2>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="item in quickAccessItems" :key="item.title">
-        <el-card shadow="hover" class="quick-access-card" @click="navigateTo(item.route)">
-          <div class="quick-access-icon">
-            <el-icon>
-              <component :is="item.icon"></component>
-            </el-icon>
-          </div>
-          <div class="quick-access-title">{{ item.title }}</div>
-          <div class="quick-access-desc">{{ item.description }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 待办事项 -->
-    <el-row :gutter="20" class="todo-section">
-      <el-col :span="24">
-        <h2 class="section-title">待办事项</h2>
-        <el-card shadow="hover" class="todo-card">
-          <el-empty v-if="todos.length === 0" description="暂无待办事项"></el-empty>
-          <el-table v-else :data="todos" style="width: 100%">
-            <el-table-column prop="type" label="类型" width="120">
+        
+        <!-- 最近评测 -->
+        <el-card shadow="hover" class="recent-card">
+          <template #header>
+            <div class="card-header">
+              <span>最近评测</span>
+              <el-button text @click="navigateTo('/evaluations/results')">查看全部结果</el-button>
+            </div>
+          </template>
+          <el-table :data="recentEvaluations" style="width: 100%">
+            <el-table-column prop="batchName" label="评测批次" />
+            <el-table-column prop="modelName" label="模型" width="120" />
+            <el-table-column prop="datasetName" label="数据集" width="150" />
+            <el-table-column prop="score" label="得分" width="80">
               <template #default="scope">
-                <el-tag :type="getTagType(scope.row.type)">{{ scope.row.type }}</el-tag>
+                {{ scope.row.score.toFixed(2) }}
               </template>
             </el-table-column>
-            <el-table-column prop="title" label="标题"></el-table-column>
-            <el-table-column prop="createdAt" label="创建时间" width="180"></el-table-column>
+            <el-table-column prop="completedAt" label="完成时间" width="180" />
             <el-table-column fixed="right" label="操作" width="120">
               <template #default="scope">
-                <el-button link type="primary" @click="handleTodoAction(scope.row)">处理</el-button>
+                <el-button link type="primary" @click="viewResult(scope.row)">查看结果</el-button>
               </template>
             </el-table-column>
           </el-table>
+        </el-card>
+      </el-col>
+      
+      <el-col :span="8">
+        <!-- 快速操作 -->
+        <el-card shadow="hover" class="quick-actions-card">
+          <template #header>
+            <div class="card-header">
+              <span>快速操作</span>
+            </div>
+          </template>
+          <div class="quick-actions">
+            <el-button type="primary" @click="navigateTo('/evaluations/create')">创建评测</el-button>
+            <el-button type="primary" @click="navigateTo('/evaluations/manual')">人工评测</el-button>
+            <el-button type="primary" @click="navigateTo('/import/model-answer')">导入模型回答</el-button>
+            <el-button type="primary" @click="navigateTo('/import/model-evaluation')">导入评测结果</el-button>
+          </div>
+        </el-card>
+        
+        <!-- 系统状态 -->
+        <el-card shadow="hover" class="system-status-card">
+          <template #header>
+            <div class="card-header">
+              <span>系统状态</span>
+              <el-tag type="success">正常运行</el-tag>
+            </div>
+          </template>
+          <div class="system-status">
+            <div class="status-item">
+              <span class="status-label">API 服务：</span>
+              <el-tag size="small" type="success">在线</el-tag>
+            </div>
+            <div class="status-item">
+              <span class="status-label">数据库：</span>
+              <el-tag size="small" type="success">连接正常</el-tag>
+            </div>
+            <div class="status-item">
+              <span class="status-label">评测引擎：</span>
+              <el-tag size="small" type="success">运行中</el-tag>
+            </div>
+            <div class="status-item">
+              <span class="status-label">当前运行任务：</span>
+              <span>2</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">等待中任务：</span>
+              <span>5</span>
+            </div>
+          </div>
+        </el-card>
+        
+        <!-- 最新动态 -->
+        <el-card shadow="hover" class="news-card">
+          <template #header>
+            <div class="card-header">
+              <span>最新动态</span>
+            </div>
+          </template>
+          <div class="news-list">
+            <div class="news-item" v-for="(item, index) in news" :key="index">
+              <div class="news-time">{{ item.time }}</div>
+              <div class="news-content">{{ item.content }}</div>
+            </div>
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -100,117 +154,79 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Document, ChatLineSquare, Files, DataAnalysis, Service, Setting, Plus } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
 // 统计数据
-const stats = ref({
-  questionCount: 0,
-  answerCount: 0,
-  datasetCount: 0,
-  evaluationCount: 0
+const stats = reactive({
+  totalModels: 15,
+  totalDatasets: 8,
+  totalQuestions: 2500,
+  completedEvaluations: 56
 })
 
-// 快速入口项
-const quickAccessItems = [
-  {
-    title: '创建标准问题',
-    description: '创建新的标准问题',
-    icon: 'Plus',
-    route: '/questions/create'
-  },
-  {
-    title: '创建众包任务',
-    description: '发布众包任务收集答案',
-    icon: 'Service',
-    route: '/crowdsourcing/create'
-  },
-  {
-    title: '创建数据集',
-    description: '创建新的数据集版本',
-    icon: 'Files',
-    route: '/datasets/create'
-  },
-  {
-    title: '创建评测',
-    description: '创建新的模型评测批次',
-    icon: 'DataAnalysis',
-    route: '/evaluations/create'
-  }
+// 模型评分数据
+const modelScores = [
+  { name: 'GPT-4', score: 8.75, color: '#409EFF' },
+  { name: 'Claude 2', score: 8.42, color: '#67C23A' },
+  { name: 'LLaMA 2 70B', score: 7.89, color: '#E6A23C' },
+  { name: 'Mistral 7B', score: 7.65, color: '#F56C6C' },
+  { name: 'Baichuan 2 13B', score: 7.32, color: '#909399' }
 ]
 
-// 待办事项
-const todos = ref([])
-
-// 获取统计数据
-const fetchStats = async () => {
-  try {
-    // 这里应该调用后端API获取统计数据
-    // 暂时使用模拟数据
-    stats.value = {
-      questionCount: 128,
-      answerCount: 96,
-      datasetCount: 5,
-      evaluationCount: 12
-    }
-  } catch (error) {
-    console.error('获取统计数据失败', error)
+// 最近评测数据
+const recentEvaluations = ref([
+  {
+    id: 1,
+    batchName: 'GPT-4 基准测试',
+    modelName: 'GPT-4',
+    datasetName: '通用能力评测集 v1.0',
+    score: 8.75,
+    completedAt: '2023-05-15 12:45:18'
+  },
+  {
+    id: 2,
+    batchName: 'Claude 2 评测',
+    modelName: 'Claude 2',
+    datasetName: '通用能力评测集 v1.0',
+    score: 8.42,
+    completedAt: '2023-05-14 18:30:45'
+  },
+  {
+    id: 3,
+    batchName: 'LLaMA 2 测试',
+    modelName: 'LLaMA 2 70B',
+    datasetName: '通用能力评测集 v1.0',
+    score: 7.89,
+    completedAt: '2023-05-13 15:20:33'
   }
-}
+])
 
-// 获取待办事项
-const fetchTodos = async () => {
-  try {
-    // 这里应该调用后端API获取待办事项
-    // 暂时使用模拟数据
-    todos.value = [
-      {
-        id: 1,
-        type: '问题审核',
-        title: '审核新提交的标准问题',
-        createdAt: '2023-06-01 10:30:00',
-        route: '/questions/1'
-      },
-      {
-        id: 2,
-        type: '众包任务',
-        title: '众包任务"Linux基础知识"已完成',
-        createdAt: '2023-06-02 14:20:00',
-        route: '/crowdsourcing/detail/1'
-      }
-    ]
-  } catch (error) {
-    console.error('获取待办事项失败', error)
-  }
-}
+// 最新动态
+const news = [
+  { time: '2023-05-16', content: '系统更新：新增模型评测结果导入功能' },
+  { time: '2023-05-15', content: '新增模型：Baichuan 2 13B 已添加到评测库' },
+  { time: '2023-05-14', content: '数据集更新：通用能力评测集 v1.0 新增 200 道问题' },
+  { time: '2023-05-12', content: '功能更新：新增模型回答导入功能' },
+  { time: '2023-05-10', content: '系统维护：数据库优化完成，性能提升 30%' }
+]
 
-// 获取标签类型
-const getTagType = (type: string) => {
-  const typeMap: Record<string, string> = {
-    '问题审核': 'primary',
-    '众包任务': 'success',
-    '评测结果': 'warning'
-  }
-  return typeMap[type] || 'info'
-}
-
-// 处理待办事项
-const handleTodoAction = (todo: any) => {
-  router.push(todo.route)
-}
+// 初始化
+onMounted(() => {
+  // 可以在这里加载一些初始数据
+})
 
 // 导航到指定路由
-const navigateTo = (route: string) => {
-  router.push(route)
+const navigateTo = (path: string) => {
+  router.push(path)
 }
 
-onMounted(() => {
-  fetchStats()
-  fetchTodos()
-})
+// 查看评测结果
+const viewResult = (row: any) => {
+  router.push(`/evaluations/results/${row.id}`)
+}
 </script>
 
 <style scoped>
@@ -218,110 +234,142 @@ onMounted(() => {
   padding: 20px;
 }
 
-.welcome-title {
+.welcome-section {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.welcome-section h1 {
   font-size: 28px;
-  font-weight: bold;
   color: #303133;
   margin-bottom: 10px;
 }
 
-.welcome-subtitle {
+.welcome-section p {
   font-size: 16px;
   color: #606266;
-  margin-bottom: 30px;
 }
 
-.section-title {
-  font-size: 20px;
-  font-weight: bold;
-  color: #303133;
-  margin-bottom: 20px;
-  margin-top: 30px;
-}
-
-.stat-cards {
-  margin-bottom: 30px;
-}
-
-.stat-card {
-  height: 120px;
+.card-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
 }
 
-.stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+.overview-card,
+.recent-card,
+.quick-actions-card,
+.system-status-card,
+.news-card {
+  margin-bottom: 20px;
 }
 
-.stat-icon {
-  font-size: 36px;
-  color: #409EFF;
-  margin-right: 20px;
-}
-
-.stat-content {
+.stat-item {
   text-align: center;
+  padding: 15px 0;
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: bold;
-  color: #303133;
+  color: #409EFF;
+  margin-bottom: 5px;
 }
 
 .stat-label {
   font-size: 14px;
   color: #606266;
-  margin-top: 5px;
 }
 
-.quick-access {
-  margin-bottom: 30px;
+.chart-container {
+  margin-top: 20px;
 }
 
-.quick-access-card {
-  height: 160px;
+.chart-container h3 {
+  margin-bottom: 15px;
+  font-size: 16px;
+  color: #303133;
+}
+
+.chart-placeholder {
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  padding: 20px;
+  min-height: 300px;
+}
+
+.chart-content {
+  width: 100%;
+}
+
+.model-score {
+  margin-bottom: 15px;
+}
+
+.model-name {
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.score-bar-container {
+  background-color: #e4e7ed;
+  border-radius: 4px;
+  height: 30px;
+  width: 100%;
+}
+
+.score-bar {
+  height: 30px;
+  border-radius: 4px;
+  color: white;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  font-weight: bold;
+}
+
+.quick-actions {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-bottom: 20px;
+  gap: 10px;
 }
 
-.quick-access-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+.system-status {
+  padding: 10px 0;
 }
 
-.quick-access-icon {
-  font-size: 32px;
-  color: #409EFF;
-  margin-bottom: 10px;
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
 }
 
-.quick-access-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #303133;
+.status-label {
+  color: #606266;
+}
+
+.news-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.news-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.news-item:last-child {
+  border-bottom: none;
+}
+
+.news-time {
+  font-size: 12px;
+  color: #909399;
   margin-bottom: 5px;
 }
 
-.quick-access-desc {
-  font-size: 12px;
-  color: #606266;
-  text-align: center;
-}
-
-.todo-section {
-  margin-bottom: 30px;
-}
-
-.todo-card {
-  min-height: 200px;
+.news-content {
+  font-size: 14px;
+  color: #303133;
 }
 </style> 

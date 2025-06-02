@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -22,4 +23,11 @@ public interface RawAnswerRepository extends JpaRepository<RawAnswer, Integer> {
      * @return 原始答案
      */
     Optional<RawAnswer> findBySourceAnswerId(Integer sourceAnswerId);
+    
+    /**
+     * 根据问题ID查询所有回答
+     * @param questionId 问题ID
+     * @return 回答列表
+     */
+    List<RawAnswer> findByQuestionQuestionId(Integer questionId);
 } 

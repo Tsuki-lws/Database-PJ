@@ -1,0 +1,146 @@
+import request from '../utils/request'
+
+/**
+ * 导入原始问题和回答
+ * @param file 要上传的JSON文件
+ * @returns 导入结果
+ */
+export function importRawQA(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return request({
+    url: '/api/import/raw-qa',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 导入标准问题和回答
+ * @param file 要上传的JSON文件
+ * @returns 导入结果
+ */
+export function importStandardQA(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return request({
+    url: '/api/import/standard-qa',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 导入众包任务数据
+ * @param file 要上传的JSON文件
+ * @returns 导入结果
+ */
+export function importCrowdsourcingTasks(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return request({
+    url: '/api/import/crowdsourcing-tasks',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 导入众包答案数据
+ * @param file 要上传的JSON文件
+ * @returns 导入结果
+ */
+export function importCrowdsourcingAnswers(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return request({
+    url: '/api/import/crowdsourcing-answers',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 导入数据集
+ * @param file 要上传的JSON文件
+ * @returns 导入结果
+ */
+export function importDataset(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return request({
+    url: '/api/import/dataset',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 导入单条模型回答
+ * @param data 模型回答数据
+ * @returns 导入结果
+ */
+export function importModelAnswer(data: any) {
+  return request({
+    url: '/api/import/model-answer',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 搜索模型回答
+ * @param query 搜索关键词
+ * @returns 搜索结果
+ */
+export function searchModelAnswers(query: string) {
+  return request({
+    url: '/api/answers/search',
+    method: 'get',
+    params: { query }
+  })
+}
+
+/**
+ * 获取模型回答详情
+ * @param answerId 回答ID
+ * @returns 回答详情
+ */
+export function getAnswerDetail(answerId: number) {
+  return request({
+    url: `/api/answers/${answerId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 删除模型回答
+ * @param answerId 回答ID
+ * @returns 删除结果
+ */
+export function deleteModelAnswer(answerId: number) {
+  return request({
+    url: `/api/answers/${answerId}`,
+    method: 'delete'
+  })
+} 

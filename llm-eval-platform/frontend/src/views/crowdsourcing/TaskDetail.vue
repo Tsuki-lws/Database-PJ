@@ -3,6 +3,9 @@
     <div class="page-header">
       <h2>众包任务详情</h2>
       <div>
+        <el-button type="primary" @click="navigateToCollection" v-if="task.status === 'ongoing'">
+          参与收集
+        </el-button>
         <el-button @click="navigateToAnswers">查看答案</el-button>
         <el-button @click="navigateBack">返回</el-button>
       </div>
@@ -280,7 +283,11 @@ const navigateToAnswers = () => {
 
 // 返回上一页
 const navigateBack = () => {
-  router.back()
+  router.push('/crowdsourcing')
+}
+
+const navigateToCollection = () => {
+  router.push(`/crowdsourcing/collection/${task.value.taskId}`)
 }
 
 onMounted(() => {

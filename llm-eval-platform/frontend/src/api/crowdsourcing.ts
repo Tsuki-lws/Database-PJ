@@ -57,6 +57,26 @@ export function getTaskById(id: number) {
   })
 }
 
+// 获取众包任务
+export function getCrowdsourcingTask(id: number) {
+  return request({
+    url: `/api/crowdsourcing/tasks/${id}`,
+    method: 'get'
+  })
+}
+
+// 获取任务问题列表
+export function getTaskQuestions(params: any) {
+  return request({
+    url: `/api/crowdsourcing/tasks/${params.taskId}/questions`,
+    method: 'get',
+    params: {
+      page: params.page,
+      size: params.size
+    }
+  })
+}
+
 // 创建众包任务
 export function createTask(data: CrowdsourcingTask) {
   return request({
@@ -96,6 +116,15 @@ export function getAnswersByQuestionId(questionId: number, params: any) {
 export function submitAnswer(data: CrowdsourcingAnswer) {
   return request({
     url: '/api/crowdsourcing/answers',
+    method: 'post',
+    data
+  })
+}
+
+// 提交众包回答（用于收集界面）
+export function submitCrowdsourcedAnswer(data: any) {
+  return request({
+    url: '/api/crowdsourcing/answers/submit',
     method: 'post',
     data
   })

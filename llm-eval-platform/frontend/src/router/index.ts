@@ -38,6 +38,26 @@ const router = createRouter({
           component: () => import('../views/answers/List.vue')
         },
         {
+          path: 'answers/model',
+          name: 'ModelAnswers',
+          component: () => import('../views/answers/ModelAnswers.vue')
+        },
+        {
+          path: 'model-answers',
+          name: 'ModelAnswersRoot',
+          redirect: '/answers/model'
+        },
+        {
+          path: 'model-answers/import',
+          name: 'ImportModelAnswer',
+          component: () => import('../views/import/ImportModelAnswer.vue')
+        },
+        {
+          path: 'model-answers/evaluation',
+          name: 'ImportModelEvaluation',
+          component: () => import('../views/import/ImportModelEvaluation.vue')
+        },
+        {
           path: 'answers/create/:questionId',
           name: 'CreateAnswer',
           component: () => import('../views/answers/Create.vue')
@@ -66,6 +86,11 @@ const router = createRouter({
           path: 'crowdsourcing/answers/:taskId',
           name: 'CrowdsourcingAnswers',
           component: () => import('../views/crowdsourcing/AnswerList.vue')
+        },
+        {
+          path: 'crowdsourcing/collection/:taskId',
+          name: 'CrowdsourcingCollection',
+          component: () => import('../views/crowdsourcing/AnswerCollection.vue')
         },
         {
           path: 'datasets',
@@ -103,6 +128,29 @@ const router = createRouter({
           component: () => import('../views/evaluations/Results.vue')
         },
         {
+          path: 'evaluations/results',
+          name: 'AllEvaluationResults',
+          component: () => import('../views/evaluations/AllResults.vue')
+        },
+        {
+          path: 'evaluations/manual',
+          name: 'ManualEvaluation',
+          component: () => import('../views/evaluations/ManualEvaluation.vue')
+        },
+        {
+          path: 'import/evaluation',
+          name: 'ImportEvaluation',
+          component: () => import('../views/import/ImportEvaluation.vue')
+        },
+        {
+          path: 'import/model-answer',
+          redirect: '/model-answers/import'
+        },
+        {
+          path: 'import/model-evaluation',
+          redirect: '/model-answers/evaluation'
+        },
+        {
           path: 'categories',
           name: 'Categories',
           component: () => import('../views/categories/List.vue')
@@ -111,6 +159,36 @@ const router = createRouter({
           path: 'tags',
           name: 'Tags',
           component: () => import('../views/tags/List.vue')
+        },
+        {
+          path: 'raw-questions',
+          name: 'RawQuestions',
+          component: () => import('../views/raw/QuestionList.vue')
+        },
+        {
+          path: 'raw-questions/detail/:id',
+          name: 'RawQuestionDetail',
+          component: () => import('../views/raw/QuestionDetail.vue')
+        },
+        {
+          path: 'raw-answers',
+          name: 'RawAnswers',
+          component: () => import('../views/raw/AnswerList.vue')
+        },
+        {
+          path: 'import/raw',
+          name: 'ImportRaw',
+          component: () => import('../views/import/ImportRaw.vue')
+        },
+        {
+          path: 'import/standard',
+          name: 'ImportStandard',
+          component: () => import('../views/import/ImportStandard.vue')
+        },
+        {
+          path: 'import',
+          name: 'Import',
+          component: () => import('../views/import/Import.vue')
         }
       ]
     }

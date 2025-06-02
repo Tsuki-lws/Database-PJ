@@ -13,23 +13,39 @@
           <span>首页</span>
         </el-menu-item>
         
-        <!-- 标准问题管理 -->
-        <el-sub-menu index="/questions">
+        <!-- 原始问答管理 -->
+        <el-sub-menu index="/raw">
           <template #title>
-            <el-icon><Document /></el-icon>
-            <span>问题管理</span>
+            <el-icon><Collection /></el-icon>
+            <span>原始问答管理</span>
           </template>
-          <el-menu-item index="/questions">问题列表</el-menu-item>
-          <el-menu-item index="/questions/create">创建问题</el-menu-item>
+          <el-menu-item index="/raw-questions">原始问题列表</el-menu-item>
+          <el-menu-item index="/raw-answers">原始回答列表</el-menu-item>
+          <el-menu-item index="/import/raw">原始数据导入</el-menu-item>
         </el-sub-menu>
         
-        <!-- 标准答案管理 -->
-        <el-sub-menu index="/answers">
+        <!-- 标准问答管理 -->
+        <el-sub-menu index="/standard">
+          <template #title>
+            <el-icon><Document /></el-icon>
+            <span>标准问答管理</span>
+          </template>
+          <el-menu-item index="/questions">标准问题列表</el-menu-item>
+          <el-menu-item index="/answers">标准答案列表</el-menu-item>
+          <el-menu-item index="/import/standard">标准数据导入</el-menu-item>
+          <el-menu-item index="/categories">问题分类</el-menu-item>
+          <el-menu-item index="/tags">问题标签</el-menu-item>
+        </el-sub-menu>
+        
+        <!-- 模型回答管理 -->
+        <el-sub-menu index="/model-answers">
           <template #title>
             <el-icon><ChatLineSquare /></el-icon>
-            <span>答案管理</span>
+            <span>模型回答管理</span>
           </template>
-          <el-menu-item index="/answers">答案列表</el-menu-item>
+          <el-menu-item index="/answers/model">模型回答列表</el-menu-item>
+          <el-menu-item index="/model-answers/import">导入模型回答</el-menu-item>
+          <el-menu-item index="/model-answers/evaluation">模型评测导入</el-menu-item>
         </el-sub-menu>
         
         <!-- 众包任务管理 -->
@@ -52,6 +68,17 @@
           <el-menu-item index="/datasets/create">创建数据集</el-menu-item>
         </el-sub-menu>
         
+        <!-- 数据导入管理 -->
+        <el-sub-menu index="/import">
+          <template #title>
+            <el-icon><Upload /></el-icon>
+            <span>数据导入</span>
+          </template>
+          <el-menu-item index="/import/raw">原始数据导入</el-menu-item>
+          <el-menu-item index="/import/standard">标准数据导入</el-menu-item>
+          <el-menu-item index="/import/evaluation">评测结果导入</el-menu-item>
+        </el-sub-menu>
+        
         <!-- 模型评测管理 -->
         <el-sub-menu index="/evaluations">
           <template #title>
@@ -60,16 +87,8 @@
           </template>
           <el-menu-item index="/evaluations">评测列表</el-menu-item>
           <el-menu-item index="/evaluations/create">创建评测</el-menu-item>
-        </el-sub-menu>
-        
-        <!-- 分类和标签管理 -->
-        <el-sub-menu index="/system">
-          <template #title>
-            <el-icon><Setting /></el-icon>
-            <span>系统管理</span>
-          </template>
-          <el-menu-item index="/categories">分类管理</el-menu-item>
-          <el-menu-item index="/tags">标签管理</el-menu-item>
+          <el-menu-item index="/evaluations/manual">人工评测</el-menu-item>
+          <el-menu-item index="/evaluations/results">评测结果</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>
@@ -95,7 +114,9 @@ import {
   Service, 
   Files, 
   DataAnalysis, 
-  Setting 
+  Setting,
+  Collection,
+  Upload
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

@@ -1,13 +1,17 @@
 package com.llm.eval.model;
 
-import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import jakarta.persistence.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 原始问题实体类
+ */
 @Entity
 @Table(name = "raw_questions")
 @Data
@@ -17,6 +21,7 @@ public class RawQuestion {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "question_id")
     private Integer questionId;
     
     @Column(name = "source_question_id")
@@ -38,12 +43,15 @@ public class RawQuestion {
     private String sourceUrl;
     
     @Column(name = "crawled_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime crawledAt;
     
     @Column(name = "created_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
     
     @Column(name = "updated_at")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updatedAt;
     
     @Column(name = "deleted_at")
@@ -51,4 +59,23 @@ public class RawQuestion {
     
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL)
     private List<RawAnswer> answers;
+    
+    @PrePersist
+    public void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+        if (crawledAt == null) {
+            crawledAt = now;
+        }
+    }
+    
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 } 

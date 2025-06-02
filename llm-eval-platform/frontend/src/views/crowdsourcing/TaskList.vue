@@ -62,6 +62,14 @@
             <el-button link type="primary" @click="navigateToDetail(scope.row.taskId)">查看</el-button>
             <el-button link type="primary" @click="navigateToAnswers(scope.row.taskId)">查看答案</el-button>
             <el-button 
+              v-if="scope.row.status === 'ongoing'"
+              link 
+              type="success" 
+              @click="navigateToCollection(scope.row.taskId)"
+            >
+              参与收集
+            </el-button>
+            <el-button 
               v-if="scope.row.status === 'draft'" 
               link 
               type="success" 
@@ -310,6 +318,11 @@ const navigateToDetail = (id: number) => {
 // 导航到答案列表页面
 const navigateToAnswers = (id: number) => {
   router.push(`/crowdsourcing/answers/${id}`)
+}
+
+// 导航到收集页面
+const navigateToCollection = (id: number) => {
+  router.push(`/crowdsourcing/collection/${id}`)
 }
 
 onMounted(() => {
