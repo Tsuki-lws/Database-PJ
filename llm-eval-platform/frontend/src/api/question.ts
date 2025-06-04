@@ -17,11 +17,12 @@ export interface StandardQuestion {
 export interface QueryParams {
   page?: number
   size?: number
-  questionType?: string
   categoryId?: number
+  questionType?: string
   difficulty?: string
-  status?: string
   keyword?: string
+  sortBy?: string
+  sortDir?: string
 }
 
 // 获取标准问题列表
@@ -106,5 +107,14 @@ export function getQuestionsByTag(tagId: number) {
   return request({
     url: `/api/questions/tag/${tagId}`,
     method: 'get'
+  })
+}
+
+// 获取标准问题列表（分页）
+export function getStandardQuestions(params: QueryParams) {
+  return request({
+    url: '/api/questions',
+    method: 'get',
+    params
   })
 } 

@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 @RestController
 @RequestMapping("/api/raw-questions")
 @Tag(name = "Raw Question API", description = "原始问题管理接口")
+@CrossOrigin(origins = "*")
 public class RawQuestionController {
 
     private static final Logger logger = LoggerFactory.getLogger(RawQuestionController.class);
@@ -40,113 +41,6 @@ public class RawQuestionController {
     public RawQuestionController(RawQuestionService rawQuestionService, RawAnswerService rawAnswerService) {
         this.rawQuestionService = rawQuestionService;
         this.rawAnswerService = rawAnswerService;
-    }
-
-    @GetMapping
-    @Operation(summary = "获取原始问题列表")
-    public ResponseEntity<Map<String, Object>> listRawQuestions(QueryParams queryParams) {
-        try {
-            logger.debug("接收到获取原始问题列表请求，参数: {}", queryParams);
-            
-            // 从请求中获取分页参数
-            int pageNum = queryParams.getPageNum() != null ? queryParams.getPageNum() : 0; // Spring Data页码从0开始
-            int pageSize = queryParams.getPageSize() != null ? queryParams.getPageSize() : 10;
-            
-            // 创建分页请求
-            Pageable pageable = PageRequest.of(pageNum, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-            
-            logger.debug("执行分页查询，页码: {}, 每页大小: {}", pageNum, pageSize);
-            
-            Page<RawQuestion> page = null;
-            List<Map<String, Object>> simplifiedList = new ArrayList<>();
-            long totalElements = 0;
-            int totalPages = 0;
-            
-            try {
-                // 获取分页数据
-                page = rawQuestionService.findRawQuestionsByPage(queryParams, pageable);
-                logger.debug("查询结果: page={}", page);
-                
-                // 构建极度精简的响应对象，避免任何可能的循环引用
-                if (page != null && page.getContent() != null) {
-                    for (RawQuestion question : page.getContent()) {
-                        try {
-                            if (question != null) {
-                                Map<String, Object> item = new HashMap<>();
-                                item.put("questionId", question.getQuestionId());
-                                
-                                // 标题可能为空
-                                String title = question.getQuestionTitle();
-                                item.put("questionTitle", title != null ? title : "");
-                                
-                                // 截断问题内容，并确保内容不为空
-                                String body = question.getQuestionBody();
-                                if (body != null) {
-                                    if (body.length() > 200) { // 比之前更短
-                                        body = body.substring(0, 200) + "...";
-                                    }
-                                    item.put("questionBody", body);
-                                } else {
-                                    item.put("questionBody", "");
-                                }
-                                
-                                // 其他可能为空的字段
-                                item.put("source", question.getSource() != null ? question.getSource() : "");
-                                
-                                // 日期格式化
-                                LocalDateTime createdTime = question.getCreatedAt();
-                                if (createdTime != null) {
-                                    try {
-                                        item.put("createdAt", createdTime.format(DATE_FORMATTER));
-                                    } catch (Exception e) {
-                                        item.put("createdAt", "");
-                                        logger.warn("日期格式化失败: {}", e.getMessage());
-                                    }
-                                } else {
-                                    item.put("createdAt", "");
-                                }
-                                
-                                simplifiedList.add(item);
-                            }
-                        } catch (Exception e) {
-                            logger.error("处理单个问题时出错: {}", e.getMessage());
-                            // 继续处理下一个问题，不中断整个循环
-                        }
-                    }
-                    
-                    // 获取分页数据
-                    try {
-                        totalElements = page.getTotalElements();
-                        totalPages = page.getTotalPages();
-                    } catch (Exception e) {
-                        logger.error("获取分页信息失败", e);
-                    }
-                }
-            } catch (Exception e) {
-                logger.error("执行查询或处理结果时出错", e);
-            }
-            
-            // 构建最终响应
-            Map<String, Object> response = new HashMap<>();
-            response.put("content", simplifiedList);
-            response.put("totalElements", totalElements);
-            response.put("totalPages", totalPages);
-            response.put("size", page != null ? page.getSize() : pageSize);
-            response.put("number", page != null ? page.getNumber() : pageNum);
-            
-            logger.debug("成功构建响应，返回问题数量: {}", simplifiedList.size());
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("获取原始问题列表失败", e);
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", e.getMessage());
-            errorResponse.put("content", new ArrayList<>()); // 确保前端始终可以获取到content字段
-            errorResponse.put("totalElements", 0);
-            errorResponse.put("totalPages", 0);
-            errorResponse.put("size", 10);
-            errorResponse.put("number", 0);
-            return ResponseEntity.status(500).body(errorResponse);
-        }
     }
 
     @GetMapping("/{id}")
@@ -306,6 +200,59 @@ public class RawQuestionController {
         } catch (Exception e) {
             logger.error("获取各来源的问题数量失败", e);
             throw new RuntimeException("获取问题数量统计失败: " + e.getMessage(), e);
+        }
+    }
+
+    @GetMapping
+    @Operation(summary = "分页获取原始问题列表")
+    public ResponseEntity<Map<String, Object>> getRawQuestionsByPage(
+            @RequestParam(value = "pageNum", defaultValue = "1") Integer pageNum,
+            @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "source", required = false) String source,
+            @RequestParam(value = "sortField", required = false) String sortField,
+            @RequestParam(value = "sortOrder", required = false) String sortOrder) {
+        try {
+            logger.debug("分页获取原始问题列表，参数: pageNum={}, pageSize={}, keyword={}, source={}, sortField={}, sortOrder={}",
+                    pageNum, pageSize, keyword, source, sortField, sortOrder);
+            
+            // 构建查询参数
+            QueryParams queryParams = new QueryParams();
+            queryParams.setPageNum(pageNum);
+            queryParams.setPageSize(pageSize);
+            queryParams.setKeyword(keyword);
+            queryParams.setSource(source);
+            queryParams.setSortField(sortField);
+            queryParams.setSortOrder(sortOrder);
+            
+            // 构建分页参数
+            Sort sort = Sort.unsorted();
+            if (sortField != null && !sortField.isEmpty()) {
+                sort = sortOrder != null && sortOrder.equalsIgnoreCase("desc") 
+                    ? Sort.by(sortField).descending() 
+                    : Sort.by(sortField).ascending();
+            }
+            
+            // 注意：后端分页从0开始，前端从1开始，需要转换
+            Pageable pageable = PageRequest.of(pageNum - 1, pageSize, sort);
+            
+            // 调用服务层查询
+            Page<RawQuestion> page = rawQuestionService.findRawQuestionsByPage(queryParams, pageable);
+            
+            // 构建返回结果
+            Map<String, Object> result = new HashMap<>();
+            result.put("content", page.getContent());
+            result.put("totalElements", page.getTotalElements());
+            result.put("totalPages", page.getTotalPages());
+            result.put("pageNumber", page.getNumber() + 1); // 转换回前端页码（从1开始）
+            result.put("pageSize", page.getSize());
+            result.put("numberOfElements", page.getNumberOfElements());
+            
+            logger.debug("查询成功，总记录数: {}, 总页数: {}", page.getTotalElements(), page.getTotalPages());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            logger.error("分页获取原始问题列表失败", e);
+            throw new RuntimeException("获取原始问题列表失败: " + e.getMessage(), e);
         }
     }
 } 

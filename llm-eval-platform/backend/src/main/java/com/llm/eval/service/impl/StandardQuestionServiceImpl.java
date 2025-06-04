@@ -183,4 +183,22 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {   
     public void deleteStandardQuestion(Integer id) {
         standardQuestionRepository.deleteById(id);
     }
+
+    @Override
+    public Page<StandardQuestion> getStandardQuestionsByPage(
+            Integer categoryId,
+            StandardQuestion.QuestionType questionType,
+            StandardQuestion.DifficultyLevel difficulty,
+            String keyword,
+            Pageable pageable) {
+        // 如果关键词为空，则传入null，避免无效的模糊查询
+        String searchKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        
+        return standardQuestionRepository.findByFilters(
+                categoryId, 
+                questionType, 
+                difficulty, 
+                searchKeyword, 
+                pageable);
+    }
 }

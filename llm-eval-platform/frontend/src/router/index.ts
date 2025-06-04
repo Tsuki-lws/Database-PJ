@@ -15,22 +15,22 @@ const router = createRouter({
         {
           path: 'questions',
           name: 'Questions',
-          component: () => import('../views/standardquestion/List.vue')
+          component: () => import('../views/questions/List.vue')
         },
         {
           path: 'questions/create',
           name: 'CreateQuestion',
-          component: () => import('../views/standardquestion/Create.vue')
+          component: () => import('../views/questions/Create.vue')
         },
         {
           path: 'questions/edit/:id',
           name: 'EditQuestion',
-          component: () => import('../views/standardquestion/Edit.vue')
+          component: () => import('../views/questions/Edit.vue')
         },
         {
           path: 'questions/detail/:id',
           name: 'QuestionDetail',
-          component: () => import('../views/standardquestion/Detail.vue')
+          component: () => import('../views/questions/Detail.vue')
         },
         {
           path: 'answers',

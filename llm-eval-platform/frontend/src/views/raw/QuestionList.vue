@@ -32,8 +32,9 @@
         v-loading="loading"
         :data="questionList"
         border
+        @sort-change="handleSort"
         style="width: 100%">
-        <el-table-column prop="questionId" label="ID" width="80" />
+        <el-table-column prop="questionId" label="ID" width="80" sortable="custom" />
         <el-table-column prop="questionTitle" label="问题标题" min-width="200">
           <template #default="{ row }">
             <el-link type="primary" @click="$router.push(`/raw-questions/detail/${row.questionId}`)">
@@ -46,8 +47,8 @@
             <div class="question-body-preview">{{ truncateText(row.questionBody, 100) }}</div>
           </template>
         </el-table-column>
-        <el-table-column prop="source" label="来源" width="120" />
-        <el-table-column prop="createdAt" label="创建时间" width="180">
+        <el-table-column prop="source" label="来源" width="120" sortable="custom" />
+        <el-table-column prop="createdAt" label="创建时间" width="180" sortable="custom">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
@@ -158,7 +159,9 @@ const queryParams = reactive({
   page: 1,
   size: 10,
   keyword: '',
-  source: ''
+  source: '',
+  sortField: '',
+  sortOrder: 'asc'
 })
 
 // 数据列表
@@ -203,10 +206,12 @@ const getList = async () => {
   try {
     console.log('准备查询参数...');
     const params = {
-      pageNum: queryParams.page - 1, // 后端页码从0开始
+      pageNum: queryParams.page, // 后端接口已修改为从1开始计数
       pageSize: queryParams.size,
       keyword: queryParams.keyword || '',
-      source: queryParams.source || ''
+      source: queryParams.source || '',
+      sortField: queryParams.sortField || '',
+      sortOrder: queryParams.sortOrder || 'asc'
     };
     
     console.log('发送请求参数:', params);
@@ -222,16 +227,19 @@ const getList = async () => {
     }, 30000);
     
     try {
-      const res = await getRawQuestionList(params);
+      const response = await getRawQuestionList(params);
       clearTimeout(loadingTimeout);
       clearTimeout(longLoadingTimeout);
       
-      console.log('获取到响应数据类型:', typeof res);
+      console.log('获取到响应数据:', response);
       
       // 检查响应结构
-      if (!res) {
+      if (!response) {
         throw new Error('未收到服务器返回的数据');
       }
+      
+      // 适应后端返回的数据结构
+      const res = response.data || response;
       
       // 检查数据格式
       if (!res.content) {
@@ -251,7 +259,7 @@ const getList = async () => {
       total.value = res.totalElements || 0;
       
       // 记录分页信息
-      console.log(`分页信息: 总计${res.totalElements}条数据，共${res.totalPages}页，当前第${res.number+1}页，每页${res.size}条`);
+      console.log(`分页信息: 总计${res.totalElements}条数据，共${res.totalPages}页，当前第${res.pageNumber}页，每页${res.pageSize}条`);
       
       // 如果当前页没有数据但总数不为0，回到第一页
       if (questionList.value.length === 0 && total.value > 0 && queryParams.page > 1) {
@@ -269,7 +277,7 @@ const getList = async () => {
       clearTimeout(longLoadingTimeout);
       throw error;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取问题列表失败:', error);
     
     let errorMsg = '未知错误';
@@ -291,8 +299,8 @@ const getList = async () => {
 // 获取分类数据
 const getCategories = async () => {
   try {
-    const res = await getAllCategories()
-    categories.value = res.data || []
+    const response = await getAllCategories()
+    categories.value = (response.data || response) || []
   } catch (error: any) {
     ElMessage.error('获取分类列表失败: ' + error.message)
   }
@@ -327,7 +335,9 @@ const handleCurrentChange = (page: number) => {
 // 删除
 const handleDelete = async (id: number) => {
   try {
-    await deleteRawQuestion(id)
+    const response = await deleteRawQuestion(id)
+    // 适应后端返回的数据结构
+    const result = response.data || response
     ElMessage.success('删除成功')
     getList()
   } catch (error: any) {
@@ -353,12 +363,15 @@ const submitConvert = async () => {
     
     convertLoading.value = true
     try {
-      await convertToStandardQuestion(convertForm.sourceQuestionId, {
+      const response = await convertToStandardQuestion(convertForm.sourceQuestionId, {
         question: convertForm.question,
         questionType: convertForm.questionType,
         categoryId: convertForm.categoryId,
         difficulty: convertForm.difficulty
       })
+      
+      // 适应后端返回的数据结构
+      const result = response.data || response
       
       ElMessage.success('转换成功')
       convertDialogVisible.value = false
@@ -381,6 +394,13 @@ const formatDate = (dateStr?: string) => {
 const truncateText = (text: string, length: number) => {
   if (!text) return ''
   return text.length > length ? text.substring(0, length) + '...' : text
+}
+
+// 添加排序方法
+const handleSort = (column: { prop: string, order: string }) => {
+  queryParams.sortField = column.prop;
+  queryParams.sortOrder = column.order === 'ascending' ? 'asc' : 'desc';
+  getList();
 }
 </script>
 

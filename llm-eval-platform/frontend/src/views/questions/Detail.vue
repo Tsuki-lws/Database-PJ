@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getStandardQuestion } from '@/api/standardQuestions'
+import { getQuestionById } from '@/api/question'
 import { getAnswersByQuestionId } from '@/api/answer'
 
 const route = useRoute()
@@ -86,14 +86,34 @@ const getQuestionDetail = async () => {
   
   loading.value = true
   try {
-    question.value = await getStandardQuestion(id)
-    // 如果问题有标签，直接从问题对象获取
-    if (question.value && question.value.tags) {
-      tags.value = question.value.tags
+    const response = await getQuestionById(id)
+    console.log('问题详情原始响应:', response)
+    
+    // 检查响应格式并适当处理
+    if (response && typeof response === 'object') {
+      // 处理标准返回格式：{ code: 200, data: {...}, message: "Success" }
+      if (response.code === 200 && response.data) {
+        question.value = response.data
+      } 
+      // 如果响应本身就是问题对象
+      else {
+        question.value = response
+      }
+      
+      console.log('问题详情数据:', question.value)
+      
+      // 如果问题有标签，直接从问题对象获取
+      if (question.value && question.value.tags) {
+        tags.value = question.value.tags
+      } else {
+        tags.value = []
+      }
+      await getAnswersList(id)
     } else {
+      console.error('获取问题详情返回格式异常:', response)
+      question.value = {}
       tags.value = []
     }
-    await getAnswersList(id)
   } catch (error) {
     console.error('获取问题详情失败', error)
   } finally {
@@ -104,7 +124,35 @@ const getQuestionDetail = async () => {
 // 获取问题答案
 const getAnswersList = async (id: number) => {
   try {
-    answers.value = await getAnswersByQuestionId(id)
+    const response = await getAnswersByQuestionId(id)
+    console.log('问题答案原始响应:', response)
+    
+    // 检查响应格式并适当处理
+    if (response && typeof response === 'object') {
+      // 处理标准返回格式：{ code: 200, data: [...], message: "Success" }
+      if (response.code === 200 && response.data) {
+        if (Array.isArray(response.data)) {
+          answers.value = response.data
+        } else if (response.data.content && Array.isArray(response.data.content)) {
+          answers.value = response.data.content
+        } else {
+          answers.value = []
+          console.warn('响应中没有找到预期的答案列表:', response)
+        }
+      }
+      // 如果响应本身就是数组
+      else if (Array.isArray(response)) {
+        answers.value = response
+      } 
+      else {
+        answers.value = []
+        console.warn('响应格式不符合预期:', response)
+      }
+      console.log('问题答案数据:', answers.value)
+    } else {
+      console.error('获取问题答案返回格式异常:', response)
+      answers.value = []
+    }
   } catch (error) {
     console.error('获取问题答案失败', error)
   }

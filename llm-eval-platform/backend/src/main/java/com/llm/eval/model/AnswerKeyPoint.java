@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,6 +15,7 @@ import java.time.LocalDateTime;
 @Data
 @SQLDelete(sql = "UPDATE answer_key_points SET deleted_at = NOW() WHERE key_point_id = ?")
 @Where(clause = "deleted_at IS NULL")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class AnswerKeyPoint {
     
     @Id
@@ -22,6 +25,7 @@ public class AnswerKeyPoint {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "standard_answer_id", nullable = false)
+    @JsonBackReference
     private StandardAnswer standardAnswer;
     
     @Column(name = "point_text", nullable = false)

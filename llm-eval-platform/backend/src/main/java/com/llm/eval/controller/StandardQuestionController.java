@@ -15,34 +15,203 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.validation.Valid;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/questions")
 @Tag(name = "Standard Question API", description = "标准问题管理接口")
-public class StandardQuestionController {    private final StandardQuestionService questionService;
+public class StandardQuestionController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(StandardQuestionController.class);
+    
+    private final StandardQuestionService questionService;
 
     public StandardQuestionController(StandardQuestionService questionService) {
         this.questionService = questionService;
     }
 
+    /**
+     * 分页获取标准问题列表，支持多种过滤条件
+     * 
+     * 示例请求:
+     * GET /api/questions?page=1&size=10&categoryId=1&questionType=subjective&difficulty=medium&keyword=Spring&sortBy=createdAt&sortDir=desc
+     * 
+     * @param page 页码，从1开始
+     * @param size 每页大小
+     * @param categoryId 分类ID（可选）
+     * @param questionType 问题类型（可选）：single_choice, multiple_choice, simple_fact, subjective
+     * @param difficulty 难度级别（可选）：easy, medium, hard
+     * @param keyword 关键词搜索（可选）
+     * @param sortBy 排序字段（可选），默认createdAt
+     * @param sortDir 排序方向（可选），asc或desc，默认desc
+     * @return 分页的标准问题列表
+     */
     @GetMapping
-    @Operation(summary = "获取所有标准问题")
-    public ResponseEntity<List<com.llm.eval.model.StandardQuestion>> getAllQuestions() {
-        return ResponseEntity.ok(questionService.getAllStandardQuestions());
+    @Operation(summary = "分页获取标准问题列表")
+    public ResponseEntity<Map<String, Object>> getStandardQuestions(
+            @Parameter(description = "页码（从1开始）") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "分类ID") @RequestParam(required = false) Integer categoryId,
+            @Parameter(description = "问题类型") @RequestParam(required = false) StandardQuestion.QuestionType questionType,
+            @Parameter(description = "难度级别") @RequestParam(required = false) StandardQuestion.DifficultyLevel difficulty,
+            @Parameter(description = "关键词搜索") @RequestParam(required = false) String keyword,
+            @Parameter(description = "排序字段") @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "排序方向") @RequestParam(required = false, defaultValue = "desc") String sortDir) {
+        
+        try {
+            logger.debug("分页获取标准问题列表，参数: page={}, size={}, categoryId={}, questionType={}, difficulty={}, keyword={}, sortBy={}, sortDir={}",
+                    page, size, categoryId, questionType, difficulty, keyword, sortBy, sortDir);
+            
+            // 构建排序
+            Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+            
+            // 创建分页请求（注意：Spring Data JPA的页码从0开始，而API的页码从1开始）
+            Pageable pageable = PageRequest.of(page - 1, size, sort);
+            
+            // 调用服务层查询
+            Page<StandardQuestion> questionPage = questionService.getStandardQuestionsByPage(
+                    categoryId, questionType, difficulty, keyword, pageable);
+            
+            // 将实体对象转换为简单的Map对象，避免循环引用问题
+            List<Map<String, Object>> questionDTOs = questionPage.getContent().stream().map(q -> {
+                Map<String, Object> questionDTO = new HashMap<>();
+                questionDTO.put("standardQuestionId", q.getStandardQuestionId());
+                questionDTO.put("question", q.getQuestion());
+                questionDTO.put("questionType", q.getQuestionType());
+                questionDTO.put("difficulty", q.getDifficulty());
+                questionDTO.put("status", q.getStatus());
+                questionDTO.put("createdAt", q.getCreatedAt());
+                questionDTO.put("updatedAt", q.getUpdatedAt());
+                
+                // 添加分类信息（如果存在）
+                if (q.getCategory() != null) {
+                    Map<String, Object> categoryDTO = new HashMap<>();
+                    categoryDTO.put("categoryId", q.getCategory().getCategoryId());
+                    categoryDTO.put("categoryName", q.getCategory().getName());
+                    questionDTO.put("category", categoryDTO);
+                } else {
+                    questionDTO.put("category", null);
+                }
+                
+                // 添加标签信息
+                if (q.getTags() != null && !q.getTags().isEmpty()) {
+                    List<Map<String, Object>> tagDTOs = q.getTags().stream().map(tag -> {
+                        Map<String, Object> tagDTO = new HashMap<>();
+                        tagDTO.put("tagId", tag.getTagId());
+                        tagDTO.put("tagName", tag.getTagName());
+                        return tagDTO;
+                    }).collect(Collectors.toList());
+                    questionDTO.put("tags", tagDTOs);
+                } else {
+                    questionDTO.put("tags", new ArrayList<>());
+                }
+                
+                // 不包含标准答案和其他复杂关联，避免循环引用
+                return questionDTO;
+            }).collect(Collectors.toList());
+            
+            // 构建返回结果
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", questionDTOs);
+            response.put("currentPage", page);
+            response.put("pageSize", size);
+            response.put("total", questionPage.getTotalElements());
+            response.put("pages", questionPage.getTotalPages());
+            
+            logger.debug("查询成功，总记录数: {}, 总页数: {}", questionPage.getTotalElements(), questionPage.getTotalPages());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("分页获取标准问题列表失败", e);
+            throw new RuntimeException("获取标准问题列表失败: " + e.getMessage(), e);
+        }
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取标准问题")
-    public ResponseEntity<com.llm.eval.model.StandardQuestion> getQuestionById(@PathVariable("id") Integer id) {
-        return questionService.getStandardQuestionById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Map<String, Object>> getQuestionById(@PathVariable("id") Integer id) {
+        try {
+            logger.debug("根据ID获取标准问题，ID: {}", id);
+            return questionService.getStandardQuestionById(id)
+                    .map(q -> {
+                        // 将实体对象转换为简单的Map对象，避免循环引用问题
+                        Map<String, Object> questionDTO = new HashMap<>();
+                        questionDTO.put("standardQuestionId", q.getStandardQuestionId());
+                        questionDTO.put("question", q.getQuestion());
+                        questionDTO.put("questionType", q.getQuestionType());
+                        questionDTO.put("difficulty", q.getDifficulty());
+                        questionDTO.put("status", q.getStatus());
+                        questionDTO.put("createdAt", q.getCreatedAt());
+                        questionDTO.put("updatedAt", q.getUpdatedAt());
+                        
+                        // 添加分类信息（如果存在）
+                        if (q.getCategory() != null) {
+                            Map<String, Object> categoryDTO = new HashMap<>();
+                            categoryDTO.put("categoryId", q.getCategory().getCategoryId());
+                            categoryDTO.put("categoryName", q.getCategory().getName());
+                            questionDTO.put("category", categoryDTO);
+                        } else {
+                            questionDTO.put("category", null);
+                        }
+                        
+                        // 添加标签信息
+                        if (q.getTags() != null && !q.getTags().isEmpty()) {
+                            List<Map<String, Object>> tagDTOs = q.getTags().stream().map(tag -> {
+                                Map<String, Object> tagDTO = new HashMap<>();
+                                tagDTO.put("tagId", tag.getTagId());
+                                tagDTO.put("tagName", tag.getTagName());
+                                return tagDTO;
+                            }).collect(Collectors.toList());
+                            questionDTO.put("tags", tagDTOs);
+                        } else {
+                            questionDTO.put("tags", new ArrayList<>());
+                        }
+                        
+                        // 添加源问题信息（如果存在）
+                        if (q.getSourceQuestion() != null) {
+                            Map<String, Object> sourceDTO = new HashMap<>();
+                            sourceDTO.put("questionId", q.getSourceQuestion().getQuestionId());
+                            sourceDTO.put("questionTitle", q.getSourceQuestion().getQuestionTitle());
+                            questionDTO.put("sourceQuestion", sourceDTO);
+                        } else {
+                            questionDTO.put("sourceQuestion", null);
+                        }
+                        
+                        // 添加标准答案信息（简化版本，避免循环引用）
+                        if (q.getStandardAnswers() != null && !q.getStandardAnswers().isEmpty()) {
+                            List<Map<String, Object>> answerDTOs = q.getStandardAnswers().stream().map(answer -> {
+                                Map<String, Object> answerDTO = new HashMap<>();
+                                answerDTO.put("standardAnswerId", answer.getStandardAnswerId());
+                                answerDTO.put("answer", answer.getAnswer());
+                                answerDTO.put("isFinal", answer.getIsFinal());
+                                return answerDTO;
+                            }).collect(Collectors.toList());
+                            questionDTO.put("standardAnswers", answerDTOs);
+                        } else {
+                            questionDTO.put("standardAnswers", new ArrayList<>());
+                        }
+                        
+                        logger.debug("获取成功，问题ID: {}", id);
+                        return ResponseEntity.ok(questionDTO);
+                    })
+                    .orElseGet(() -> {
+                        logger.warn("未找到问题，ID: {}", id);
+                        return ResponseEntity.notFound().build();
+                    });
+        } catch (Exception e) {
+            logger.error("根据ID获取标准问题失败，ID: {}", id, e);
+            throw new RuntimeException("获取标准问题失败: " + e.getMessage(), e);
+        }
     }
 
     @GetMapping("/category/{categoryId}")

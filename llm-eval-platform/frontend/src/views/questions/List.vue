@@ -104,7 +104,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getStandardQuestions, deleteStandardQuestion } from '@/api/standardQuestions'
+import { getStandardQuestions, deleteQuestion } from '@/api/question'
 import { getAllCategories } from '@/api/category'
 
 const router = useRouter()
@@ -154,10 +154,55 @@ const getList = async () => {
   loading.value = true
   try {
     const res = await getStandardQuestions(queryParams)
-    questionList.value = res.list || []
-    total.value = res.total || 0
+    console.log('获取问题列表响应:', res)
+    
+    // 检查响应格式并适当处理
+    if (res && typeof res === 'object') {
+      // 根据后端实际返回的数据结构进行处理
+      if (res.code === 200 && res.data) {
+        // 处理标准返回格式：{ code: 200, data: { content: [...], total: number, ... }, message: "Success" }
+        if (res.data.content && Array.isArray(res.data.content)) {
+          questionList.value = res.data.content
+          total.value = res.data.total || res.data.content.length
+        } 
+        // 处理其他可能的格式
+        else if (Array.isArray(res.data)) {
+          questionList.value = res.data
+          total.value = res.data.length
+        }
+        else if (res.data.list) {
+          questionList.value = res.data.list
+          total.value = res.data.total || res.data.list.length
+        }
+        else {
+          questionList.value = []
+          total.value = 0
+          console.warn('响应中没有找到预期的数据列表:', res)
+        }
+      }
+      // 兼容其他可能的格式
+      else if (res.list) {
+        questionList.value = res.list
+        total.value = res.total || res.list.length
+      }
+      else if (Array.isArray(res)) {
+        questionList.value = res
+        total.value = res.length
+      }
+      else {
+        questionList.value = []
+        total.value = 0
+        console.warn('响应格式不符合预期:', res)
+      }
+    } else {
+      questionList.value = []
+      total.value = 0
+      console.error('获取问题列表返回格式异常:', res)
+    }
   } catch (error) {
     console.error('获取问题列表失败', error)
+    questionList.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -280,7 +325,7 @@ const handleDelete = (row: any) => {
     }
   ).then(async () => {
     try {
-      await deleteStandardQuestion(row.standardQuestionId)
+      await deleteQuestion(row.standardQuestionId)
       ElMessage.success('删除成功')
       getList()
     } catch (error) {

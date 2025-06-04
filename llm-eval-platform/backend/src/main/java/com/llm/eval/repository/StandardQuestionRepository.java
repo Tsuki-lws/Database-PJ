@@ -80,4 +80,19 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
             @Param("categoryId") Integer categoryId,
             @Param("questionType") StandardQuestion.QuestionType questionType,
             @Param("difficulty") StandardQuestion.DifficultyLevel difficulty);
+    
+    /**
+     * 分页查询标准问题，支持按分类、类型、难度和关键词过滤
+     */
+    @Query("SELECT sq FROM StandardQuestion sq WHERE " +
+           "(:categoryId IS NULL OR sq.category.categoryId = :categoryId) AND " +
+           "(:questionType IS NULL OR sq.questionType = :questionType) AND " +
+           "(:difficulty IS NULL OR sq.difficulty = :difficulty) AND " +
+           "(:keyword IS NULL OR LOWER(sq.question) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    Page<StandardQuestion> findByFilters(
+            @Param("categoryId") Integer categoryId,
+            @Param("questionType") StandardQuestion.QuestionType questionType,
+            @Param("difficulty") StandardQuestion.DifficultyLevel difficulty,
+            @Param("keyword") String keyword,
+            Pageable pageable);
 } 

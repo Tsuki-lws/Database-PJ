@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.List;
 @Data
 @SQLDelete(sql = "UPDATE standard_answers SET deleted_at = NOW() WHERE standard_answer_id = ?")
 @Where(clause = "deleted_at IS NULL")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class StandardAnswer {
     
     @Id
@@ -22,6 +25,7 @@ public class StandardAnswer {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "standard_question_id", nullable = false)
+    @JsonBackReference
     private StandardQuestion standardQuestion;
     
     @Column(name = "answer", nullable = false)
@@ -29,6 +33,7 @@ public class StandardAnswer {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_answer_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private RawAnswer sourceAnswer;
     
     @Enumerated(EnumType.STRING)
@@ -60,6 +65,7 @@ public class StandardAnswer {
     private Integer version;
     
     @OneToMany(mappedBy = "standardAnswer", cascade = CascadeType.ALL)
+    @JsonIgnoreProperties("standardAnswer")
     private List<AnswerKeyPoint> keyPoints;
     
     public enum SourceType {

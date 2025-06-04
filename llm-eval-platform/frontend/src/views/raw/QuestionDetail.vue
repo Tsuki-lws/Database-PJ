@@ -231,8 +231,9 @@ const getQuestionDetail = async () => {
   
   loading.value = true
   try {
-    const res = await getRawQuestionById(questionId.value)
-    question.value = res.data
+    const response = await getRawQuestionById(questionId.value)
+    // 适应后端返回的数据结构
+    question.value = response.data || response
   } catch (error: any) {
     ElMessage.error('获取问题详情失败: ' + error.message)
   } finally {
@@ -246,8 +247,9 @@ const getAnswers = async () => {
   
   answersLoading.value = true
   try {
-    const res = await getRawAnswersByQuestionId(questionId.value)
-    answerList.value = res.data || []
+    const response = await getRawAnswersByQuestionId(questionId.value)
+    // 适应后端返回的数据结构
+    answerList.value = (response.data || response) || []
   } catch (error: any) {
     ElMessage.error('获取回答列表失败: ' + error.message)
   } finally {
@@ -258,8 +260,8 @@ const getAnswers = async () => {
 // 获取分类数据
 const getCategories = async () => {
   try {
-    const res = await getAllCategories()
-    categories.value = res.data || []
+    const response = await getAllCategories()
+    categories.value = (response.data || response) || []
   } catch (error: any) {
     ElMessage.error('获取分类列表失败: ' + error.message)
   }
@@ -274,12 +276,15 @@ const searchStandardQuestions = async (query: string) => {
   
   questionsLoading.value = true
   try {
-    const res = await getQuestionList({
+    const response = await getQuestionList({
       keyword: query,
       page: 1,
       size: 10
     })
-    standardQuestions.value = res.data.content || []
+    
+    // 适应后端返回的数据结构
+    const res = response.data || response
+    standardQuestions.value = res.content || []
   } catch (error: any) {
     ElMessage.error('搜索标准问题失败: ' + error.message)
   } finally {
@@ -304,12 +309,15 @@ const submitConvert = async () => {
     
     convertLoading.value = true
     try {
-      await convertToStandardQuestion(questionId.value, {
+      const response = await convertToStandardQuestion(questionId.value, {
         question: convertForm.question,
         questionType: convertForm.questionType,
         categoryId: convertForm.categoryId,
         difficulty: convertForm.difficulty
       })
+      
+      // 适应后端返回的数据结构
+      const result = response.data || response
       
       ElMessage.success('转换成功')
       convertDialogVisible.value = false
@@ -338,11 +346,14 @@ const submitConvertAnswer = async () => {
     
     convertAnswerLoading.value = true
     try {
-      await convertToStandardAnswer(convertAnswerForm.sourceAnswerId, {
+      const response = await convertToStandardAnswer(convertAnswerForm.sourceAnswerId, {
         answer: convertAnswerForm.answer,
         standardQuestionId: convertAnswerForm.standardQuestionId,
         isFinal: convertAnswerForm.isFinal
       })
+      
+      // 适应后端返回的数据结构
+      const result = response.data || response
       
       ElMessage.success('转换成功')
       convertAnswerDialogVisible.value = false

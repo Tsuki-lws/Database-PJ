@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,6 +16,7 @@ import java.util.Set;
 @Data
 @SQLDelete(sql = "UPDATE standard_questions SET deleted_at = NOW() WHERE standard_question_id = ?")
 @Where(clause = "deleted_at IS NULL")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class StandardQuestion {
     
     @Id
@@ -26,6 +29,7 @@ public class StandardQuestion {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private QuestionCategory category;
     
     @Enumerated(EnumType.STRING)
@@ -38,6 +42,7 @@ public class StandardQuestion {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_question_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private RawQuestion sourceQuestion;
     
     @Enumerated(EnumType.STRING)
@@ -62,15 +67,19 @@ public class StandardQuestion {
         joinColumns = @JoinColumn(name = "standard_question_id"),
         inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Set<Tag> tags;
     
     @OneToMany(mappedBy = "standardQuestion")
+    @JsonManagedReference
     private List<StandardAnswer> standardAnswers;
     
     @OneToMany(mappedBy = "standardQuestion")
+    @JsonIgnoreProperties("standardQuestion")
     private List<CrowdsourcedAnswer> crowdsourcedAnswers;
     
     @OneToMany(mappedBy = "standardQuestion")
+    @JsonIgnoreProperties("standardQuestion")
     private List<ExpertAnswer> expertAnswers;
     
     public enum QuestionType {

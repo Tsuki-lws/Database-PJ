@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 
 // 创建自定义实例以提高可靠性
 const service = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: '', // 使用相对路径，让Vite的代理配置生效
   timeout: 180000, // 增加到180秒
   maxContentLength: 20 * 1024 * 1024, // 增加至20MB
   maxBodyLength: 20 * 1024 * 1024, // 增加至20MB

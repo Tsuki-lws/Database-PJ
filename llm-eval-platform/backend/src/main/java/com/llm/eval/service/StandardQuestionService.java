@@ -119,4 +119,21 @@ public interface StandardQuestionService {
      * @param id The ID of the standard question to delete
      */
     void deleteStandardQuestion(Integer id);
+
+    /**
+     * Get standard questions with pagination and filters
+     * 
+     * @param categoryId 分类ID (可选)
+     * @param questionType 问题类型 (可选)
+     * @param difficulty 难度级别 (可选)
+     * @param keyword 关键词搜索 (可选)
+     * @param pageable 分页参数
+     * @return Page of standard questions
+     */
+    Page<StandardQuestion> getStandardQuestionsByPage(
+            Integer categoryId,
+            StandardQuestion.QuestionType questionType,
+            StandardQuestion.DifficultyLevel difficulty,
+            String keyword,
+            Pageable pageable);
 }

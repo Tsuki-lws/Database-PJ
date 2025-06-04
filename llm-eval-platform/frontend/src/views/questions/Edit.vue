@@ -1,7 +1,7 @@
 <template>
   <div class="question-edit">
     <div class="header">
-      <h2>{{ isEdit ? '编辑问题' : '创建问题' }}</h2>
+      <h2>编辑问题</h2>
     </div>
 
     <el-form
@@ -9,6 +9,7 @@
       :model="formData"
       :rules="rules"
       label-width="100px"
+      v-loading="loading"
       class="question-form">
       <el-form-item label="问题内容" prop="question">
         <el-input
@@ -20,31 +21,47 @@
 
       <el-form-item label="问题类型" prop="questionType">
         <el-select v-model="formData.questionType" placeholder="请选择问题类型">
-          <el-option label="主观题" value="subjective" />
-          <el-option label="客观题" value="objective" />
+          <el-option 
+            v-for="item in typeOptions" 
+            :key="item.value" 
+            :label="item.label" 
+            :value="item.value" />
         </el-select>
       </el-form-item>
 
       <el-form-item label="难度等级" prop="difficulty">
         <el-select v-model="formData.difficulty" placeholder="请选择难度等级">
-          <el-option label="简单" value="easy" />
-          <el-option label="中等" value="medium" />
-          <el-option label="困难" value="hard" />
+          <el-option 
+            v-for="item in difficultyOptions" 
+            :key="item.value" 
+            :label="item.label" 
+            :value="item.value" />
+        </el-select>
+      </el-form-item>
+
+      <el-form-item label="分类" prop="categoryId">
+        <el-select v-model="formData.categoryId" placeholder="请选择分类" clearable>
+          <el-option 
+            v-for="item in categoryOptions" 
+            :key="item.value" 
+            :label="item.label" 
+            :value="item.value" />
         </el-select>
       </el-form-item>
 
       <el-form-item label="状态" prop="status">
         <el-select v-model="formData.status" placeholder="请选择状态">
-          <el-option label="草稿" value="draft" />
-          <el-option label="待审核" value="pending_review" />
-          <el-option label="已通过" value="approved" />
-          <el-option label="已拒绝" value="rejected" />
+          <el-option 
+            v-for="item in statusOptions" 
+            :key="item.value" 
+            :label="item.label" 
+            :value="item.value" />
         </el-select>
       </el-form-item>
 
       <el-form-item>
-        <el-button type="primary" @click="submitForm">保存</el-button>
-        <el-button @click="$router.back()">取消</el-button>
+        <el-button type="primary" @click="submitForm(formRef)" :loading="submitting">保存</el-button>
+        <el-button @click="handleCancel">取消</el-button>
       </el-form-item>
     </el-form>
   </div>
@@ -63,15 +80,16 @@ const router = useRouter()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const submitting = ref(false)
-const categoryOptions = ref([])
+const categoryOptions = ref<any[]>([])
+const isEdit = ref(true)
 
 const formData = reactive({
   standardQuestionId: 0,
   question: '',
-  categoryId: null,
+  categoryId: null as number | null,
   questionType: '',
   difficulty: '',
-  status: '',
+  status: 'draft',
   createdAt: '',
   updatedAt: '',
   version: 0
@@ -113,11 +131,44 @@ const getQuestionDetail = async () => {
   
   loading.value = true
   try {
-    const res = await getStandardQuestion(id)
-    Object.assign(formData, res)
-    // 如果有categoryId，从category对象中提取
-    if (res.category) {
-      formData.categoryId = res.category.categoryId
+    const response = await getStandardQuestion(id)
+    console.log('获取问题详情原始响应:', response)
+    
+    // 处理响应数据
+    let questionData
+    if (response && typeof response === 'object') {
+      // 处理标准返回格式：{ code: 200, data: {...}, message: "Success" }
+      if (response.code === 200 && response.data) {
+        questionData = response.data
+      } else {
+        // 如果响应本身就是问题对象
+        questionData = response
+      }
+    }
+    
+    if (questionData) {
+      console.log('问题详情数据:', questionData)
+      
+      // 更新表单数据
+      formData.standardQuestionId = questionData.standardQuestionId || id
+      formData.question = questionData.question || ''
+      formData.questionType = questionData.questionType || ''
+      formData.difficulty = questionData.difficulty || ''
+      formData.status = questionData.status || 'draft'
+      formData.version = questionData.version || 0
+      formData.createdAt = questionData.createdAt || ''
+      formData.updatedAt = questionData.updatedAt || ''
+      
+      // 如果有分类信息，设置categoryId
+      if (questionData.category) {
+        formData.categoryId = questionData.category.categoryId
+      } else if (questionData.categoryId) {
+        formData.categoryId = questionData.categoryId
+      } else {
+        formData.categoryId = null
+      }
+    } else {
+      ElMessage.error('获取问题详情失败')
     }
   } catch (error) {
     console.error('获取问题详情失败', error)
@@ -131,10 +182,26 @@ const getQuestionDetail = async () => {
 const getCategories = async () => {
   try {
     const res = await getAllCategories()
-    categoryOptions.value = res.map((item: any) => ({
-      value: item.categoryId,
-      label: item.name
-    }))
+    console.log('获取分类列表响应:', res)
+    
+    // 处理响应数据
+    let categoriesData
+    if (res && typeof res === 'object') {
+      if (res.code === 200 && res.data) {
+        categoriesData = res.data
+      } else if (Array.isArray(res)) {
+        categoriesData = res
+      }
+    }
+    
+    if (categoriesData && Array.isArray(categoriesData)) {
+      categoryOptions.value = categoriesData.map((item: any) => ({
+        value: item.categoryId,
+        label: item.name || item.categoryName
+      }))
+    } else {
+      console.warn('获取分类列表返回格式不符合预期')
+    }
   } catch (error) {
     console.error('获取分类列表失败', error)
   }
@@ -148,7 +215,22 @@ const submitForm = async (formEl: FormInstance | undefined) => {
     if (valid) {
       submitting.value = true
       try {
-        await updateStandardQuestion(formData.standardQuestionId, formData)
+        console.log('提交的表单数据:', formData)
+        
+        // 准备提交的数据
+        const submitData = {
+          standardQuestionId: formData.standardQuestionId,
+          question: formData.question,
+          questionType: formData.questionType,
+          difficulty: formData.difficulty,
+          status: formData.status,
+          categoryId: formData.categoryId,
+          version: formData.version
+        }
+        
+        const response = await updateStandardQuestion(formData.standardQuestionId, submitData)
+        console.log('更新问题响应:', response)
+        
         ElMessage.success('更新成功')
         router.push(`/questions/detail/${formData.standardQuestionId}`)
       } catch (error) {

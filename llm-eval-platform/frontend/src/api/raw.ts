@@ -32,6 +32,8 @@ export interface QueryParams {
   keyword?: string
   pageNum?: number
   pageSize?: number
+  sortField?: string
+  sortOrder?: string
 }
 
 // 获取原始问题列表
