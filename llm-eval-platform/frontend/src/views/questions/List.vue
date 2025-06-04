@@ -2,9 +2,14 @@
   <div class="question-list-container">
     <div class="page-header">
       <h2>标准问题列表</h2>
-      <el-button type="primary" @click="navigateToCreate">
-        <el-icon><Plus /></el-icon>创建问题
-      </el-button>
+      <div>
+        <el-button type="primary" @click="navigateToUncategorized">
+          <el-icon><Filter /></el-icon>未分类问题
+        </el-button>
+        <el-button type="primary" @click="navigateToCreate">
+          <el-icon><Plus /></el-icon>创建问题
+        </el-button>
+      </div>
     </div>
 
     <!-- 搜索和筛选 -->
@@ -103,7 +108,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Filter } from '@element-plus/icons-vue'
 import { getStandardQuestions, deleteQuestion } from '@/api/question'
 import { getAllCategories } from '@/api/category'
 
@@ -162,16 +167,44 @@ const getList = async () => {
       if (res.code === 200 && res.data) {
         // 处理标准返回格式：{ code: 200, data: { content: [...], total: number, ... }, message: "Success" }
         if (res.data.content && Array.isArray(res.data.content)) {
-          questionList.value = res.data.content
+          // 处理嵌套的category对象
+          questionList.value = res.data.content.map(item => {
+            // 如果有category对象，提取categoryName
+            if (item.category) {
+              return {
+                ...item,
+                categoryName: item.category.categoryName || '未分类'
+              }
+            }
+            return item
+          })
           total.value = res.data.total || res.data.content.length
         } 
         // 处理其他可能的格式
         else if (Array.isArray(res.data)) {
-          questionList.value = res.data
+          questionList.value = res.data.map(item => {
+            // 如果有category对象，提取categoryName
+            if (item.category) {
+              return {
+                ...item,
+                categoryName: item.category.categoryName || '未分类'
+              }
+            }
+            return item
+          })
           total.value = res.data.length
         }
         else if (res.data.list) {
-          questionList.value = res.data.list
+          questionList.value = res.data.list.map(item => {
+            // 如果有category对象，提取categoryName
+            if (item.category) {
+              return {
+                ...item,
+                categoryName: item.category.categoryName || '未分类'
+              }
+            }
+            return item
+          })
           total.value = res.data.total || res.data.list.length
         }
         else {
@@ -182,11 +215,29 @@ const getList = async () => {
       }
       // 兼容其他可能的格式
       else if (res.list) {
-        questionList.value = res.list
+        questionList.value = res.list.map(item => {
+          // 如果有category对象，提取categoryName
+          if (item.category) {
+            return {
+              ...item,
+              categoryName: item.category.categoryName || '未分类'
+            }
+          }
+          return item
+        })
         total.value = res.total || res.list.length
       }
       else if (Array.isArray(res)) {
-        questionList.value = res
+        questionList.value = res.map(item => {
+          // 如果有category对象，提取categoryName
+          if (item.category) {
+            return {
+              ...item,
+              categoryName: item.category.categoryName || '未分类'
+            }
+          }
+          return item
+        })
         total.value = res.length
       }
       else {
@@ -212,12 +263,37 @@ const getList = async () => {
 const getCategories = async () => {
   try {
     const res = await getAllCategories()
-    categoryOptions.value = res.map((item: any) => ({
+    console.log('获取分类列表响应:', res)
+    
+    let categories = []
+    
+    // 检查响应格式并适当处理
+    if (res && typeof res === 'object') {
+      // 处理标准返回格式：{ code: 200, data: [...], message: "Success" }
+      if (res.code === 200 && res.data) {
+        categories = res.data
+      }
+      // 如果响应本身就是数组
+      else if (Array.isArray(res)) {
+        categories = res
+      }
+      else {
+        console.warn('获取分类列表返回格式不符合预期:', res)
+        categories = []
+      }
+    } else {
+      console.error('获取分类列表返回格式异常:', res)
+      categories = []
+    }
+    
+    // 将分类数据转换为选项格式
+    categoryOptions.value = categories.map((item: any) => ({
       value: item.categoryId,
       label: item.name
     }))
   } catch (error) {
     console.error('获取分类列表失败', error)
+    categoryOptions.value = []
   }
 }
 
@@ -347,6 +423,11 @@ const navigateToDetail = (id: number) => {
 // 导航到编辑页面
 const navigateToEdit = (id: number) => {
   router.push(`/questions/edit/${id}`)
+}
+
+// 导航到未分类问题列表页面
+const navigateToUncategorized = () => {
+  router.push('/questions/uncategorized')
 }
 
 onMounted(() => {

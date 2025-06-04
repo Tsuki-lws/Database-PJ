@@ -117,4 +117,31 @@ export function getStandardQuestions(params: QueryParams) {
     method: 'get',
     params
   })
+}
+
+// 获取没有分类的问题列表
+export function getQuestionsWithoutCategory(params: QueryParams) {
+  return request({
+    url: '/api/questions/without-category',
+    method: 'get',
+    params
+  })
+}
+
+// 通过分类名称更新问题分类
+export function updateQuestionCategoryByName(questionId: number, categoryName: string) {
+  return request({
+    url: `/api/questions/${questionId}/category`,
+    method: 'put',
+    data: { categoryName }
+  })
+}
+
+// 通过分类ID更新问题分类
+export function updateQuestionCategory(questionId: number, categoryId: number) {
+  return request({
+    url: `/api/questions/${questionId}/category`,
+    method: 'put',
+    data: { categoryId }
+  })
 } 

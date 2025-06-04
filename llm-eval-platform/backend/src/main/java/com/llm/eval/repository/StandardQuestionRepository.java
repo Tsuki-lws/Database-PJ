@@ -95,4 +95,18 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
             @Param("difficulty") StandardQuestion.DifficultyLevel difficulty,
             @Param("keyword") String keyword,
             Pageable pageable);
+    
+    /**
+     * 查询没有分类的问题
+     * @param pageable 分页参数
+     * @return 分页的没有分类的问题列表
+     */
+    Page<StandardQuestion> findByCategoryIsNull(Pageable pageable);
+    
+    /**
+     * 统计没有分类的问题数量
+     * @return 没有分类的问题数量
+     */
+    @Query("SELECT COUNT(sq) FROM StandardQuestion sq WHERE sq.category IS NULL")
+    long countByCategoryIsNull();
 } 

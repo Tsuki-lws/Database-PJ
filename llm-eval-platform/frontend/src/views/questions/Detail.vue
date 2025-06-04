@@ -100,6 +100,13 @@ const getQuestionDetail = async () => {
         question.value = response
       }
       
+      // 处理分类信息
+      if (question.value.category) {
+        question.value.categoryName = question.value.category.categoryName || '未分类'
+      } else if (!question.value.categoryName) {
+        question.value.categoryName = '未分类'
+      }
+      
       console.log('问题详情数据:', question.value)
       
       // 如果问题有标签，直接从问题对象获取

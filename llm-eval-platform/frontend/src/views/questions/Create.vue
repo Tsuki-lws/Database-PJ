@@ -72,7 +72,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { createStandardQuestion } from '@/api/standardQuestions'
+import { createQuestion } from '@/api/question'
 import { getAllCategories } from '@/api/category'
 
 const router = useRouter()
@@ -157,7 +157,7 @@ const submitForm = async (formEl: FormInstance | undefined) => {
       try {
         console.log('提交的表单数据:', formData)
         
-        const response = await createStandardQuestion(formData)
+        const response = await createQuestion(formData)
         console.log('创建问题响应:', response)
         
         ElMessage.success('创建成功')

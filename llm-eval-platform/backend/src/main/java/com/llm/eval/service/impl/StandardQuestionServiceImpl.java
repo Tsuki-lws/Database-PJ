@@ -201,4 +201,39 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {   
                 searchKeyword, 
                 pageable);
     }
+
+    @Override
+    public Page<StandardQuestion> getQuestionsWithoutCategory(Pageable pageable) {
+        return standardQuestionRepository.findByCategoryIsNull(pageable);
+    }
+    
+    @Override
+    @Transactional
+    public StandardQuestion updateQuestionCategoryByName(Integer questionId, String categoryName) {
+        // 查找问题
+        StandardQuestion question = standardQuestionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Standard question not found with id: " + questionId));
+        
+        // 查找或创建分类
+        QuestionCategory category;
+        Optional<QuestionCategory> existingCategory = categoryRepository.findByName(categoryName);
+        
+        if (existingCategory.isPresent()) {
+            // 如果分类已存在，使用现有分类
+            category = existingCategory.get();
+        } else {
+            // 如果分类不存在，创建新分类
+            QuestionCategory newCategory = new QuestionCategory();
+            newCategory.setName(categoryName);
+            newCategory.setDescription("自动创建的分类");
+            category = categoryRepository.save(newCategory);
+        }
+        
+        // 更新问题的分类
+        question.setCategory(category);
+        question.setUpdatedAt(LocalDateTime.now());
+        question.setVersion(question.getVersion() + 1);
+        
+        return standardQuestionRepository.save(question);
+    }
 }

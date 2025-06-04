@@ -136,4 +136,22 @@ public interface StandardQuestionService {
             StandardQuestion.DifficultyLevel difficulty,
             String keyword,
             Pageable pageable);
+    
+    /**
+     * 获取没有分类的问题列表
+     * 
+     * @param pageable 分页参数
+     * @return 分页的没有分类的问题列表
+     */
+    Page<StandardQuestion> getQuestionsWithoutCategory(Pageable pageable);
+    
+    /**
+     * 通过分类名称更新问题的分类
+     * 如果分类不存在，则创建新分类
+     * 
+     * @param questionId 问题ID
+     * @param categoryName 分类名称
+     * @return 更新后的问题
+     */
+    StandardQuestion updateQuestionCategoryByName(Integer questionId, String categoryName);
 }

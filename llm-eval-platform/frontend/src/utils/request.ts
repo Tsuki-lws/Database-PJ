@@ -51,6 +51,7 @@ service.interceptors.response.use(
         }
       }
       
+      // 直接返回响应数据，而不是整个响应对象
       return response.data;
     } catch (e) {
       console.error('解析响应数据失败:', e);

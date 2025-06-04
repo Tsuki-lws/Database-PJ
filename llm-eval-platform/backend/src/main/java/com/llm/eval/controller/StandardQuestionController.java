@@ -325,25 +325,26 @@ public class StandardQuestionController {
             return ResponseEntity.badRequest().build();
         }
     }
-      @PutMapping("/{id}/category")
-    @Operation(summary = "更新问题的分类")
-    public ResponseEntity<com.llm.eval.model.StandardQuestion> updateQuestionCategory(
-            @PathVariable("id") Integer questionId,
-            @RequestBody CategoryUpdateRequest request) {
-        try {
-            com.llm.eval.model.StandardQuestion updatedQuestion = 
-                questionService.updateQuestionCategory(questionId, request.getCategoryId());
-            return ResponseEntity.ok(updatedQuestion);
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
+    // @PutMapping("/{id}/category")
+    // @Operation(summary = "更新问题的分类")
+    // public ResponseEntity<com.llm.eval.model.StandardQuestion> updateQuestionCategory(
+    //         @PathVariable("id") Integer questionId,
+    //         @RequestBody CategoryUpdateRequest request) {
+    //     try {
+    //         com.llm.eval.model.StandardQuestion updatedQuestion = 
+    //             questionService.updateQuestionCategory(questionId, request.getCategoryId());
+    //         return ResponseEntity.ok(updatedQuestion);
+    //     } catch (EntityNotFoundException e) {
+    //         return ResponseEntity.notFound().build();
+    //     } catch (Exception e) {
+    //         return ResponseEntity.badRequest().build();
+    //     }
+    // }
     
     // 请求体类
     public static class CategoryUpdateRequest {
         private Integer categoryId;
+        private String categoryName;
         
         public Integer getCategoryId() {
             return categoryId;
@@ -351,6 +352,130 @@ public class StandardQuestionController {
         
         public void setCategoryId(Integer categoryId) {
             this.categoryId = categoryId;
+        }
+        
+        public String getCategoryName() {
+            return categoryName;
+        }
+        
+        public void setCategoryName(String categoryName) {
+            this.categoryName = categoryName;
+        }
+    }
+    
+    @GetMapping("/without-category")
+    @Operation(summary = "获取没有分类的问题列表")
+    public ResponseEntity<Map<String, Object>> getQuestionsWithoutCategory(
+            @Parameter(description = "页码（从1开始）") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "排序字段") @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "排序方向") @RequestParam(required = false, defaultValue = "desc") String sortDir) {
+        
+        try {
+            logger.debug("获取没有分类的问题列表，参数: page={}, size={}, sortBy={}, sortDir={}", 
+                    page, size, sortBy, sortDir);
+            
+            // 构建排序
+            Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+            
+            // 创建分页请求（注意：Spring Data JPA的页码从0开始，而API的页码从1开始）
+            Pageable pageable = PageRequest.of(page - 1, size, sort);
+            
+            // 调用服务层查询
+            Page<StandardQuestion> questionPage = questionService.getQuestionsWithoutCategory(pageable);
+            
+            // 将实体对象转换为简单的Map对象，避免循环引用问题
+            List<Map<String, Object>> questionDTOs = questionPage.getContent().stream().map(q -> {
+                Map<String, Object> questionDTO = new HashMap<>();
+                questionDTO.put("standardQuestionId", q.getStandardQuestionId());
+                questionDTO.put("question", q.getQuestion());
+                questionDTO.put("questionType", q.getQuestionType());
+                questionDTO.put("difficulty", q.getDifficulty());
+                questionDTO.put("status", q.getStatus());
+                questionDTO.put("createdAt", q.getCreatedAt());
+                questionDTO.put("updatedAt", q.getUpdatedAt());
+                
+                // 添加标签信息
+                if (q.getTags() != null && !q.getTags().isEmpty()) {
+                    List<Map<String, Object>> tagDTOs = q.getTags().stream().map(tag -> {
+                        Map<String, Object> tagDTO = new HashMap<>();
+                        tagDTO.put("tagId", tag.getTagId());
+                        tagDTO.put("tagName", tag.getTagName());
+                        return tagDTO;
+                    }).collect(Collectors.toList());
+                    questionDTO.put("tags", tagDTOs);
+                } else {
+                    questionDTO.put("tags", new ArrayList<>());
+                }
+                
+                return questionDTO;
+            }).collect(Collectors.toList());
+            
+            // 构建返回结果
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", questionDTOs);
+            response.put("currentPage", page);
+            response.put("pageSize", size);
+            response.put("total", questionPage.getTotalElements());
+            response.put("pages", questionPage.getTotalPages());
+            
+            logger.debug("查询成功，总记录数: {}, 总页数: {}", questionPage.getTotalElements(), questionPage.getTotalPages());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("获取没有分类的问题列表失败", e);
+            throw new RuntimeException("获取没有分类的问题列表失败: " + e.getMessage(), e);
+        }
+    }
+    
+    @PutMapping("/{id}/category")
+    @Operation(summary = "更新问题的分类")
+    public ResponseEntity<Map<String, Object>> updateQuestionCategory(
+            @PathVariable("id") Integer questionId,
+            @RequestBody CategoryUpdateRequest request) {
+        try {
+            logger.debug("更新问题分类，问题ID: {}, 分类ID: {}, 分类名称: {}", 
+                    questionId, request.getCategoryId(), request.getCategoryName());
+            
+            StandardQuestion updatedQuestion;
+            
+            // 如果提供了分类名称，优先使用名称创建或查找分类
+            if (request.getCategoryName() != null && !request.getCategoryName().trim().isEmpty()) {
+                updatedQuestion = questionService.updateQuestionCategoryByName(
+                        questionId, request.getCategoryName().trim());
+            } else {
+                // 否则使用分类ID
+                updatedQuestion = questionService.updateQuestionCategory(
+                        questionId, request.getCategoryId());
+            }
+            
+            // 将实体对象转换为简单的Map对象，避免循环引用问题
+            Map<String, Object> questionDTO = new HashMap<>();
+            questionDTO.put("standardQuestionId", updatedQuestion.getStandardQuestionId());
+            questionDTO.put("question", updatedQuestion.getQuestion());
+            questionDTO.put("questionType", updatedQuestion.getQuestionType());
+            questionDTO.put("difficulty", updatedQuestion.getDifficulty());
+            questionDTO.put("status", updatedQuestion.getStatus());
+            questionDTO.put("createdAt", updatedQuestion.getCreatedAt());
+            questionDTO.put("updatedAt", updatedQuestion.getUpdatedAt());
+            
+            // 添加分类信息（如果存在）
+            if (updatedQuestion.getCategory() != null) {
+                Map<String, Object> categoryDTO = new HashMap<>();
+                categoryDTO.put("categoryId", updatedQuestion.getCategory().getCategoryId());
+                categoryDTO.put("categoryName", updatedQuestion.getCategory().getName());
+                questionDTO.put("category", categoryDTO);
+            } else {
+                questionDTO.put("category", null);
+            }
+            
+            logger.debug("更新问题分类成功，问题ID: {}", questionId);
+            return ResponseEntity.ok(questionDTO);
+        } catch (EntityNotFoundException e) {
+            logger.warn("更新问题分类失败，未找到问题或分类，问题ID: {}", questionId, e);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("更新问题分类失败，问题ID: {}", questionId, e);
+            return ResponseEntity.badRequest().build();
         }
     }
 }

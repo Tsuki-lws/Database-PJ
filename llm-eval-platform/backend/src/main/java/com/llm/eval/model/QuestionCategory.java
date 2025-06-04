@@ -2,6 +2,7 @@ package com.llm.eval.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.List;
 
@@ -25,8 +26,10 @@ public class QuestionCategory {
     private QuestionCategory parent;
     
     @OneToMany(mappedBy = "parent")
+    @JsonIgnore
     private List<QuestionCategory> children;
     
     @OneToMany(mappedBy = "category")
+    @JsonIgnore
     private List<StandardQuestion> questions;
 } 

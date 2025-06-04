@@ -72,7 +72,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getStandardQuestion, updateStandardQuestion } from '@/api/standardQuestions'
+import { getQuestionById, updateQuestion } from '@/api/question'
 import { getAllCategories } from '@/api/category'
 
 const route = useRoute()
@@ -131,7 +131,7 @@ const getQuestionDetail = async () => {
   
   loading.value = true
   try {
-    const response = await getStandardQuestion(id)
+    const response = await getQuestionById(id)
     console.log('获取问题详情原始响应:', response)
     
     // 处理响应数据
@@ -228,7 +228,7 @@ const submitForm = async (formEl: FormInstance | undefined) => {
           version: formData.version
         }
         
-        const response = await updateStandardQuestion(formData.standardQuestionId, submitData)
+        const response = await updateQuestion(formData.standardQuestionId, submitData)
         console.log('更新问题响应:', response)
         
         ElMessage.success('更新成功')
