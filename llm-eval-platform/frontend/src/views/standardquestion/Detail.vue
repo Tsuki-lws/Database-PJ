@@ -69,8 +69,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getQuestionById } from '@/api/question'
-import { getQuestionTags } from '@/api/question'
+import { getStandardQuestion } from '@/api/standardQuestions'
 import { getAnswersByQuestionId } from '@/api/answer'
 
 const route = useRoute()
@@ -87,24 +86,18 @@ const getQuestionDetail = async () => {
   
   loading.value = true
   try {
-    question.value = await getQuestionById(id)
-    await Promise.all([
-      getTagsList(id),
-      getAnswersList(id)
-    ])
+    question.value = await getStandardQuestion(id)
+    // 如果问题有标签，直接从问题对象获取
+    if (question.value && question.value.tags) {
+      tags.value = question.value.tags
+    } else {
+      tags.value = []
+    }
+    await getAnswersList(id)
   } catch (error) {
     console.error('获取问题详情失败', error)
   } finally {
     loading.value = false
-  }
-}
-
-// 获取问题标签
-const getTagsList = async (id: number) => {
-  try {
-    tags.value = await getQuestionTags(id)
-  } catch (error) {
-    console.error('获取问题标签失败', error)
   }
 }
 

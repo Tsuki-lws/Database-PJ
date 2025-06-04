@@ -76,7 +76,7 @@
           </template>
           <el-menu-item index="/import/raw">原始数据导入</el-menu-item>
           <el-menu-item index="/import/standard">标准数据导入</el-menu-item>
-          <el-menu-item index="/import/evaluation">评测结果导入</el-menu-item>
+          <!-- <el-menu-item index="/import/evaluation">评测结果导入</el-menu-item> -->
         </el-sub-menu>
         
         <!-- 模型评测管理 -->

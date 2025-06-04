@@ -104,7 +104,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getQuestionList, deleteQuestion, QueryParams } from '@/api/question'
+import { getStandardQuestions, deleteStandardQuestion } from '@/api/standardQuestions'
 import { getAllCategories } from '@/api/category'
 
 const router = useRouter()
@@ -113,7 +113,7 @@ const questionList = ref([])
 const total = ref(0)
 
 // 查询参数
-const queryParams = reactive<QueryParams>({
+const queryParams = reactive({
   page: 1,
   size: 10,
   keyword: '',
@@ -153,7 +153,7 @@ const statusOptions = [
 const getList = async () => {
   loading.value = true
   try {
-    const res = await getQuestionList(queryParams)
+    const res = await getStandardQuestions(queryParams)
     questionList.value = res.list || []
     total.value = res.total || 0
   } catch (error) {
@@ -280,7 +280,7 @@ const handleDelete = (row: any) => {
     }
   ).then(async () => {
     try {
-      await deleteQuestion(row.standardQuestionId)
+      await deleteStandardQuestion(row.standardQuestionId)
       ElMessage.success('删除成功')
       getList()
     } catch (error) {

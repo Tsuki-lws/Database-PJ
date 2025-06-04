@@ -1,7 +1,7 @@
 <template>
   <div class="question-edit">
     <div class="header">
-      <h2>{{ isEdit ? '编辑问题' : '创建问题' }}</h2>
+      <h2>创建问题</h2>
     </div>
 
     <el-form
@@ -42,17 +42,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getQuestionById, createQuestion, updateQuestion } from '@/api/question'
+import { createStandardQuestion } from '@/api/standardQuestions'
 import type { StandardQuestion } from '@/api/question'
 
-const route = useRoute()
 const router = useRouter()
 const formRef = ref<FormInstance>()
-
-const isEdit = computed(() => route.params.id !== undefined)
 
 const formData = reactive<StandardQuestion>({
   content: '',
@@ -69,26 +66,13 @@ const rules = reactive<FormRules>({
   ]
 })
 
-const loadQuestion = async (id: number) => {
-  try {
-    const data = await getQuestionById(id)
-    Object.assign(formData, data)
-  } catch (error) {
-    console.error('加载问题失败:', error)
-  }
-}
-
 const submitForm = async () => {
   if (!formRef.value) return
   
   await formRef.value.validate(async (valid) => {
     if (valid) {
       try {
-        if (isEdit.value) {
-          await updateQuestion(Number(route.params.id), formData)
-        } else {
-          await createQuestion(formData)
-        }
+        await createStandardQuestion(formData)
         router.push('/questions')
       } catch (error) {
         console.error('保存失败:', error)
@@ -96,12 +80,6 @@ const submitForm = async () => {
     }
   })
 }
-
-onMounted(() => {
-  if (isEdit.value) {
-    loadQuestion(Number(route.params.id))
-  }
-})
 </script>
 
 <style scoped>

@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <div class="import-container">
     <div class="page-header">
       <h2>模型评测结果导入</h2>
@@ -103,7 +103,7 @@
       </el-form>
     </el-card>
 
-    <!-- 历史记录 -->
+    历史记录
     <el-card shadow="never" class="history-card">
       <template #header>
         <div class="card-header">
@@ -432,4 +432,4 @@ const viewDetail = (row: any) => {
   border-radius: 4px;
   background-color: #f5f7fa;
 }
-</style> 
+</style>  -->

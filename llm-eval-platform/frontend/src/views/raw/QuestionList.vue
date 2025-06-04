@@ -192,17 +192,101 @@ onMounted(() => {
 
 // 获取列表数据
 const getList = async () => {
-  loading.value = true
-  try {
-    const res = await getRawQuestionList(queryParams)
-    questionList.value = res.data.content || []
-    total.value = res.data.totalElements || 0
-  } catch (error: any) {
-    ElMessage.error('获取问题列表失败: ' + error.message)
-  } finally {
-    loading.value = false
+  if (loading.value) {
+    console.log('正在加载中，跳过重复请求');
+    return;
   }
-}
+
+  loading.value = true;
+  questionList.value = []; // 清空当前列表，避免数据混乱
+  
+  try {
+    console.log('准备查询参数...');
+    const params = {
+      pageNum: queryParams.page - 1, // 后端页码从0开始
+      pageSize: queryParams.size,
+      keyword: queryParams.keyword || '',
+      source: queryParams.source || ''
+    };
+    
+    console.log('发送请求参数:', params);
+    
+    // 添加超时处理
+    let loadingTimeout = setTimeout(() => {
+      ElMessage.warning('请求数据时间较长，请耐心等待...');
+    }, 3000);
+    
+    // 添加超长超时处理
+    let longLoadingTimeout = setTimeout(() => {
+      ElMessage.warning('请求仍在处理中，后端可能需要更长时间...');
+    }, 30000);
+    
+    try {
+      const res = await getRawQuestionList(params);
+      clearTimeout(loadingTimeout);
+      clearTimeout(longLoadingTimeout);
+      
+      console.log('获取到响应数据类型:', typeof res);
+      
+      // 检查响应结构
+      if (!res) {
+        throw new Error('未收到服务器返回的数据');
+      }
+      
+      // 检查数据格式
+      if (!res.content) {
+        console.error('响应数据格式不符合预期:', res);
+        throw new Error('服务器返回的数据格式不正确');
+      }
+      
+      // 检查数据内容
+      if (Array.isArray(res.content)) {
+        console.log(`接收到${res.content.length}条数据记录`);
+      } else {
+        console.warn('content不是数组:', res.content);
+      }
+      
+      // 更新状态
+      questionList.value = Array.isArray(res.content) ? res.content : [];
+      total.value = res.totalElements || 0;
+      
+      // 记录分页信息
+      console.log(`分页信息: 总计${res.totalElements}条数据，共${res.totalPages}页，当前第${res.number+1}页，每页${res.size}条`);
+      
+      // 如果当前页没有数据但总数不为0，回到第一页
+      if (questionList.value.length === 0 && total.value > 0 && queryParams.page > 1) {
+        ElMessage.warning('当前页没有数据，将返回第一页');
+        queryParams.page = 1;
+        setTimeout(() => {
+          getList();
+        }, 100);
+        return;
+      }
+      
+      console.log(`成功加载 ${questionList.value.length} 条数据，总数: ${total.value}`);
+    } catch (error) {
+      clearTimeout(loadingTimeout);
+      clearTimeout(longLoadingTimeout);
+      throw error;
+    }
+  } catch (error) {
+    console.error('获取问题列表失败:', error);
+    
+    let errorMsg = '未知错误';
+    if (error.message) {
+      errorMsg = error.message;
+    } else if (error.response && error.response.data) {
+      errorMsg = error.response.data.error || error.response.data.message || '服务器响应错误';
+    }
+    
+    ElMessage.error('获取问题列表失败: ' + errorMsg);
+    questionList.value = [];
+    total.value = 0;
+  } finally {
+    loading.value = false;
+    console.log('请求完成，加载状态设置为:', loading.value);
+  }
+};
 
 // 获取分类数据
 const getCategories = async () => {

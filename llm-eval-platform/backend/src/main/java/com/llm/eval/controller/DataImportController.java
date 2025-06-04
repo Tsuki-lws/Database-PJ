@@ -38,7 +38,18 @@ public class DataImportController {
     @PostMapping("/raw-qa")
     @Operation(summary = "导入原始问答数据", description = "上传JSON文件导入原始问答数据")
     public ResponseEntity<DataImportResultDTO> importRawQA(@RequestParam("file") MultipartFile file) {
+        if(file.getOriginalFilename().equals("")){
+            return ResponseEntity.badRequest().body(
+                new DataImportResultDTO(false, "导入失败: 文件名不能为空", 0, 1, 1)
+            );
+        }
+        if(file.getOriginalFilename() != null && file.getOriginalFilename().contains("标准")) {
+            return ResponseEntity.badRequest().body(
+                new DataImportResultDTO(false, "导入失败: 文件类型不对", 0, 1, 1)
+            );
+        }
         try {
+
             log.info("接收到原始问答数据导入请求，文件名：{}", file.getOriginalFilename());
             DataImportResultDTO result = dataImportService.importRawQA(file);
             return ResponseEntity.ok(result);
@@ -53,6 +64,12 @@ public class DataImportController {
     @PostMapping("/standard-qa")
     @Operation(summary = "导入标准问答数据", description = "上传JSON文件导入标准问答数据")
     public ResponseEntity<DataImportResultDTO> importStandardQA(@RequestParam("file") MultipartFile file) {
+        if(file.getOriginalFilename() != null && file.getOriginalFilename().contains("原始")) {
+            return ResponseEntity.badRequest().body(
+                new DataImportResultDTO(false, "导入失败: 文件类型不对", 0, 1, 1)
+            );
+        }
+        
         try {
             log.info("接收到标准问答数据导入请求，文件名：{}", file.getOriginalFilename());
             DataImportResultDTO result = dataImportService.importStandardQA(file);

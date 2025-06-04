@@ -1,6 +1,8 @@
 package com.llm.eval.model;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import jakarta.persistence.*;
 import org.hibernate.annotations.SQLDelete;
@@ -17,6 +19,7 @@ import java.util.List;
 @Data
 @SQLDelete(sql = "UPDATE raw_questions SET deleted_at = NOW() WHERE question_id = ?")
 @Where(clause = "deleted_at IS NULL")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class RawQuestion {
     
     @Id
@@ -58,6 +61,8 @@ public class RawQuestion {
     private LocalDateTime deletedAt;
     
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    @JsonIgnoreProperties({"question", "questionId"})
     private List<RawAnswer> answers;
     
     @PrePersist
@@ -77,5 +82,16 @@ public class RawQuestion {
     @PreUpdate
     public void preUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+    
+    @Override
+    public String toString() {
+        return "RawQuestion{" +
+               "questionId=" + questionId +
+               ", sourceQuestionId=" + sourceQuestionId +
+               ", questionTitle='" + questionTitle + '\'' +
+               ", source='" + source + '\'' +
+               ", createdAt=" + createdAt +
+               '}';
     }
 } 

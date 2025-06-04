@@ -20,7 +20,7 @@
               <el-upload
                 class="upload-demo"
                 drag
-                action="/api/raw-import/raw-qa"
+                action="/api/import/raw-qa"
                 :headers="uploadHeaders"
                 :on-success="handleUploadSuccess"
                 :on-error="handleUploadError"
@@ -39,44 +39,10 @@
             </el-form-item>
           </el-form>
         </el-tab-pane>
-
-        <el-tab-pane label="API导入" name="api">
-          <el-form :model="apiForm" label-position="top">
-            <el-form-item label="数据源">
-              <el-select v-model="apiForm.source" placeholder="选择数据源">
-                <el-option label="Stack Overflow" value="stackoverflow" />
-                <el-option label="Zhihu" value="zhihu" />
-                <el-option label="自定义API" value="custom" />
-              </el-select>
-            </el-form-item>
-
-            <template v-if="apiForm.source === 'custom'">
-              <el-form-item label="API地址">
-                <el-input v-model="apiForm.url" placeholder="请输入API地址" />
-              </el-form-item>
-              
-              <el-form-item label="认证信息">
-                <el-input v-model="apiForm.auth" placeholder="请输入认证信息（可选）" />
-              </el-form-item>
-            </template>
-
-            <el-form-item label="关键词">
-              <el-input v-model="apiForm.keywords" placeholder="请输入搜索关键词，多个关键词用逗号分隔" />
-            </el-form-item>
-
-            <el-form-item label="导入数量限制">
-              <el-input-number v-model="apiForm.limit" :min="1" :max="1000" />
-            </el-form-item>
-
-            <el-form-item>
-              <el-button type="primary" @click="handleApiImport" :loading="importing">开始导入</el-button>
-            </el-form-item>
-          </el-form>
-        </el-tab-pane>
       </el-tabs>
     </el-card>
 
-    <!-- 导入历史记录 -->
+    <!-- 导入历史记录
     <el-card shadow="never" class="history-card">
       <div slot="header" class="clearfix">
         <span>导入历史记录</span>
@@ -105,7 +71,7 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+    </el-card> -->
   </div>
 </template>
 
@@ -120,14 +86,14 @@ const activeTab = ref('file')
 // 文件导入类型
 const importType = ref('json')
 
-// API导入表单
-const apiForm = reactive({
-  source: 'stackoverflow',
-  url: '',
-  auth: '',
-  keywords: '',
-  limit: 100
-})
+// // API导入表单
+// const apiForm = reactive({
+//   source: 'stackoverflow',
+//   url: '',
+//   auth: '',
+//   keywords: '',
+//   limit: 100
+// })
 
 // 上传相关
 const uploadHeaders = reactive({
@@ -137,36 +103,36 @@ const uploadHeaders = reactive({
 // 导入状态
 const importing = ref(false)
 
-// 模拟的导入历史记录
-const importHistory = ref([
-  {
-    id: 1,
-    type: 'file',
-    source: 'local',
-    fileName: 'stackoverflow_python_qa.json',
-    status: 'success',
-    importTime: '2023-05-10 14:30:22',
-    count: 120
-  },
-  {
-    id: 2,
-    type: 'api',
-    source: 'stackoverflow',
-    fileName: null,
-    status: 'success',
-    importTime: '2023-05-09 10:15:45',
-    count: 85
-  },
-  {
-    id: 3,
-    type: 'file',
-    source: 'local',
-    fileName: 'zhihu_ai_qa.csv',
-    status: 'failed',
-    importTime: '2023-05-08 16:22:10',
-    count: 0
-  }
-])
+// // 模拟的导入历史记录
+// const importHistory = ref([
+//   {
+//     id: 1,
+//     type: 'file',
+//     source: 'local',
+//     fileName: 'stackoverflow_python_qa.json',
+//     status: 'success',
+//     importTime: '2023-05-10 14:30:22',
+//     count: 120
+//   },
+//   {
+//     id: 2,
+//     type: 'api',
+//     source: 'stackoverflow',
+//     fileName: null,
+//     status: 'success',
+//     importTime: '2023-05-09 10:15:45',
+//     count: 85
+//   },
+//   {
+//     id: 3,
+//     type: 'file',
+//     source: 'local',
+//     fileName: 'zhihu_ai_qa.csv',
+//     status: 'failed',
+//     importTime: '2023-05-08 16:22:10',
+//     count: 0
+//   }
+// ])
 
 // 上传前的检查
 const beforeUpload = (file: any) => {
@@ -205,7 +171,7 @@ const handleUploadSuccess = (response: any) => {
 
 // 上传失败处理
 const handleUploadError = () => {
-  ElMessage.error('文件上传失败，请重试')
+  ElMessage.error('文件上传失败，请请检查对应的文件是否正确')
 }
 
 // API导入处理

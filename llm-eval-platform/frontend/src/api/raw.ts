@@ -30,6 +30,8 @@ export interface QueryParams {
   size?: number
   source?: string
   keyword?: string
+  pageNum?: number
+  pageSize?: number
 }
 
 // 获取原始问题列表
@@ -37,7 +39,7 @@ export function getRawQuestionList(params: QueryParams) {
   return request({
     url: '/api/raw-questions',
     method: 'get',
-    params
+    params: params
   })
 }
 

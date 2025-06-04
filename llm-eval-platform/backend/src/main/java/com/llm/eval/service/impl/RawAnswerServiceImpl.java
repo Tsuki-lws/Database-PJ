@@ -40,11 +40,25 @@ public class RawAnswerServiceImpl implements RawAnswerService {
     @Override
     @Transactional
     public RawAnswer saveRawAnswer(RawAnswer rawAnswer) {
-        // 确保关联的问题存在
-        RawQuestion question = rawQuestionRepository.findById(rawAnswer.getQuestion().getQuestionId())
-                .orElseThrow(() -> new RuntimeException("原始问题不存在: " + rawAnswer.getQuestion().getQuestionId()));
+        // 优先使用直接设置的questionId
+        final Integer questionId;
         
+        if (rawAnswer.getQuestionId() != null) {
+            questionId = rawAnswer.getQuestionId();
+        } else if (rawAnswer.getQuestion() != null && rawAnswer.getQuestion().getQuestionId() != null) {
+            questionId = rawAnswer.getQuestion().getQuestionId();
+        } else {
+            throw new RuntimeException("未指定问题ID");
+        }
+        
+        // 查询问题对象
+        final Integer finalQuestionId = questionId;
+        RawQuestion question = rawQuestionRepository.findById(finalQuestionId)
+                .orElseThrow(() -> new RuntimeException("原始问题不存在: " + finalQuestionId));
+        
+        // 设置问题关联
         rawAnswer.setQuestion(question);
+        
         return rawAnswerRepository.save(rawAnswer);
     }
 
@@ -55,11 +69,24 @@ public class RawAnswerServiceImpl implements RawAnswerService {
             throw new RuntimeException("原始回答不存在: " + rawAnswer.getAnswerId());
         }
         
-        // 确保关联的问题存在
-        RawQuestion question = rawQuestionRepository.findById(rawAnswer.getQuestion().getQuestionId())
-                .orElseThrow(() -> new RuntimeException("原始问题不存在: " + rawAnswer.getQuestion().getQuestionId()));
+        Integer questionId = null;
         
-        rawAnswer.setQuestion(question);
+        // 优先使用直接设置的questionId
+        if (rawAnswer.getQuestionId() != null) {
+            questionId = rawAnswer.getQuestionId();
+        } else if (rawAnswer.getQuestion() != null && rawAnswer.getQuestion().getQuestionId() != null) {
+            questionId = rawAnswer.getQuestion().getQuestionId();
+        }
+        
+        if (questionId != null) {
+            // 确保关联的问题存在
+            final Integer finalQuestionId = questionId;
+            RawQuestion question = rawQuestionRepository.findById(finalQuestionId)
+                    .orElseThrow(() -> new RuntimeException("原始问题不存在: " + finalQuestionId));
+            
+            rawAnswer.setQuestion(question);
+        }
+        
         return rawAnswerRepository.save(rawAnswer);
     }
 

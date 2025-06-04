@@ -100,7 +100,7 @@
       </el-tabs>
     </el-card>
 
-    <!-- 导入历史记录 -->
+    <!-- 导入历史记录
     <el-card shadow="never" class="history-card">
       <div slot="header" class="clearfix">
         <span>导入历史记录</span>
@@ -128,7 +128,7 @@
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+    </el-card> -->
   </div>
 </template>
 
@@ -266,7 +266,7 @@ const handleUploadSuccess = (response: any) => {
 
 // 上传失败处理
 const handleUploadError = () => {
-  ElMessage.error('文件上传失败，请重试')
+  ElMessage.error('文件上传失败，请检查对应的文件是否正确')
 }
 
 // 批量创建处理

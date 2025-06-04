@@ -1,6 +1,7 @@
 package com.llm.eval.service;
 
-import com.github.pagehelper.PageInfo;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.llm.eval.dto.QueryParams;
 import com.llm.eval.dto.RawQuestionConverter;
 import com.llm.eval.model.RawQuestion;
@@ -17,9 +18,10 @@ public interface RawQuestionService {
     /**
      * 分页查询原始问题
      * @param queryParams 查询参数
+     * @param pageable 分页参数
      * @return 分页结果
      */
-    PageInfo<RawQuestion> findRawQuestionsByPage(QueryParams queryParams);
+    Page<RawQuestion> findRawQuestionsByPage(QueryParams queryParams, Pageable pageable);
     
     /**
      * 根据ID查询原始问题
