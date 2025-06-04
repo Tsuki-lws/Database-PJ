@@ -20,7 +20,7 @@
               <el-upload
                 class="upload-demo"
                 drag
-                action="/api/raw-import/upload"
+                action="/api/raw-import/raw-qa"
                 :headers="uploadHeaders"
                 :on-success="handleUploadSuccess"
                 :on-error="handleUploadError"
