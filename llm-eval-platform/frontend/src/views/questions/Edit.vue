@@ -40,13 +40,17 @@
       </el-form-item>
 
       <el-form-item label="分类" prop="categoryId">
-        <el-select v-model="formData.categoryId" placeholder="请选择分类" clearable>
-          <el-option 
-            v-for="item in categoryOptions" 
-            :key="item.value" 
-            :label="item.label" 
-            :value="item.value" />
-        </el-select>
+        <el-autocomplete
+          v-model="categoryInput"
+          :fetch-suggestions="queryCategories"
+          placeholder="请输入或选择分类"
+          clearable
+          @select="handleCategorySelect"
+          style="width: 100%">
+          <template #default="{ item }">
+            <div>{{ item.label }}</div>
+          </template>
+        </el-autocomplete>
       </el-form-item>
 
       <el-form-item label="状态" prop="status">
@@ -74,6 +78,7 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getQuestionById, updateQuestion } from '@/api/question'
 import { getAllCategories } from '@/api/category'
+import type { StandardQuestion, Category } from '@/api/question'
 
 const route = useRoute()
 const router = useRouter()
@@ -82,6 +87,7 @@ const loading = ref(false)
 const submitting = ref(false)
 const categoryOptions = ref<any[]>([])
 const isEdit = ref(true)
+const categoryInput = ref('')
 
 const formData = reactive({
   standardQuestionId: 0,
@@ -138,7 +144,9 @@ const getQuestionDetail = async () => {
     let questionData
     if (response && typeof response === 'object') {
       // 处理标准返回格式：{ code: 200, data: {...}, message: "Success" }
-      if (response.code === 200 && response.data) {
+      if ('code' in response && response.code === 200 && response.data) {
+        questionData = response.data
+      } else if ('data' in response) {
         questionData = response.data
       } else {
         // 如果响应本身就是问题对象
@@ -159,13 +167,20 @@ const getQuestionDetail = async () => {
       formData.createdAt = questionData.createdAt || ''
       formData.updatedAt = questionData.updatedAt || ''
       
-      // 如果有分类信息，设置categoryId
+      // 如果有分类信息，设置categoryId和categoryInput
       if (questionData.category) {
         formData.categoryId = questionData.category.categoryId
+        categoryInput.value = questionData.category.categoryName || questionData.category.name || ''
       } else if (questionData.categoryId) {
         formData.categoryId = questionData.categoryId
+        // 根据categoryId查找对应的分类名称
+        const category = categoryOptions.value.find(item => item.value === questionData.categoryId)
+        if (category) {
+          categoryInput.value = category.label
+        }
       } else {
         formData.categoryId = null
+        categoryInput.value = ''
       }
     } else {
       ElMessage.error('获取问题详情失败')
@@ -187,7 +202,9 @@ const getCategories = async () => {
     // 处理响应数据
     let categoriesData
     if (res && typeof res === 'object') {
-      if (res.code === 200 && res.data) {
+      if ('code' in res && res.code === 200 && res.data) {
+        categoriesData = res.data
+      } else if ('data' in res) {
         categoriesData = res.data
       } else if (Array.isArray(res)) {
         categoriesData = res
@@ -199,6 +216,14 @@ const getCategories = async () => {
         value: item.categoryId,
         label: item.name || item.categoryName
       }))
+      
+      // 如果已经有categoryId，根据categoryId设置categoryInput的值
+      if (formData.categoryId) {
+        const category = categoryOptions.value.find(item => item.value === formData.categoryId)
+        if (category) {
+          categoryInput.value = category.label
+        }
+      }
     } else {
       console.warn('获取分类列表返回格式不符合预期')
     }
@@ -215,18 +240,36 @@ const submitForm = async (formEl: FormInstance | undefined) => {
     if (valid) {
       submitting.value = true
       try {
-        console.log('提交的表单数据:', formData)
-        
-        // 准备提交的数据
-        const submitData = {
+        // 准备提交的数据 - 包含分类信息
+        const submitData: StandardQuestion = {
           standardQuestionId: formData.standardQuestionId,
           question: formData.question,
-          questionType: formData.questionType,
-          difficulty: formData.difficulty,
-          status: formData.status,
-          categoryId: formData.categoryId,
+          questionType: formData.questionType as 'single_choice' | 'multiple_choice' | 'simple_fact' | 'subjective',
+          difficulty: formData.difficulty as 'easy' | 'medium' | 'hard',
+          status: formData.status as 'draft' | 'pending_review' | 'approved' | 'rejected',
           version: formData.version
         }
+        
+        // 处理分类信息
+        if (categoryInput.value.trim() !== '') {
+          // 检查是否已存在同名分类
+          const existingCategory = categoryOptions.value.find(item => 
+            item.label.toLowerCase() === categoryInput.value.toLowerCase()
+          )
+          
+          if (existingCategory) {
+            // 使用已存在的分类ID
+            submitData.categoryId = existingCategory.value
+          } else {
+            // 使用新分类名称
+            submitData.category = {
+              name: categoryInput.value.trim()
+            }
+          }
+        }
+        // 如果没有分类，不设置categoryId和category字段
+        
+        console.log('提交的表单数据:', submitData)
         
         const response = await updateQuestion(formData.standardQuestionId, submitData)
         console.log('更新问题响应:', response)
@@ -246,6 +289,16 @@ const submitForm = async (formEl: FormInstance | undefined) => {
 // 返回
 const handleCancel = () => {
   router.back()
+}
+
+const queryCategories = (query: string, cb: (options: any[]) => void) => {
+  const results = query ? categoryOptions.value.filter(item => item.label.toLowerCase().indexOf(query.toLowerCase()) > -1) : categoryOptions.value
+  cb(results)
+}
+
+const handleCategorySelect = (item: any) => {
+  formData.categoryId = item.value
+  categoryInput.value = item.label
 }
 
 onMounted(() => {

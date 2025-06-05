@@ -214,6 +214,14 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {   
         StandardQuestion question = standardQuestionRepository.findById(questionId)
                 .orElseThrow(() -> new EntityNotFoundException("Standard question not found with id: " + questionId));
         
+        // 如果分类名称为空，则移除分类
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            question.setCategory(null);
+            question.setUpdatedAt(LocalDateTime.now());
+            question.setVersion(question.getVersion() + 1);
+            return standardQuestionRepository.save(question);
+        }
+        
         // 查找或创建分类
         QuestionCategory category;
         Optional<QuestionCategory> existingCategory = categoryRepository.findByName(categoryName);

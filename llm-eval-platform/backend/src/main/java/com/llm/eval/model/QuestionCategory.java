@@ -2,6 +2,7 @@ package com.llm.eval.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.List;
@@ -23,13 +24,16 @@ public class QuestionCategory {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
+    @ToString.Exclude
     private QuestionCategory parent;
     
     @OneToMany(mappedBy = "parent")
     @JsonIgnore
+    @ToString.Exclude
     private List<QuestionCategory> children;
     
     @OneToMany(mappedBy = "category")
     @JsonIgnore
+    @ToString.Exclude
     private List<StandardQuestion> questions;
 } 

@@ -1,9 +1,16 @@
 import request from '../utils/request'
 
+export interface Category {
+  categoryId?: number
+  name?: string
+  description?: string
+}
+
 export interface StandardQuestion {
   standardQuestionId?: number
   question: string
-  categoryId?: number
+  categoryId?: number | null
+  category?: Category | null
   questionType: 'single_choice' | 'multiple_choice' | 'simple_fact' | 'subjective'
   difficulty?: 'easy' | 'medium' | 'hard'
   sourceQuestionId?: number

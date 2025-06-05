@@ -2,11 +2,13 @@ package com.llm.eval.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,8 +32,26 @@ public class StandardQuestion {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
-    @JsonIgnore
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    @ToString.Exclude
     private QuestionCategory category;
+    
+    @Transient
+    @JsonProperty("categoryId")
+    public Integer getCategoryId() {
+        return category != null ? category.getCategoryId() : null;
+    }
+    
+    @JsonProperty("categoryId")
+    public void setCategoryId(Integer categoryId) {
+        if (categoryId != null) {
+            QuestionCategory cat = new QuestionCategory();
+            cat.setCategoryId(categoryId);
+            this.category = cat;
+        } else {
+            this.category = null;
+        }
+    }
     
     @Enumerated(EnumType.STRING)
     @Column(name = "question_type")

@@ -3,7 +3,9 @@ package com.llm.eval.controller;
 import com.llm.eval.dto.PagedResponseDTO;
 import com.llm.eval.dto.StandardQuestionWithoutAnswerDTO;
 import com.llm.eval.model.StandardQuestion;
+import com.llm.eval.model.QuestionCategory;
 import com.llm.eval.service.StandardQuestionService;
+import com.llm.eval.repository.QuestionCategoryRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,9 +38,11 @@ public class StandardQuestionController {
     private static final Logger logger = LoggerFactory.getLogger(StandardQuestionController.class);
     
     private final StandardQuestionService questionService;
+    private final QuestionCategoryRepository categoryRepository;
 
-    public StandardQuestionController(StandardQuestionService questionService) {
+    public StandardQuestionController(StandardQuestionService questionService, QuestionCategoryRepository categoryRepository) {
         this.questionService = questionService;
+        this.categoryRepository = categoryRepository;
     }
 
     /**
@@ -270,6 +274,38 @@ public class StandardQuestionController {
     @Operation(summary = "创建新标准问题")
     public ResponseEntity<com.llm.eval.model.StandardQuestion> createQuestion(
             @Valid @RequestBody com.llm.eval.model.StandardQuestion question) {
+        // 先处理分类信息
+        QuestionCategory category = null;
+        
+        // 如果前端传入了category对象
+        if (question.getCategory() != null) {
+            // 如果提供了分类ID，使用现有分类
+            if (question.getCategory().getCategoryId() != null) {
+                category = categoryRepository.findById(question.getCategory().getCategoryId())
+                        .orElse(null);
+            } 
+            // 如果提供了分类名称，查找或创建分类
+            else if (question.getCategory().getName() != null && !question.getCategory().getName().trim().isEmpty()) {
+                String categoryName = question.getCategory().getName().trim();
+                category = categoryRepository.findByName(categoryName)
+                        .orElseGet(() -> {
+                            QuestionCategory newCategory = new QuestionCategory();
+                            newCategory.setName(categoryName);
+                            newCategory.setDescription("自动创建的分类");
+                            return categoryRepository.save(newCategory);
+                        });
+            }
+        }
+        // 如果前端通过categoryId字段传入分类ID
+        else if (question.getCategoryId() != null) {
+            category = categoryRepository.findById(question.getCategoryId())
+                    .orElse(null);
+        }
+        
+        // 设置处理后的分类
+        question.setCategory(category);
+        
+        // 创建问题
         com.llm.eval.model.StandardQuestion createdQuestion = questionService.createStandardQuestion(question);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdQuestion);
     }
@@ -280,10 +316,49 @@ public class StandardQuestionController {
             @PathVariable("id") Integer id,
             @Valid @RequestBody com.llm.eval.model.StandardQuestion question) {
         try {
+            // 先获取现有问题
+            StandardQuestion existingQuestion = questionService.getStandardQuestionById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("问题不存在，ID: " + id));
+            
+            // 处理分类信息
+            QuestionCategory category = null;
+            
+            // 如果前端传入了category对象
+            if (question.getCategory() != null) {
+                // 如果提供了分类ID，使用现有分类
+                if (question.getCategory().getCategoryId() != null) {
+                    category = categoryRepository.findById(question.getCategory().getCategoryId())
+                            .orElse(null);
+                } 
+                // 如果提供了分类名称，查找或创建分类
+                else if (question.getCategory().getName() != null && !question.getCategory().getName().trim().isEmpty()) {
+                    String categoryName = question.getCategory().getName().trim();
+                    category = categoryRepository.findByName(categoryName)
+                            .orElseGet(() -> {
+                                QuestionCategory newCategory = new QuestionCategory();
+                                newCategory.setName(categoryName);
+                                newCategory.setDescription("自动创建的分类");
+                                return categoryRepository.save(newCategory);
+                            });
+                }
+            }
+            // 如果前端通过categoryId字段传入分类ID
+            else if (question.getCategoryId() != null) {
+                category = categoryRepository.findById(question.getCategoryId())
+                        .orElse(null);
+            }
+            
+            // 设置处理后的分类
+            question.setCategory(category);
+            
+            // 更新问题
             com.llm.eval.model.StandardQuestion updatedQuestion = questionService.updateStandardQuestion(id, question);
             return ResponseEntity.ok(updatedQuestion);
-        } catch (Exception e) {
+        } catch (EntityNotFoundException e) {
             return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("更新问题失败，ID: {}", id, e);
+            return ResponseEntity.badRequest().build();
         }
     }
 
@@ -442,8 +517,13 @@ public class StandardQuestionController {
             if (request.getCategoryName() != null && !request.getCategoryName().trim().isEmpty()) {
                 updatedQuestion = questionService.updateQuestionCategoryByName(
                         questionId, request.getCategoryName().trim());
-            } else {
-                // 否则使用分类ID
+            } 
+            // 如果明确传入了null或者没有提供分类ID，则移除分类
+            else if (request.getCategoryId() == null) {
+                updatedQuestion = questionService.updateQuestionCategory(questionId, null);
+            }
+            // 否则使用分类ID更新
+            else {
                 updatedQuestion = questionService.updateQuestionCategory(
                         questionId, request.getCategoryId());
             }
