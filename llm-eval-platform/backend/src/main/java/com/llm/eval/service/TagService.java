@@ -70,7 +70,34 @@ public interface TagService {
      */
     Map<String, Long> getTagsWithQuestionCount();
     
+    /**
+     * Get tags with their question counts and detailed information
+     * 
+     * @return Map containing tag details and question counts
+     */
+    Map<String, Object> getTagsWithQuestionCountDetails();
+    
+    /**
+     * Add tags to a question
+     * 
+     * @param questionId The ID of the question
+     * @param tagIds The IDs of the tags to add
+     */
     void addTagsToQuestion(Integer questionId, List<Integer> tagIds);
     
+    /**
+     * Remove a tag from a question
+     * 
+     * @param questionId The ID of the question
+     * @param tagId The ID of the tag to remove
+     */
     void removeTagFromQuestion(Integer questionId, Integer tagId);
+    
+    /**
+     * Get questions by tags
+     * 
+     * @param tagIds The IDs of the tags to filter by
+     * @return List of question IDs that have all the specified tags
+     */
+    List<Integer> getQuestionsByTags(List<Integer> tagIds);
 } 

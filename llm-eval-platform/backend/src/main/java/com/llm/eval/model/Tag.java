@@ -20,6 +20,9 @@ public class Tag {
     @Column(name = "description")
     private String description;
     
+    @Column(name = "color")
+    private String color;
+    
     @ManyToMany(mappedBy = "tags")
     private Set<StandardQuestion> questions;
 } 

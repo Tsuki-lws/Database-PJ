@@ -238,7 +238,7 @@ const formatQuestionType = (type: string) => {
   const map: Record<string, string> = {
     'single_choice': '单选题',
     'multiple_choice': '多选题',
-    'simple_fact': '简单事实题',
+    // 'simple_fact': '简单事实题',
     'subjective': '主观题'
   }
   return map[type] || type

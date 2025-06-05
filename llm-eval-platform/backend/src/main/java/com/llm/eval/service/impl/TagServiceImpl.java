@@ -7,9 +7,11 @@ import com.llm.eval.repository.TagRepository;
 import com.llm.eval.service.TagService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,11 +24,13 @@ public class TagServiceImpl implements TagService {
     
     private final TagRepository tagRepository;
     private final StandardQuestionRepository questionRepository;
+    private final JdbcTemplate jdbcTemplate;
     
     @Autowired
-    public TagServiceImpl(TagRepository tagRepository, StandardQuestionRepository questionRepository) {
+    public TagServiceImpl(TagRepository tagRepository, StandardQuestionRepository questionRepository, JdbcTemplate jdbcTemplate) {
         this.tagRepository = tagRepository;
         this.questionRepository = questionRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
     
     @Override
@@ -108,49 +112,130 @@ public class TagServiceImpl implements TagService {
     }
     
     @Override
+    public Map<String, Object> getTagsWithQuestionCountDetails() {
+        Map<String, Object> result = new HashMap<>();
+        Map<String, Long> countMap = new HashMap<>();
+        List<Map<String, Object>> tagDetails = new ArrayList<>();
+        List<Tag> tags = tagRepository.findAll();
+        
+        for (Tag tag : tags) {
+            long count = questionRepository.countByTagId(tag.getTagId());
+            countMap.put(tag.getTagName(), count);
+            
+            Map<String, Object> tagDetail = new HashMap<>();
+            tagDetail.put("tagId", tag.getTagId());
+            tagDetail.put("tagName", tag.getTagName());
+            tagDetail.put("description", tag.getDescription());
+            tagDetail.put("color", "#409EFF"); // 暂时使用默认颜色
+            tagDetail.put("questionCount", count);
+            tagDetails.add(tagDetail);
+        }
+        
+        result.put("counts", countMap);
+        result.put("tags", tagDetails);
+        
+        return result;
+    }
+    
+    @Override
     @Transactional
     public void addTagsToQuestion(Integer questionId, List<Integer> tagIds) {
-        StandardQuestion question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new EntityNotFoundException("Standard question not found with id: " + questionId));
+        // 添加日志记录
+        System.out.println("TagServiceImpl: 尝试向问题 " + questionId + " 添加标签: " + tagIds);
         
+        // 验证问题是否存在
+        if (!questionRepository.existsById(questionId)) {
+            System.err.println("TagServiceImpl: 问题不存在，ID: " + questionId);
+            throw new EntityNotFoundException("Standard question not found with id: " + questionId);
+        }
+        
+        // 验证所有标签是否存在
         List<Tag> tags = tagRepository.findAllById(tagIds);
         if (tags.size() != tagIds.size()) {
+            System.err.println("TagServiceImpl: 部分标签不存在");
             throw new EntityNotFoundException("Some tags were not found");
         }
         
-        // 获取现有标签集合
-        Set<Tag> existingTags = question.getTags();
-        if (existingTags == null) {
-            existingTags = tags.stream().collect(Collectors.toSet());
-        } else {
-            existingTags.addAll(tags);
+        // 直接向关联表中插入记录
+        int addedCount = 0;
+        for (Integer tagId : tagIds) {
+            // 检查关联是否已存在
+            String checkSql = "SELECT COUNT(*) FROM standard_question_tags WHERE standard_question_id = ? AND tag_id = ?";
+            Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, questionId, tagId);
+            
+            if (count == null || count == 0) {
+                // 不存在则添加
+                try {
+                    String insertSql = "INSERT INTO standard_question_tags (standard_question_id, tag_id) VALUES (?, ?)";
+                    int rowsAffected = jdbcTemplate.update(insertSql, questionId, tagId);
+                    addedCount += rowsAffected;
+                } catch (Exception e) {
+                    System.err.println("TagServiceImpl: 添加标签关联失败: " + e.getMessage());
+                    // 如果是唯一约束冲突，说明关联已存在，忽略错误
+                    if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
+                        System.out.println("TagServiceImpl: 标签关联已存在，忽略");
+                    } else {
+                        throw e;
+                    }
+                }
+            }
         }
         
-        // 更新问题的标签集合
-        question.setTags(existingTags);
-        questionRepository.save(question);
+        System.out.println("TagServiceImpl: 成功向问题 " + questionId + " 添加了 " + addedCount + " 个标签");
     }
     
     @Override
     @Transactional
     public void removeTagFromQuestion(Integer questionId, Integer tagId) {
-        StandardQuestion question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new EntityNotFoundException("Standard question not found with id: " + questionId));
+        // 添加日志记录
+        System.out.println("TagServiceImpl: 尝试从问题 " + questionId + " 中移除标签 " + tagId);
         
-        Tag tag = tagRepository.findById(tagId)
-                .orElseThrow(() -> new EntityNotFoundException("Tag not found with id: " + tagId));
-        
-        Set<Tag> tags = question.getTags();
-        if (tags != null) {
-            boolean removed = tags.remove(tag);
-            if (!removed) {
-                throw new IllegalStateException("The tag is not associated with this question");
-            }
-            
-            question.setTags(tags);
-            questionRepository.save(question);
-        } else {
-            throw new IllegalStateException("The question has no tags");
+        // 验证问题是否存在
+        if (!questionRepository.existsById(questionId)) {
+            System.err.println("TagServiceImpl: 问题不存在，ID: " + questionId);
+            throw new EntityNotFoundException("Standard question not found with id: " + questionId);
         }
+        
+        // 验证标签是否存在
+        if (!tagRepository.existsById(tagId)) {
+            System.err.println("TagServiceImpl: 标签不存在，ID: " + tagId);
+            throw new EntityNotFoundException("Tag not found with id: " + tagId);
+        }
+        
+        // 检查关联是否存在
+        String checkSql = "SELECT COUNT(*) FROM standard_question_tags WHERE standard_question_id = ? AND tag_id = ?";
+        Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, questionId, tagId);
+        
+        if (count == null || count == 0) {
+            System.err.println("TagServiceImpl: 问题 " + questionId + " 与标签 " + tagId + " 之间不存在关联");
+            throw new IllegalStateException("Tag is not associated with this question");
+        }
+        
+        // 直接删除关联表中的记录
+        try {
+            String deleteSql = "DELETE FROM standard_question_tags WHERE standard_question_id = ? AND tag_id = ?";
+            int rowsAffected = jdbcTemplate.update(deleteSql, questionId, tagId);
+            System.out.println("TagServiceImpl: 成功从问题 " + questionId + " 中移除标签 " + tagId + "，影响行数: " + rowsAffected);
+        } catch (Exception e) {
+            System.err.println("TagServiceImpl: 移除标签关联失败: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+    
+    @Override
+    public List<Integer> getQuestionsByTags(List<Integer> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            throw new IllegalArgumentException("Tag IDs cannot be empty");
+        }
+        
+        // 确保所有标签都存在
+        List<Tag> tags = tagRepository.findAllById(tagIds);
+        if (tags.size() != tagIds.size()) {
+            throw new EntityNotFoundException("Some tags were not found");
+        }
+        
+        // 查询具有所有指定标签的问题
+        return questionRepository.findByAllTagIds(tagIds);
     }
 } 

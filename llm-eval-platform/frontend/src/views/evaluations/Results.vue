@@ -304,39 +304,39 @@ const currentDetail = reactive({
   feedback: ''
 })
 
-// 得分分布
-const scoreDistribution = reactive({
-  '0-1': 0,
-  '1-2': 2,
-  '2-3': 5,
-  '3-4': 8,
-  '4-5': 15,
-  '5-6': 25,
-  '6-7': 42,
-  '7-8': 95,
-  '8-9': 198,
-  '9-10': 110
-})
+// // 得分分布
+// const scoreDistribution = reactive({
+//   '0-1': 0,
+//   '1-2': 2,
+//   '2-3': 5,
+//   '3-4': 8,
+//   '4-5': 15,
+//   '5-6': 25,
+//   '6-7': 42,
+//   '7-8': 95,
+//   '8-9': 198,
+//   '9-10': 110
+// })
 
-// 分类得分
-const categoryScores = ref([
-  { category: '编程', score: 8.9, count: 80 },
-  { category: '数学', score: 9.2, count: 70 },
-  { category: '物理', score: 8.5, count: 60 },
-  { category: '化学', score: 8.3, count: 50 },
-  { category: '生物', score: 7.8, count: 40 },
-  { category: '历史', score: 8.1, count: 30 },
-  { category: '地理', score: 8.6, count: 25 },
-  { category: '文学', score: 9.0, count: 45 },
-  { category: '常识', score: 9.5, count: 100 }
-])
+// // 分类得分
+// const categoryScores = ref([
+//   { category: '编程', score: 8.9, count: 80 },
+//   { category: '数学', score: 9.2, count: 70 },
+//   { category: '物理', score: 8.5, count: 60 },
+//   { category: '化学', score: 8.3, count: 50 },
+//   { category: '生物', score: 7.8, count: 40 },
+//   { category: '历史', score: 8.1, count: 30 },
+//   { category: '地理', score: 8.6, count: 25 },
+//   { category: '文学', score: 9.0, count: 45 },
+//   { category: '常识', score: 9.5, count: 100 }
+// ])
 
-// 难度得分
-const difficultyScores = ref([
-  { difficulty: 'easy', score: 9.3, count: 200 },
-  { difficulty: 'medium', score: 8.5, count: 200 },
-  { difficulty: 'hard', score: 7.2, count: 100 }
-])
+// // 难度得分
+// const difficultyScores = ref([
+//   { difficulty: 'easy', score: 9.3, count: 200 },
+//   { difficulty: 'medium', score: 8.5, count: 200 },
+//   { difficulty: 'hard', score: 7.2, count: 100 }
+// ])
 
 // 分类列表
 const categories = computed(() => {
@@ -375,23 +375,23 @@ const fetchResults = async () => {
     // results.value = res.data.content
     // totalResults.value = res.data.totalElements
     
-    // 模拟数据
-    setTimeout(() => {
-      results.value = [
-        { questionId: 1, question: '什么是大语言模型？', category: '人工智能', difficulty: 'easy', score: 9.5, responseTime: 1.2 },
-        { questionId: 2, question: '解释一下量子计算的基本原理', category: '物理', difficulty: 'hard', score: 8.2, responseTime: 2.5 },
-        { questionId: 3, question: '编写一个快速排序算法', category: '编程', difficulty: 'medium', score: 9.0, responseTime: 1.8 },
-        { questionId: 4, question: '简述人工智能的发展历史', category: '人工智能', difficulty: 'medium', score: 8.7, responseTime: 3.2 },
-        { questionId: 5, question: '如何实现神经网络的反向传播算法？', category: '机器学习', difficulty: 'hard', score: 7.8, responseTime: 2.9 },
-        { questionId: 6, question: 'Python和Java的主要区别是什么？', category: '编程', difficulty: 'easy', score: 9.3, responseTime: 1.5 },
-        { questionId: 7, question: '解释相对论的基本原理', category: '物理', difficulty: 'hard', score: 8.0, responseTime: 3.5 },
-        { questionId: 8, question: '什么是区块链技术？', category: '技术', difficulty: 'medium', score: 8.8, responseTime: 2.1 },
-        { questionId: 9, question: '解释一下梯度下降算法', category: '机器学习', difficulty: 'medium', score: 9.1, responseTime: 1.7 },
-        { questionId: 10, question: '什么是函数式编程？', category: '编程', difficulty: 'medium', score: 8.5, responseTime: 2.3 }
-      ]
-      totalResults.value = 500
-      loading.value = false
-    }, 500)
+    // // 模拟数据
+    // setTimeout(() => {
+    //   results.value = [
+    //     { questionId: 1, question: '什么是大语言模型？', category: '人工智能', difficulty: 'easy', score: 9.5, responseTime: 1.2 },
+    //     { questionId: 2, question: '解释一下量子计算的基本原理', category: '物理', difficulty: 'hard', score: 8.2, responseTime: 2.5 },
+    //     { questionId: 3, question: '编写一个快速排序算法', category: '编程', difficulty: 'medium', score: 9.0, responseTime: 1.8 },
+    //     { questionId: 4, question: '简述人工智能的发展历史', category: '人工智能', difficulty: 'medium', score: 8.7, responseTime: 3.2 },
+    //     { questionId: 5, question: '如何实现神经网络的反向传播算法？', category: '机器学习', difficulty: 'hard', score: 7.8, responseTime: 2.9 },
+    //     { questionId: 6, question: 'Python和Java的主要区别是什么？', category: '编程', difficulty: 'easy', score: 9.3, responseTime: 1.5 },
+    //     { questionId: 7, question: '解释相对论的基本原理', category: '物理', difficulty: 'hard', score: 8.0, responseTime: 3.5 },
+    //     { questionId: 8, question: '什么是区块链技术？', category: '技术', difficulty: 'medium', score: 8.8, responseTime: 2.1 },
+    //     { questionId: 9, question: '解释一下梯度下降算法', category: '机器学习', difficulty: 'medium', score: 9.1, responseTime: 1.7 },
+    //     { questionId: 10, question: '什么是函数式编程？', category: '编程', difficulty: 'medium', score: 8.5, responseTime: 2.3 }
+    //   ]
+    //   totalResults.value = 500
+    //   loading.value = false
+    // }, 500)
   } catch (error: any) {
     ElMessage.error('获取评测结果失败: ' + error.message)
     loading.value = false
@@ -410,28 +410,28 @@ const viewDetail = async (row: any) => {
     
     // 模拟数据
     setTimeout(() => {
-      Object.assign(currentDetail, {
-        question: row.question,
-        standardAnswer: '大语言模型（Large Language Model，LLM）是一种基于深度学习的自然语言处理模型，通过在海量文本数据上训练，能够理解、生成和转换人类语言。它通常基于Transformer架构，具有数十亿到数万亿参数，能够执行各种语言任务，如文本生成、翻译、问答、摘要等，无需针对特定任务进行专门训练。',
-        modelAnswer: '大语言模型（LLM）是一种使用深度学习技术训练的大规模自然语言处理模型。这些模型通常基于Transformer架构，拥有数十亿到数万亿个参数，通过在互联网规模的文本数据上进行训练，能够理解和生成类似人类的文本。大语言模型可以执行各种任务，如文本生成、翻译、问答、摘要等，而无需针对每个特定任务进行专门训练。它们展现出了强大的上下文理解能力和知识储备，代表了人工智能在自然语言处理领域的重要进展。',
-        score: row.score,
-        responseTime: row.responseTime,
-        evaluationMethod: evaluationInfo.method,
-        dimensions: {
-          accuracy: 5,
-          completeness: 4,
-          clarity: 5
-        },
-        keyPoints: [
-          { text: '定义准确（基于深度学习的NLP模型）', status: 'matched' },
-          { text: '提到海量文本数据训练', status: 'matched' },
-          { text: '提到Transformer架构', status: 'matched' },
-          { text: '提到模型规模（参数量）', status: 'matched' },
-          { text: '列举应用场景', status: 'matched' }
-        ],
-        feedback: '模型回答全面准确，涵盖了大语言模型的定义、架构、规模和应用场景，表述清晰流畅。'
-      })
-      detailLoading.value = false
+      // Object.assign(currentDetail, {
+      //   question: row.question,
+      //   standardAnswer: '大语言模型（Large Language Model，LLM）是一种基于深度学习的自然语言处理模型，通过在海量文本数据上训练，能够理解、生成和转换人类语言。它通常基于Transformer架构，具有数十亿到数万亿参数，能够执行各种语言任务，如文本生成、翻译、问答、摘要等，无需针对特定任务进行专门训练。',
+      //   modelAnswer: '大语言模型（LLM）是一种使用深度学习技术训练的大规模自然语言处理模型。这些模型通常基于Transformer架构，拥有数十亿到数万亿个参数，通过在互联网规模的文本数据上进行训练，能够理解和生成类似人类的文本。大语言模型可以执行各种任务，如文本生成、翻译、问答、摘要等，而无需针对每个特定任务进行专门训练。它们展现出了强大的上下文理解能力和知识储备，代表了人工智能在自然语言处理领域的重要进展。',
+      //   score: row.score,
+      //   responseTime: row.responseTime,
+      //   evaluationMethod: evaluationInfo.method,
+      //   dimensions: {
+      //     accuracy: 5,
+      //     completeness: 4,
+      //     clarity: 5
+      //   },
+      //   keyPoints: [
+      //     { text: '定义准确（基于深度学习的NLP模型）', status: 'matched' },
+      //     { text: '提到海量文本数据训练', status: 'matched' },
+      //     { text: '提到Transformer架构', status: 'matched' },
+      //     { text: '提到模型规模（参数量）', status: 'matched' },
+      //     { text: '列举应用场景', status: 'matched' }
+      //   ],
+      //   feedback: '模型回答全面准确，涵盖了大语言模型的定义、架构、规模和应用场景，表述清晰流畅。'
+      // })
+      // detailLoading.value = false
     }, 500)
   } catch (error: any) {
     ElMessage.error('获取详情失败: ' + error.message)

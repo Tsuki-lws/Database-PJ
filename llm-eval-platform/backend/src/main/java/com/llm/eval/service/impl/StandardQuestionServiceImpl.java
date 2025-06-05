@@ -136,13 +136,30 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {   
     @Override
     @Transactional
     public StandardQuestion removeTagsFromQuestion(Integer questionId, Set<Integer> tagIds) {
+        // 添加日志
+        System.out.println("StandardQuestionServiceImpl: 尝试从问题 " + questionId + " 中移除标签: " + tagIds);
+        
         StandardQuestion question = standardQuestionRepository.findById(questionId)
                 .orElseThrow(() -> new EntityNotFoundException("Standard question not found with id: " + questionId));
         
         // If no tags, nothing to remove
         if (question.getTags() == null || question.getTags().isEmpty()) {
-            return question;
+            System.out.println("StandardQuestionServiceImpl: 问题没有标签可移除");
+            throw new IllegalStateException("Question has no tags to remove");
         }
+        
+        // 检查要移除的标签是否存在于问题中
+        boolean allTagsExist = tagIds.stream()
+                .allMatch(tagId -> question.getTags().stream()
+                        .anyMatch(tag -> tag.getTagId().equals(tagId)));
+        
+        if (!allTagsExist) {
+            System.out.println("StandardQuestionServiceImpl: 部分标签不在问题中");
+            throw new IllegalStateException("Some tags are not associated with this question");
+        }
+        
+        // 记录移除前的标签数量
+        int beforeSize = question.getTags().size();
         
         // Remove the specified tags
         question.setTags(
@@ -150,6 +167,10 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {   
                         .filter(tag -> !tagIds.contains(tag.getTagId()))
                         .collect(Collectors.toSet())
         );
+        
+        // 记录移除后的标签数量
+        int afterSize = question.getTags().size();
+        System.out.println("StandardQuestionServiceImpl: 从问题中移除了 " + (beforeSize - afterSize) + " 个标签");
         
         question.setUpdatedAt(LocalDateTime.now());
         

@@ -114,6 +114,8 @@ public class StandardQuestionController {
                         Map<String, Object> tagDTO = new HashMap<>();
                         tagDTO.put("tagId", tag.getTagId());
                         tagDTO.put("tagName", tag.getTagName());
+                        // 暂时使用默认颜色
+                        tagDTO.put("color", "#409EFF");
                         return tagDTO;
                     }).collect(Collectors.toList());
                     questionDTO.put("tags", tagDTOs);
@@ -174,6 +176,8 @@ public class StandardQuestionController {
                                 Map<String, Object> tagDTO = new HashMap<>();
                                 tagDTO.put("tagId", tag.getTagId());
                                 tagDTO.put("tagName", tag.getTagName());
+                                // 暂时使用默认颜色
+                                tagDTO.put("color", "#409EFF");
                                 return tagDTO;
                             }).collect(Collectors.toList());
                             questionDTO.put("tags", tagDTOs);
@@ -393,11 +397,33 @@ public class StandardQuestionController {
             @PathVariable("id") Integer questionId,
             @PathVariable("tagId") Integer tagId) {
         try {
+            // 添加日志记录
+            System.out.println("StandardQuestionController: 尝试从问题 " + questionId + " 中移除标签 " + tagId);
+            
             Set<Integer> tagIds = new HashSet<>(Collections.singletonList(tagId));
             questionService.removeTagsFromQuestion(questionId, tagIds);
+            
+            // 成功日志
+            System.out.println("StandardQuestionController: 成功从问题 " + questionId + " 中移除标签 " + tagId);
+            
             return ResponseEntity.ok().build();
+        } catch (EntityNotFoundException e) {
+            // 当问题或标签不存在时
+            System.err.println("StandardQuestionController: 移除标签失败(404): " + e.getMessage());
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            // 当标签不在问题中或问题没有标签时
+            System.err.println("StandardQuestionController: 移除标签失败(400): " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .header("X-Error-Message", e.getMessage())
+                    .build();
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            // 其他未预期的异常
+            System.err.println("StandardQuestionController: 移除标签失败(500): " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .header("X-Error-Message", "Internal server error: " + e.getMessage())
+                    .build();
         }
     }
     // @PutMapping("/{id}/category")
@@ -476,6 +502,8 @@ public class StandardQuestionController {
                         Map<String, Object> tagDTO = new HashMap<>();
                         tagDTO.put("tagId", tag.getTagId());
                         tagDTO.put("tagName", tag.getTagName());
+                        // 暂时使用默认颜色
+                        tagDTO.put("color", "#409EFF");
                         return tagDTO;
                     }).collect(Collectors.toList());
                     questionDTO.put("tags", tagDTOs);

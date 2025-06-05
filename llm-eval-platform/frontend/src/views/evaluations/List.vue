@@ -143,62 +143,62 @@ const fetchData = async () => {
     // evaluationList.value = res.data.content || []
     // total.value = res.data.totalElements || 0
     
-    // 模拟数据
+    // // 模拟数据
     setTimeout(() => {
-      evaluationList.value = [
-        {
-          batchId: 1,
-          name: 'GPT-4 基准测试',
-          modelName: 'GPT-4',
-          datasetName: '通用能力评测集 v1.0',
-          evaluationMethod: 'auto',
-          status: 'completed',
-          progress: 100,
-          createdAt: '2023-05-15 09:30:22'
-        },
-        {
-          batchId: 2,
-          name: 'Claude 2 评测',
-          modelName: 'Claude 2',
-          datasetName: '通用能力评测集 v1.0',
-          evaluationMethod: 'auto',
-          status: 'completed',
-          progress: 100,
-          createdAt: '2023-05-14 16:45:10'
-        },
-        {
-          batchId: 3,
-          name: 'LLaMA 2 测试',
-          modelName: 'LLaMA 2 70B',
-          datasetName: '通用能力评测集 v1.0',
-          evaluationMethod: 'auto',
-          status: 'in_progress',
-          progress: 65,
-          createdAt: '2023-05-13 11:22:10'
-        },
-        {
-          batchId: 4,
-          name: 'Mistral 7B 评测',
-          modelName: 'Mistral 7B',
-          datasetName: '通用能力评测集 v1.0',
-          evaluationMethod: 'judge_model',
-          status: 'pending',
-          progress: 0,
-          createdAt: '2023-05-12 14:15:30'
-        },
-        {
-          batchId: 5,
-          name: 'Baichuan 2 评测',
-          modelName: 'Baichuan 2 13B',
-          datasetName: '编程能力评测集 v1.0',
-          evaluationMethod: 'human',
-          status: 'failed',
-          progress: 32,
-          createdAt: '2023-05-11 10:05:15'
-        }
-      ]
-      total.value = 5
-      loading.value = false
+    //   evaluationList.value = [
+    //     {
+    //       batchId: 1,
+    //       name: 'GPT-4 基准测试',
+    //       modelName: 'GPT-4',
+    //       datasetName: '通用能力评测集 v1.0',
+    //       evaluationMethod: 'auto',
+    //       status: 'completed',
+    //       progress: 100,
+    //       createdAt: '2023-05-15 09:30:22'
+    //     },
+    //     {
+    //       batchId: 2,
+    //       name: 'Claude 2 评测',
+    //       modelName: 'Claude 2',
+    //       datasetName: '通用能力评测集 v1.0',
+    //       evaluationMethod: 'auto',
+    //       status: 'completed',
+    //       progress: 100,
+    //       createdAt: '2023-05-14 16:45:10'
+    //     },
+    //     {
+    //       batchId: 3,
+    //       name: 'LLaMA 2 测试',
+    //       modelName: 'LLaMA 2 70B',
+    //       datasetName: '通用能力评测集 v1.0',
+    //       evaluationMethod: 'auto',
+    //       status: 'in_progress',
+    //       progress: 65,
+    //       createdAt: '2023-05-13 11:22:10'
+    //     },
+    //     {
+    //       batchId: 4,
+    //       name: 'Mistral 7B 评测',
+    //       modelName: 'Mistral 7B',
+    //       datasetName: '通用能力评测集 v1.0',
+    //       evaluationMethod: 'judge_model',
+    //       status: 'pending',
+    //       progress: 0,
+    //       createdAt: '2023-05-12 14:15:30'
+    //     },
+    //     {
+    //       batchId: 5,
+    //       name: 'Baichuan 2 评测',
+    //       modelName: 'Baichuan 2 13B',
+    //       datasetName: '编程能力评测集 v1.0',
+    //       evaluationMethod: 'human',
+    //       status: 'failed',
+    //       progress: 32,
+    //       createdAt: '2023-05-11 10:05:15'
+    //     }
+    //   ]
+    //   total.value = 5
+    //   loading.value = false
     }, 500)
   } catch (error: any) {
     ElMessage.error('获取评测列表失败: ' + error.message)

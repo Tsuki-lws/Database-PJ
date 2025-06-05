@@ -88,7 +88,7 @@
           <el-menu-item index="/evaluations">评测列表</el-menu-item>
           <el-menu-item index="/evaluations/create">创建评测</el-menu-item>
           <el-menu-item index="/evaluations/manual">人工评测</el-menu-item>
-          <el-menu-item index="/evaluations/results">评测结果</el-menu-item>
+          <!-- <el-menu-item index="/evaluations/results">评测结果</el-menu-item> -->
         </el-sub-menu>
       </el-menu>
     </el-aside>

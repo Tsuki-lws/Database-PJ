@@ -105,7 +105,7 @@ const rules = reactive<FormRules>({
 const typeOptions = [
   { value: 'single_choice', label: '单选题' },
   { value: 'multiple_choice', label: '多选题' },
-  { value: 'simple_fact', label: '简单事实题' },
+  // { value: 'simple_fact', label: '简单事实题' },
   { value: 'subjective', label: '主观题' }
 ]
 

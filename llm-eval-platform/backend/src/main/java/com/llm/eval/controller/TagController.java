@@ -3,6 +3,7 @@ package com.llm.eval.controller;
 import com.llm.eval.model.Tag;
 import com.llm.eval.service.TagService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/tags")
@@ -93,10 +95,50 @@ public class TagController {
             @PathVariable("questionId") Integer questionId,
             @PathVariable("tagId") Integer tagId) {
         try {
+            // 添加日志记录
+            System.out.println("尝试从问题 " + questionId + " 中移除标签 " + tagId);
+            
             tagService.removeTagFromQuestion(questionId, tagId);
+            
+            // 成功日志
+            System.out.println("成功从问题 " + questionId + " 中移除标签 " + tagId);
+            
             return ResponseEntity.ok().build();
+        } catch (EntityNotFoundException e) {
+            // 当问题或标签不存在时
+            System.err.println("移除标签失败(404): " + e.getMessage());
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            // 当标签不在问题中或问题没有标签时
+            System.err.println("移除标签失败(400): " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .header("X-Error-Message", e.getMessage())
+                    .build();
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            // 其他未预期的异常
+            System.err.println("移除标签失败(500): " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .header("X-Error-Message", "Internal server error: " + e.getMessage())
+                    .build();
         }
+    }
+    
+    @GetMapping("/with-count")
+    @Operation(summary = "获取带问题数量的标签列表")
+    public ResponseEntity<Map<String, Long>> getTagsWithQuestionCount() {
+        return ResponseEntity.ok(tagService.getTagsWithQuestionCount());
+    }
+    
+    @GetMapping("/with-count/details")
+    @Operation(summary = "获取带问题数量和详细信息的标签列表")
+    public ResponseEntity<Map<String, Object>> getTagsWithQuestionCountDetails() {
+        return ResponseEntity.ok(tagService.getTagsWithQuestionCountDetails());
+    }
+    
+    @GetMapping("/search")
+    @Operation(summary = "根据标签查询问题")
+    public ResponseEntity<List<Integer>> getQuestionsByTags(@RequestParam List<Integer> tagIds) {
+        return ResponseEntity.ok(tagService.getQuestionsByTags(tagIds));
     }
 } 

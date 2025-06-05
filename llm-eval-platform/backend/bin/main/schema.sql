@@ -45,7 +45,8 @@ CREATE TABLE question_categories (
 CREATE TABLE tags (
     tag_id INT AUTO_INCREMENT PRIMARY KEY,
     tag_name VARCHAR(50) NOT NULL UNIQUE,
-    description TEXT
+    description TEXT,
+    color VARCHAR(50)
 ) COMMENT='问题标签';
 
 -- 用户表（优先创建，被许多表引用）

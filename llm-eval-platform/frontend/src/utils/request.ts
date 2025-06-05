@@ -69,8 +69,9 @@ service.interceptors.response.use(
     } else if (error.response) {
       switch(error.response.status) {
         case 400:
-          message = '请求参数错误';
-          break;
+          // 对于400错误，不显示全局错误消息，让调用者处理
+          console.error('请求参数错误 (400)，返回数据:', error.response.data);
+          return Promise.reject(error);
         case 401:
           message = '未授权，请重新登录';
           break;

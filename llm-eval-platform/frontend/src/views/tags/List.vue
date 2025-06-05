@@ -9,7 +9,7 @@
 
     <!-- 标签列表 -->
     <el-card shadow="never" class="list-card">
-      <el-table v-loading="loading" :data="tagList" style="width: 100%">
+      <el-table v-loading="loading" :data="displayedTags" style="width: 100%">
         <el-table-column prop="tagId" label="ID" width="80" />
         <el-table-column prop="name" label="标签名称" width="180">
           <template #default="scope">
@@ -59,8 +59,8 @@
         :rules="rules" 
         ref="tagFormRef" 
         label-width="80px">
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="tagForm.name" placeholder="请输入标签名称"></el-input>
+        <el-form-item label="名称" prop="tagName">
+          <el-input v-model="tagForm.tagName" placeholder="请输入标签名称"></el-input>
         </el-form-item>
         <el-form-item label="描述" prop="description">
           <el-input 
@@ -78,7 +78,7 @@
           <div class="tag-preview">
             <span>预览：</span>
             <el-tag :style="{ backgroundColor: tagForm.color, color: getContrastColor(tagForm.color) }">
-              {{ tagForm.name || '标签预览' }}
+              {{ tagForm.tagName || '标签预览' }}
             </el-tag>
           </div>
         </el-form-item>
@@ -94,13 +94,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getAllTags, createTag, updateTag, deleteTag } from '@/api/tag'
+import { getAllTags, getTagsWithQuestionCountDetails, createTag, updateTag, deleteTag } from '@/api/tag'
 
 const loading = ref(false)
-const tagList = ref([])
+const tagList = ref<any[]>([])
 const total = ref(0)
 const dialogVisible = ref(false)
 const dialogType = ref<'add' | 'edit'>('add')
@@ -112,17 +112,24 @@ const queryParams = reactive({
   size: 10
 })
 
+// 分页后的数据
+const displayedTags = computed(() => {
+  const start = (queryParams.page - 1) * queryParams.size
+  const end = start + queryParams.size
+  return tagList.value.slice(start, end)
+})
+
 // 表单数据
 const tagForm = reactive({
   tagId: 0,
-  name: '',
+  tagName: '',
   description: '',
   color: '#409EFF'
 })
 
 // 表单验证规则
 const rules = {
-  name: [
+  tagName: [
     { required: true, message: '请输入标签名称', trigger: 'blur' }
   ],
   color: [
@@ -134,11 +141,49 @@ const rules = {
 const getList = async () => {
   loading.value = true
   try {
-    const res = await getAllTags()
-    tagList.value = res || []
-    total.value = res.length || 0
+    // 使用带问题数量和详细信息的API
+    const response = await getTagsWithQuestionCountDetails()
+    
+    // 处理不同的响应格式
+    let tagData: any[] = []
+    const responseObj = response as any
+    
+    if (responseObj && typeof responseObj === 'object') {
+      // 处理标准返回格式：{ code: 200, data: { tags: [...] }, message: "Success" }
+      if (responseObj.data && responseObj.data.tags && Array.isArray(responseObj.data.tags)) {
+        tagData = responseObj.data.tags
+      }
+      // 处理直接返回对象的格式：{ tags: [...] }
+      else if (responseObj.tags && Array.isArray(responseObj.tags)) {
+        tagData = responseObj.tags
+      }
+      // 处理其他可能的格式
+      else if (Array.isArray(responseObj)) {
+        tagData = responseObj
+      }
+    }
+    
+    if (tagData.length > 0) {
+      tagList.value = tagData.map(tag => ({
+        tagId: tag.tagId,
+        name: tag.tagName || tag.name,
+        description: tag.description,
+        color: tag.color || '#409EFF',
+        questionCount: tag.questionCount || 0,
+        createdAt: tag.createdAt
+      }))
+      total.value = tagList.value.length
+    } else {
+      console.error('获取的标签数据格式不正确:', response)
+      ElMessage.error('获取标签列表失败：数据格式错误')
+      tagList.value = []
+      total.value = 0
+    }
   } catch (error) {
     console.error('获取标签列表失败', error)
+    tagList.value = []
+    total.value = 0
+    ElMessage.error('获取标签列表失败，请检查网络连接')
   } finally {
     loading.value = false
   }
@@ -168,7 +213,7 @@ const handleEdit = (row: any) => {
   dialogType.value = 'edit'
   resetForm()
   tagForm.tagId = row.tagId
-  tagForm.name = row.name
+  tagForm.tagName = row.name
   tagForm.description = row.description
   tagForm.color = row.color
   dialogVisible.value = true
@@ -221,7 +266,7 @@ const submitForm = async () => {
 // 重置表单
 const resetForm = () => {
   tagForm.tagId = 0
-  tagForm.name = ''
+  tagForm.tagName = ''
   tagForm.description = ''
   tagForm.color = '#409EFF'
   if (tagFormRef.value) {

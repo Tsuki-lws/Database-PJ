@@ -84,7 +84,7 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
     /**
      * 分页查询标准问题，支持按分类、类型、难度和关键词过滤
      */
-    @Query("SELECT sq FROM StandardQuestion sq WHERE " +
+    @Query("SELECT DISTINCT sq FROM StandardQuestion sq LEFT JOIN FETCH sq.tags WHERE " +
            "(:categoryId IS NULL OR sq.category.categoryId = :categoryId) AND " +
            "(:questionType IS NULL OR sq.questionType = :questionType) AND " +
            "(:difficulty IS NULL OR sq.difficulty = :difficulty) AND " +
@@ -109,4 +109,28 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
      */
     @Query("SELECT COUNT(sq) FROM StandardQuestion sq WHERE sq.category IS NULL")
     long countByCategoryIsNull();
+    
+    /**
+     * 查询具有所有指定标签的问题ID
+     * 
+     * @param tagIds 标签ID列表
+     * @return 包含所有指定标签的问题ID列表
+     */
+    @Query("SELECT sq.standardQuestionId FROM StandardQuestion sq JOIN sq.tags t " +
+           "WHERE t.tagId IN :tagIds " +
+           "GROUP BY sq.standardQuestionId " +
+           "HAVING COUNT(DISTINCT t.tagId) = :tagCount")
+    List<Integer> findByAllTagIds(@Param("tagIds") List<Integer> tagIds, @Param("tagCount") long tagCount);
+    
+    /**
+     * 查询具有所有指定标签的问题ID
+     * 
+     * @param tagIds 标签ID列表
+     * @return 包含所有指定标签的问题ID列表
+     */
+    @Query(value = "SELECT sq.standardQuestionId FROM StandardQuestion sq JOIN sq.tags t " +
+           "WHERE t.tagId IN :tagIds " +
+           "GROUP BY sq.standardQuestionId " +
+           "HAVING COUNT(DISTINCT t.tagId) = :#{#tagIds.size()}")
+    List<Integer> findByAllTagIds(@Param("tagIds") List<Integer> tagIds);
 } 

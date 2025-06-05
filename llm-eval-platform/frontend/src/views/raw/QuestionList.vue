@@ -108,7 +108,7 @@
           <el-select v-model="convertForm.questionType" placeholder="请选择问题类型">
             <el-option label="单选题" value="single_choice" />
             <el-option label="多选题" value="multiple_choice" />
-            <el-option label="简单事实题" value="simple_fact" />
+            <!-- <el-option label="简单事实题" value="simple_fact" /> -->
             <el-option label="主观题" value="subjective" />
           </el-select>
         </el-form-item>
