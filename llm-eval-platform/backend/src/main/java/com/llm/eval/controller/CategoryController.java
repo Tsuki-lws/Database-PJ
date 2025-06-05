@@ -31,7 +31,8 @@ public class CategoryController {
     @GetMapping
     @Operation(summary = "获取所有分类")
     public ResponseEntity<List<Map<String, Object>>> getAllCategories() {
-        List<QuestionCategory> categories = categoryService.getAllCategories();
+        // 使用带有问题数量的分类列表
+        List<QuestionCategory> categories = categoryService.getCategoriesWithQuestionCount();
         
         // 将实体转换为简单的Map对象，避免循环引用问题
         List<Map<String, Object>> result = categories.stream().map(category -> {
@@ -39,6 +40,7 @@ public class CategoryController {
             map.put("categoryId", category.getCategoryId());
             map.put("name", category.getName());
             map.put("description", category.getDescription());
+            map.put("questionCount", category.getQuestionCount()); // 添加问题数量
             
             // 如果有父分类，只包含父分类的ID和名称
             if (category.getParent() != null) {
@@ -64,8 +66,6 @@ public class CategoryController {
             } else {
                 map.put("children", new ArrayList<>());
             }
-            
-            // 不包含问题列表，避免循环引用
             
             return map;
         }).collect(Collectors.toList());
@@ -285,6 +285,7 @@ public class CategoryController {
             map.put("categoryId", category.getCategoryId());
             map.put("name", category.getName());
             map.put("description", category.getDescription());
+            map.put("questionCount", category.getQuestionCount());
             
             // 如果有父分类，只包含父分类的ID和名称
             if (category.getParent() != null) {
@@ -310,8 +311,6 @@ public class CategoryController {
             } else {
                 map.put("children", new ArrayList<>());
             }
-            
-            // 不包含问题列表，避免循环引用
             
             return map;
         }).collect(Collectors.toList());

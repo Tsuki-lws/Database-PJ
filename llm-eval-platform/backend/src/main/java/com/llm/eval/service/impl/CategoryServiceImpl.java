@@ -108,12 +108,12 @@ public class CategoryServiceImpl implements CategoryService {
     public List<QuestionCategory> getCategoriesWithQuestionCount() {
         List<QuestionCategory> categories = categoryRepository.findAll();
         
-        // For each category, get the question count
+        // 为每个分类添加问题数量信息
         for (QuestionCategory category : categories) {
+            // 获取该分类下的标准问题数量
             long count = questionRepository.countByCategoryId(category.getCategoryId());
-            // Using description field to temporarily store the count
-            // This is just for display, not persisted
-            category.setDescription("Question Count: " + count);
+            // 将问题数量作为临时属性存储在category对象中
+            category.setQuestionCount(count);
         }
         
         return categories;

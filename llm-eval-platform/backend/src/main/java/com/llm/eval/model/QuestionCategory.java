@@ -36,4 +36,7 @@ public class QuestionCategory {
     @JsonIgnore
     @ToString.Exclude
     private List<StandardQuestion> questions;
+    
+    @Transient // 不持久化到数据库
+    private Long questionCount;
 } 
