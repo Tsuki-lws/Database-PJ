@@ -170,4 +170,23 @@ public interface StandardQuestionService {
      * @return 更新后的问题
      */
     StandardQuestion updateQuestionCategoryByName(Integer questionId, String categoryName);
+    
+    /**
+     * 获取标准问题，支持按标签ID、分类、类型、难度和关键词过滤
+     * 
+     * @param tagId 标签ID (可选)
+     * @param categoryId 分类ID (可选)
+     * @param questionType 问题类型 (可选)
+     * @param difficulty 难度级别 (可选)
+     * @param keyword 关键词搜索 (可选)
+     * @param pageable 分页参数
+     * @return 分页的标准问题列表
+     */
+    Page<StandardQuestion> getStandardQuestionsByPageWithTag(
+            Integer tagId,
+            Integer categoryId,
+            StandardQuestion.QuestionType questionType,
+            StandardQuestion.DifficultyLevel difficulty,
+            String keyword,
+            Pageable pageable);
 }

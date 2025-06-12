@@ -24,7 +24,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="标签">
-          <el-select v-model="queryParams.tagIds" placeholder="选择标签" clearable multiple filterable collapse-tags>
+          <el-select v-model="queryParams.tagId" placeholder="选择标签" clearable>
             <el-option 
               v-for="item in tagOptions" 
               :key="item.value" 
@@ -162,7 +162,7 @@ const queryParams = reactive({
   questionType: undefined as string | undefined,
   difficulty: undefined as string | undefined,
   status: undefined as string | undefined,
-  tagIds: [] as number[]
+  tagId: undefined as number | undefined
 })
 
 // 分类选项
@@ -197,12 +197,9 @@ const statusOptions = [
 const getList = async () => {
   loading.value = true
   try {
-    // 如果选择了标签，先通过标签API获取问题ID列表
-    if (queryParams.tagIds && queryParams.tagIds.length > 0) {
-      await getQuestionsByTagFilter()
-    } else {
-      await getQuestionsByNormalFilter()
-    }
+    // 直接使用统一的API获取问题列表，后端会根据tagId参数过滤
+    const result = await getStandardQuestions(queryParams)
+    processQuestionListResponse(result)
   } catch (error) {
     console.error('获取问题列表失败', error)
     questionList.value = []
@@ -213,33 +210,7 @@ const getList = async () => {
   }
 }
 
-// 通过标签筛选获取问题
-const getQuestionsByTagFilter = async () => {
-  try {
-    const response = await getQuestionsByTags(queryParams.tagIds)
-    const questionIds = response as unknown as number[]
-    
-    if (Array.isArray(questionIds) && questionIds.length > 0) {
-      // 根据问题ID列表获取问题详情
-      const detailParams = { ...queryParams, questionIds }
-      const result = await getStandardQuestions(detailParams)
-      processQuestionListResponse(result)
-    } else {
-      questionList.value = []
-      total.value = 0
-    }
-  } catch (error) {
-    console.error('通过标签筛选获取问题失败', error)
-    questionList.value = []
-    total.value = 0
-  }
-}
-
-// 通过普通筛选条件获取问题
-const getQuestionsByNormalFilter = async () => {
-  const result = await getStandardQuestions(queryParams)
-  processQuestionListResponse(result)
-}
+// 这些函数已合并到getList中
 
 // 处理问题列表响应
 const processQuestionListResponse = (res: any) => {
@@ -460,7 +431,7 @@ const resetQuery = () => {
   queryParams.questionType = undefined
   queryParams.difficulty = undefined
   queryParams.status = undefined
-  queryParams.tagIds = []
+  queryParams.tagId = undefined
   handleSearch()
 }
 

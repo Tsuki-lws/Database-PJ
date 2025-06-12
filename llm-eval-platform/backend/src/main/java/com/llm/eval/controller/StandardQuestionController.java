@@ -49,10 +49,11 @@ public class StandardQuestionController {
      * 分页获取标准问题列表，支持多种过滤条件
      * 
      * 示例请求:
-     * GET /api/questions?page=1&size=10&categoryId=1&questionType=subjective&difficulty=medium&keyword=Spring&sortBy=createdAt&sortDir=desc
+     * GET /api/questions?page=1&size=10&tagId=5&categoryId=1&questionType=subjective&difficulty=medium&keyword=Spring&sortBy=createdAt&sortDir=desc
      * 
      * @param page 页码，从1开始
      * @param size 每页大小
+     * @param tagId 标签ID（可选）
      * @param categoryId 分类ID（可选）
      * @param questionType 问题类型（可选）：single_choice, multiple_choice, simple_fact, subjective
      * @param difficulty 难度级别（可选）：easy, medium, hard
@@ -66,6 +67,7 @@ public class StandardQuestionController {
     public ResponseEntity<Map<String, Object>> getStandardQuestions(
             @Parameter(description = "页码（从1开始）") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "标签ID") @RequestParam(required = false) Integer tagId,
             @Parameter(description = "分类ID") @RequestParam(required = false) Integer categoryId,
             @Parameter(description = "问题类型") @RequestParam(required = false) StandardQuestion.QuestionType questionType,
             @Parameter(description = "难度级别") @RequestParam(required = false) StandardQuestion.DifficultyLevel difficulty,
@@ -74,8 +76,8 @@ public class StandardQuestionController {
             @Parameter(description = "排序方向") @RequestParam(required = false, defaultValue = "desc") String sortDir) {
         
         try {
-            logger.debug("分页获取标准问题列表，参数: page={}, size={}, categoryId={}, questionType={}, difficulty={}, keyword={}, sortBy={}, sortDir={}",
-                    page, size, categoryId, questionType, difficulty, keyword, sortBy, sortDir);
+            logger.debug("分页获取标准问题列表，参数: page={}, size={}, tagId={}, categoryId={}, questionType={}, difficulty={}, keyword={}, sortBy={}, sortDir={}",
+                    page, size, tagId, categoryId, questionType, difficulty, keyword, sortBy, sortDir);
             
             // 构建排序
             Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
@@ -84,8 +86,16 @@ public class StandardQuestionController {
             Pageable pageable = PageRequest.of(page - 1, size, sort);
             
             // 调用服务层查询，标签会在服务层自动加载
-            Page<StandardQuestion> questionPage = questionService.getStandardQuestionsByPage(
-                    categoryId, questionType, difficulty, keyword, pageable);
+            Page<StandardQuestion> questionPage;
+            if (tagId != null) {
+                // 如果提供了标签ID，使用带标签过滤的查询
+                questionPage = questionService.getStandardQuestionsByPageWithTag(
+                        tagId, categoryId, questionType, difficulty, keyword, pageable);
+            } else {
+                // 否则使用普通查询
+                questionPage = questionService.getStandardQuestionsByPage(
+                        categoryId, questionType, difficulty, keyword, pageable);
+            }
             
             // 标签已在服务层被加载
             List<StandardQuestion> questions = questionPage.getContent();

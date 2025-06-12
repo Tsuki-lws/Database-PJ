@@ -346,4 +346,22 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {
         
         return standardQuestionRepository.save(question);
     }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Page<StandardQuestion> getStandardQuestionsByPageWithTag(
+            Integer tagId,
+            Integer categoryId,
+            StandardQuestion.QuestionType questionType,
+            StandardQuestion.DifficultyLevel difficulty,
+            String keyword,
+            Pageable pageable) {
+        // 如果关键词为空，则传入null，避免无效的模糊查询
+        String searchKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        
+        Page<StandardQuestion> page = standardQuestionRepository.findByFiltersWithTag(
+                tagId, categoryId, questionType, difficulty, searchKeyword, pageable);
+        loadTags(page.getContent());
+        return page;
+    }
 }

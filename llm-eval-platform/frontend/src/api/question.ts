@@ -24,6 +24,7 @@ export interface StandardQuestion {
 export interface QueryParams {
   page?: number
   size?: number
+  tagId?: number
   categoryId?: number
   questionType?: string
   difficulty?: string

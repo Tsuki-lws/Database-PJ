@@ -146,4 +146,21 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
      */
     @Query("SELECT sq.standardQuestionId FROM StandardQuestion sq")
     List<Integer> findAllIds();
+    
+    /**
+     * 分页查询标准问题，支持按标签ID、分类、类型、难度和关键词过滤
+     */
+    @Query("SELECT DISTINCT sq FROM StandardQuestion sq LEFT JOIN sq.tags t WHERE " +
+           "(:tagId IS NULL OR t.tagId = :tagId) AND " +
+           "(:categoryId IS NULL OR sq.category.categoryId = :categoryId) AND " +
+           "(:questionType IS NULL OR sq.questionType = :questionType) AND " +
+           "(:difficulty IS NULL OR sq.difficulty = :difficulty) AND " +
+           "(:keyword IS NULL OR LOWER(sq.question) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    Page<StandardQuestion> findByFiltersWithTag(
+            @Param("tagId") Integer tagId,
+            @Param("categoryId") Integer categoryId,
+            @Param("questionType") StandardQuestion.QuestionType questionType,
+            @Param("difficulty") StandardQuestion.DifficultyLevel difficulty,
+            @Param("keyword") String keyword,
+            Pageable pageable);
 } 

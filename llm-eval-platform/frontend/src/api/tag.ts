@@ -97,10 +97,10 @@ export function getTagsWithQuestionCountDetails() {
 }
 
 // 根据标签查询问题
-export function getQuestionsByTags(tagIds: number[]) {
+export function getQuestionsByTags(tagId: number) {
   return request({
     url: '/api/tags/search',
     method: 'get',
-    params: { tagIds }
+    params: { tagId }
   })
 } 
