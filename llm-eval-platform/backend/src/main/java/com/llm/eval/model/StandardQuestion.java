@@ -1,7 +1,8 @@
 package com.llm.eval.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
@@ -16,7 +17,9 @@ import java.util.Set;
 
 @Entity
 @Table(name = "standard_questions")
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"category", "tags", "standardAnswers", "crowdsourcedAnswers", "expertAnswers"})
 @SQLDelete(sql = "UPDATE standard_questions SET deleted_at = NOW() WHERE standard_question_id = ?")
 @Where(clause = "deleted_at IS NULL")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -33,7 +36,6 @@ public class StandardQuestion {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    @ToString.Exclude
     private QuestionCategory category;
     
     @Transient
@@ -113,5 +115,20 @@ public class StandardQuestion {
     
     public enum QuestionStatus {
         draft, pending_review, approved, rejected
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        
+        StandardQuestion that = (StandardQuestion) o;
+        return standardQuestionId != null && standardQuestionId.equals(that.standardQuestionId);
+    }
+    
+    @Override
+    public int hashCode() {
+        // 只使用ID计算hashCode，避免使用tags字段导致的循环引用
+        return standardQuestionId != null ? standardQuestionId.hashCode() : 0;
     }
 } 

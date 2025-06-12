@@ -214,6 +214,9 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {
         existingQuestion.setUpdatedAt(LocalDateTime.now());
         existingQuestion.setVersion(existingQuestion.getVersion() + 1);
         
+        // 不要在这里更新tags，避免循环引用导致的hashCode栈溢出
+        // 使用专门的方法来更新tags: addTagsToQuestion 和 removeTagsFromQuestion
+        
         return standardQuestionRepository.save(existingQuestion);
     }
     

@@ -28,7 +28,7 @@ public interface TagRepository extends JpaRepository<Tag, Integer> {
      * @param tagId 标签ID
      * @return 如果存在关联则返回true，否则返回false
      */
-    @Query(value = "SELECT COUNT(*) FROM standard_question_tags WHERE standard_question_id = :questionId AND tag_id = :tagId", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM standard_question_tags WkaERE standard_question_id = :questionId AND tag_id = :tagId", nativeQuery = true)
     int countQuestionTagMapping(@Param("questionId") Integer questionId, @Param("tagId") Integer tagId);
     
     /**
