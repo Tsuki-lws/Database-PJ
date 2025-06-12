@@ -20,7 +20,7 @@
             <span>原始问答管理</span>
           </template>
           <el-menu-item index="/raw-questions">原始问题列表</el-menu-item>
-          <el-menu-item index="/raw-answers">原始回答列表</el-menu-item>
+          <!-- <el-menu-item index="/raw-answers">原始回答列表</el-menu-item> -->
           <el-menu-item index="/import/raw">原始数据导入</el-menu-item>
         </el-sub-menu>
         

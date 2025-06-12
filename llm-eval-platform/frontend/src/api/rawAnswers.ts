@@ -26,7 +26,10 @@ export function getAnswersByQuestionId(questionId: number) {
 }
 
 // 创建原始回答
-export function createRawAnswer(questionId: number, data: any) {
+export function createRawAnswer(questionId: number | undefined, data: any) {
+  if (questionId === undefined) {
+    throw new Error('问题ID不能为空')
+  }
   return request({
     url: `/api/raw-questions/${questionId}/answers`,
     method: 'post',

@@ -3,6 +3,7 @@
     <div class="page-header">
       <h2>原始问题列表</h2>
       <div class="actions">
+        <el-button type="success" @click="showCreateDialog">新建问题</el-button>
         <el-button type="primary" @click="$router.push('/import')">导入问题</el-button>
       </div>
     </div>
@@ -53,22 +54,27 @@
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="$router.push(`/raw-questions/detail/${row.questionId}`)">
-              查看
-            </el-button>
-            <el-button size="small" type="primary" @click="handleConvert(row)">
-              转为标准问题
-            </el-button>
-            <el-popconfirm
-              title="确认删除该问题吗？"
-              @confirm="handleDelete(row.questionId)"
-            >
-              <template #reference>
-                <el-button size="small" type="danger">删除</el-button>
-              </template>
-            </el-popconfirm>
+            <div class="action-buttons">
+              <el-button size="small" @click="$router.push(`/raw-questions/detail/${row.questionId}`)">
+                查看
+              </el-button>
+              <el-button size="small" type="warning" @click="handleEdit(row)">
+                编辑
+              </el-button>
+              <el-button size="small" type="primary" @click="handleConvert(row)">
+                转标准
+              </el-button>
+              <el-popconfirm
+                title="确认删除该问题吗？"
+                @confirm="handleDelete(row.questionId)"
+              >
+                <template #reference>
+                  <el-button size="small" type="danger">删除</el-button>
+                </template>
+              </el-popconfirm>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -140,6 +146,50 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 新建/编辑原始问题对话框 -->
+    <el-dialog
+      v-model="questionDialogVisible"
+      :title="isEdit ? '编辑原始问题' : '新建原始问题'"
+      width="650px">
+      <el-form
+        ref="questionFormRef"
+        :model="questionForm"
+        :rules="questionRules"
+        label-width="100px">
+        <el-form-item label="问题标题" prop="questionTitle">
+          <el-input
+            v-model="questionForm.questionTitle"
+            placeholder="请输入问题标题" />
+        </el-form-item>
+        <el-form-item label="问题内容" prop="questionBody">
+          <el-input
+            v-model="questionForm.questionBody"
+            type="textarea"
+            :rows="6"
+            placeholder="请输入问题内容" />
+        </el-form-item>
+        <el-form-item label="来源" prop="source">
+          <el-select v-model="questionForm.source" placeholder="请选择来源">
+            <el-option label="Stack Overflow" value="stackoverflow" />
+            <el-option label="GitHub Issues" value="github" />
+            <el-option label="Quora" value="quora" />
+            <el-option label="手动添加" value="manual" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="来源URL">
+          <el-input v-model="questionForm.sourceUrl" placeholder="可选，原始问题链接" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="questionDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitQuestion" :loading="submitLoading">
+            确认
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -150,7 +200,9 @@ import {
   getRawQuestionList, 
   deleteRawQuestion, 
   convertToStandardQuestion,
-  RawQuestion
+  createRawQuestion,
+  updateRawQuestion,
+  type RawQuestion
 } from '@/api/raw'
 import { getAllCategories } from '@/api/category'
 
@@ -186,6 +238,24 @@ const convertRules = {
   categoryId: [{ required: true, message: '请选择问题分类', trigger: 'change' }]
 }
 const convertFormRef = ref()
+
+// 新建/编辑问题
+const questionDialogVisible = ref(false)
+const isEdit = ref(false)
+const questionFormRef = ref()
+const submitLoading = ref(false)
+const questionForm = reactive({
+  questionId: undefined as number | undefined,
+  questionTitle: '',
+  questionBody: '',
+  source: 'manual',
+  sourceUrl: ''
+})
+const questionRules = {
+  questionTitle: [{ required: true, message: '请输入问题标题', trigger: 'blur' }],
+  questionBody: [{ required: true, message: '请输入问题内容', trigger: 'blur' }],
+  source: [{ required: true, message: '请选择来源', trigger: 'change' }]
+}
 
 // 初始化
 onMounted(() => {
@@ -350,7 +420,7 @@ const handleConvert = (row: RawQuestion) => {
   convertForm.question = row.questionBody
   convertForm.questionType = 'subjective' // 默认为主观题
   convertForm.difficulty = 'medium' // 默认为中等难度
-  convertForm.sourceQuestionId = row.questionId
+  convertForm.sourceQuestionId = row.questionId || 0 // 添加默认值0，避免undefined
   convertDialogVisible.value = true
 }
 
@@ -402,6 +472,54 @@ const handleSort = (column: { prop: string, order: string }) => {
   queryParams.sortOrder = column.order === 'ascending' ? 'asc' : 'desc';
   getList();
 }
+
+// 显示创建问题对话框
+const showCreateDialog = () => {
+  isEdit.value = false
+  questionForm.questionId = undefined
+  questionForm.questionTitle = ''
+  questionForm.questionBody = ''
+  questionForm.source = 'manual'
+  questionForm.sourceUrl = ''
+  questionDialogVisible.value = true
+}
+
+// 提交问题
+const submitQuestion = async () => {
+  if (!questionFormRef.value) return
+  
+  await questionFormRef.value.validate(async (valid: boolean) => {
+    if (!valid) return
+    
+    submitLoading.value = true
+    try {
+      if (isEdit.value && questionForm.questionId) {
+        await updateRawQuestion(questionForm.questionId, questionForm)
+        ElMessage.success('更新问题成功')
+      } else {
+        await createRawQuestion(questionForm)
+        ElMessage.success('创建问题成功')
+      }
+      questionDialogVisible.value = false
+      getList()
+    } catch (error: any) {
+      ElMessage.error(isEdit.value ? '更新问题失败: ' + error.message : '创建问题失败: ' + error.message)
+    } finally {
+      submitLoading.value = false
+    }
+  })
+}
+
+// 编辑问题
+const handleEdit = (row: RawQuestion) => {
+  isEdit.value = true
+  questionForm.questionId = row.questionId
+  questionForm.questionTitle = row.questionTitle || ''
+  questionForm.questionBody = row.questionBody || ''
+  questionForm.source = row.source || 'manual'
+  questionForm.sourceUrl = row.sourceUrl || ''
+  questionDialogVisible.value = true
+}
 </script>
 
 <style scoped>
@@ -433,5 +551,17 @@ const handleSort = (column: { prop: string, order: string }) => {
 .pagination-container {
   margin-top: 20px;
   text-align: right;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+
+.action-buttons .el-button {
+  padding: 6px 10px;
+  min-height: 28px;
 }
 </style> 

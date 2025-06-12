@@ -4,6 +4,7 @@
       <h2>原始问题详情</h2>
       <div class="actions">
         <el-button @click="$router.back()">返回</el-button>
+        <el-button type="warning" @click="handleEdit">编辑问题</el-button>
         <el-button type="primary" @click="handleConvert">转为标准问题</el-button>
       </div>
     </div>
@@ -31,6 +32,9 @@
       <template #header>
         <div class="card-header">
           <h3>原始回答列表 ({{ answerList.length }})</h3>
+          <div class="actions">
+            <el-button type="success" @click="handleAddAnswer">添加回答</el-button>
+          </div>
         </div>
       </template>
 
@@ -47,12 +51,104 @@
         </div>
         <div class="answer-content">{{ answer.answerBody }}</div>
         <div class="answer-actions">
+          <el-button size="small" type="warning" @click="handleEditAnswer(answer)">
+            编辑
+          </el-button>
           <el-button size="small" type="primary" @click="handleConvertAnswer(answer)">
             转为标准答案
           </el-button>
+          <el-popconfirm
+            title="确认删除该回答吗？"
+            @confirm="handleDeleteAnswer(answer.answerId)"
+          >
+            <template #reference>
+              <el-button size="small" type="danger">删除</el-button>
+            </template>
+          </el-popconfirm>
         </div>
       </div>
     </el-card>
+
+    <!-- 编辑问题对话框 -->
+    <el-dialog
+      v-model="editDialogVisible"
+      title="编辑原始问题"
+      width="650px">
+      <el-form
+        ref="editFormRef"
+        :model="editForm"
+        :rules="editRules"
+        label-width="100px">
+        <el-form-item label="问题标题" prop="questionTitle">
+          <el-input
+            v-model="editForm.questionTitle"
+            placeholder="请输入问题标题" />
+        </el-form-item>
+        <el-form-item label="问题内容" prop="questionBody">
+          <el-input
+            v-model="editForm.questionBody"
+            type="textarea"
+            :rows="6"
+            placeholder="请输入问题内容" />
+        </el-form-item>
+        <el-form-item label="来源" prop="source">
+          <el-select v-model="editForm.source" placeholder="请选择来源">
+            <el-option label="Stack Overflow" value="stackoverflow" />
+            <el-option label="GitHub Issues" value="github" />
+            <el-option label="Quora" value="quora" />
+            <el-option label="手动添加" value="manual" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="来源URL">
+          <el-input v-model="editForm.sourceUrl" placeholder="可选，原始问题链接" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="editDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitEdit" :loading="submitLoading">
+            确认
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 添加/编辑回答对话框 -->
+    <el-dialog
+      v-model="answerDialogVisible"
+      :title="isEditAnswer ? '编辑原始回答' : '添加原始回答'"
+      width="650px">
+      <el-form
+        ref="answerFormRef"
+        :model="answerForm"
+        :rules="answerRules"
+        label-width="100px">
+        <el-form-item label="回答内容" prop="answerBody">
+          <el-input
+            v-model="answerForm.answerBody"
+            type="textarea"
+            :rows="8"
+            placeholder="请输入回答内容" />
+        </el-form-item>
+        <el-form-item label="作者信息">
+          <el-input v-model="answerForm.authorInfo" placeholder="可选，作者信息" />
+        </el-form-item>
+        <el-form-item label="赞同数">
+          <el-input-number v-model="answerForm.upvotes" :min="0" />
+        </el-form-item>
+        <el-form-item label="是否采纳">
+          <el-switch v-model="answerForm.isAccepted" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="answerDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitAnswer" :loading="submitLoading">
+            确认
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
 
     <!-- 转换为标准问题对话框 -->
     <el-dialog
@@ -167,16 +263,20 @@ import {
   getRawQuestionById, 
   getRawAnswersByQuestionId, 
   convertToStandardQuestion,
-  RawQuestion,
-  RawAnswer
+  updateRawQuestion,
+  deleteRawAnswer,
+  type RawQuestion,
+  type RawAnswer
 } from '@/api/raw'
+// 重新导入修改后的函数
+import { createRawAnswer, updateRawAnswer } from '@/api/rawAnswers'
 import { getAllCategories } from '@/api/category'
 import { convertToStandardAnswer } from '@/api/raw'
 import { getQuestionList } from '@/api/question'
 
 const route = useRoute()
 const router = useRouter()
-const questionId = ref(parseInt(route.params.id as string))
+const questionId = ref(parseInt(route.params.id as string) || 0)
 
 // 数据
 const question = ref<RawQuestion>({} as RawQuestion)
@@ -186,6 +286,39 @@ const answersLoading = ref(false)
 const categories = ref<any[]>([])
 const standardQuestions = ref<any[]>([])
 const questionsLoading = ref(false)
+const submitLoading = ref(false)
+
+// 编辑问题
+const editDialogVisible = ref(false)
+const editFormRef = ref()
+const editForm = reactive({
+  questionId: 0,
+  questionTitle: '',
+  questionBody: '',
+  source: '',
+  sourceUrl: ''
+})
+const editRules = {
+  questionTitle: [{ required: true, message: '请输入问题标题', trigger: 'blur' }],
+  questionBody: [{ required: true, message: '请输入问题内容', trigger: 'blur' }],
+  source: [{ required: true, message: '请选择来源', trigger: 'change' }]
+}
+
+// 添加/编辑回答
+const answerDialogVisible = ref(false)
+const isEditAnswer = ref(false)
+const answerFormRef = ref()
+const answerForm = reactive({
+  answerId: undefined as number | undefined,
+  questionId: 0,
+  answerBody: '',
+  authorInfo: '',
+  upvotes: 0,
+  isAccepted: false
+})
+const answerRules = {
+  answerBody: [{ required: true, message: '请输入回答内容', trigger: 'blur' }]
+}
 
 // 转换问题对话框
 const convertDialogVisible = ref(false)
@@ -366,10 +499,110 @@ const submitConvertAnswer = async () => {
 }
 
 // 格式化日期
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleString()
+const formatDate = (dateString: string | undefined) => {
+  if (!dateString) return '未知'
+  return new Date(dateString).toLocaleString()
+}
+
+// 编辑问题
+const handleEdit = () => {
+  editForm.questionId = question.value.questionId || 0
+  editForm.questionTitle = question.value.questionTitle || ''
+  editForm.questionBody = question.value.questionBody || ''
+  editForm.source = question.value.source || 'manual'
+  editForm.sourceUrl = question.value.sourceUrl || ''
+  editDialogVisible.value = true
+}
+
+// 提交编辑
+const submitEdit = async () => {
+  if (!editFormRef.value) return
+  
+  await editFormRef.value.validate(async (valid: boolean) => {
+    if (!valid) return
+    
+    submitLoading.value = true
+    try {
+      await updateRawQuestion(editForm.questionId, editForm)
+      ElMessage.success('更新问题成功')
+      editDialogVisible.value = false
+      getQuestionDetail()
+    } catch (error: any) {
+      ElMessage.error('更新问题失败: ' + error.message)
+    } finally {
+      submitLoading.value = false
+    }
+  })
+}
+
+// 添加回答
+const handleAddAnswer = () => {
+  if (!questionId.value) {
+    ElMessage.error('问题ID无效')
+    return
+  }
+  
+  isEditAnswer.value = false
+  answerForm.answerId = undefined
+  answerForm.questionId = questionId.value
+  answerForm.answerBody = ''
+  answerForm.authorInfo = ''
+  answerForm.upvotes = 0
+  answerForm.isAccepted = false
+  answerDialogVisible.value = true
+}
+
+// 编辑回答
+const handleEditAnswer = (answer: RawAnswer) => {
+  isEditAnswer.value = true
+  answerForm.answerId = answer.answerId
+  answerForm.questionId = answer.questionId
+  answerForm.answerBody = answer.answerBody
+  answerForm.authorInfo = answer.authorInfo || ''
+  answerForm.upvotes = answer.upvotes || 0
+  answerForm.isAccepted = answer.isAccepted || false
+  answerDialogVisible.value = true
+}
+
+// 提交回答
+const submitAnswer = async () => {
+  if (!answerFormRef.value) return
+  if (!questionId.value) {
+    ElMessage.error('问题ID无效')
+    return
+  }
+  
+  await answerFormRef.value.validate(async (valid: boolean) => {
+    if (!valid) return
+    
+    submitLoading.value = true
+    try {
+      if (isEditAnswer.value && answerForm.answerId) {
+        await updateRawAnswer(answerForm.answerId, answerForm)
+        ElMessage.success('更新回答成功')
+      } else {
+        await createRawAnswer(questionId.value, answerForm)
+        ElMessage.success('添加回答成功')
+      }
+      answerDialogVisible.value = false
+      getAnswers()
+    } catch (error: any) {
+      ElMessage.error(isEditAnswer.value ? '更新回答失败: ' + error.message : '添加回答失败: ' + error.message)
+    } finally {
+      submitLoading.value = false
+    }
+  })
+}
+
+// 删除回答
+const handleDeleteAnswer = async (answerId: number) => {
+  try {
+    await deleteRawAnswer(answerId)
+    ElMessage.success('删除回答成功')
+    getAnswers()
+  } catch (error: any) {
+    ElMessage.error('删除回答失败: ' + error.message)
+  }
 }
 </script>
 
@@ -391,7 +624,8 @@ const formatDate = (dateStr?: string) => {
 
 .card-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .card-header h3 {
@@ -453,8 +687,8 @@ const formatDate = (dateStr?: string) => {
 }
 
 .answer-actions {
-  display: flex;
-  justify-content: flex-end;
   margin-top: 10px;
+  display: flex;
+  gap: 10px;
 }
 </style>
