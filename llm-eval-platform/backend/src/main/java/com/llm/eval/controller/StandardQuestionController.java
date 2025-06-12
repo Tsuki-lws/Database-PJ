@@ -83,12 +83,15 @@ public class StandardQuestionController {
             // 创建分页请求（注意：Spring Data JPA的页码从0开始，而API的页码从1开始）
             Pageable pageable = PageRequest.of(page - 1, size, sort);
             
-            // 调用服务层查询
+            // 调用服务层查询，标签会在服务层自动加载
             Page<StandardQuestion> questionPage = questionService.getStandardQuestionsByPage(
                     categoryId, questionType, difficulty, keyword, pageable);
             
+            // 标签已在服务层被加载
+            List<StandardQuestion> questions = questionPage.getContent();
+            
             // 将实体对象转换为简单的Map对象，避免循环引用问题
-            List<Map<String, Object>> questionDTOs = questionPage.getContent().stream().map(q -> {
+            List<Map<String, Object>> questionDTOs = questions.stream().map(q -> {
                 Map<String, Object> questionDTO = new HashMap<>();
                 questionDTO.put("standardQuestionId", q.getStandardQuestionId());
                 questionDTO.put("question", q.getQuestion());
@@ -114,8 +117,8 @@ public class StandardQuestionController {
                         Map<String, Object> tagDTO = new HashMap<>();
                         tagDTO.put("tagId", tag.getTagId());
                         tagDTO.put("tagName", tag.getTagName());
-                        // 暂时使用默认颜色
-                        tagDTO.put("color", "#409EFF");
+                        // 使用标签自身的颜色，如果为空则使用默认颜色
+                        tagDTO.put("color", tag.getColor() != null ? tag.getColor() : "#409EFF");
                         return tagDTO;
                     }).collect(Collectors.toList());
                     questionDTO.put("tags", tagDTOs);
@@ -176,8 +179,8 @@ public class StandardQuestionController {
                                 Map<String, Object> tagDTO = new HashMap<>();
                                 tagDTO.put("tagId", tag.getTagId());
                                 tagDTO.put("tagName", tag.getTagName());
-                                // 暂时使用默认颜色
-                                tagDTO.put("color", "#409EFF");
+                                // 使用标签自身的颜色，如果为空则使用默认颜色
+                                tagDTO.put("color", tag.getColor() != null ? tag.getColor() : "#409EFF");
                                 return tagDTO;
                             }).collect(Collectors.toList());
                             questionDTO.put("tags", tagDTOs);
@@ -426,22 +429,7 @@ public class StandardQuestionController {
                     .build();
         }
     }
-    // @PutMapping("/{id}/category")
-    // @Operation(summary = "更新问题的分类")
-    // public ResponseEntity<com.llm.eval.model.StandardQuestion> updateQuestionCategory(
-    //         @PathVariable("id") Integer questionId,
-    //         @RequestBody CategoryUpdateRequest request) {
-    //     try {
-    //         com.llm.eval.model.StandardQuestion updatedQuestion = 
-    //             questionService.updateQuestionCategory(questionId, request.getCategoryId());
-    //         return ResponseEntity.ok(updatedQuestion);
-    //     } catch (EntityNotFoundException e) {
-    //         return ResponseEntity.notFound().build();
-    //     } catch (Exception e) {
-    //         return ResponseEntity.badRequest().build();
-    //     }
-    // }
-    
+
     // 请求体类
     public static class CategoryUpdateRequest {
         private Integer categoryId;
@@ -482,11 +470,14 @@ public class StandardQuestionController {
             // 创建分页请求（注意：Spring Data JPA的页码从0开始，而API的页码从1开始）
             Pageable pageable = PageRequest.of(page - 1, size, sort);
             
-            // 调用服务层查询
+            // 调用服务层查询，使用普通方法（已修改为手动加载标签）
             Page<StandardQuestion> questionPage = questionService.getQuestionsWithoutCategory(pageable);
             
+            // 标签已在服务层被加载
+            List<StandardQuestion> questions = questionPage.getContent();
+            
             // 将实体对象转换为简单的Map对象，避免循环引用问题
-            List<Map<String, Object>> questionDTOs = questionPage.getContent().stream().map(q -> {
+            List<Map<String, Object>> questionDTOs = questions.stream().map(q -> {
                 Map<String, Object> questionDTO = new HashMap<>();
                 questionDTO.put("standardQuestionId", q.getStandardQuestionId());
                 questionDTO.put("question", q.getQuestion());
@@ -502,8 +493,8 @@ public class StandardQuestionController {
                         Map<String, Object> tagDTO = new HashMap<>();
                         tagDTO.put("tagId", tag.getTagId());
                         tagDTO.put("tagName", tag.getTagName());
-                        // 暂时使用默认颜色
-                        tagDTO.put("color", "#409EFF");
+                        // 使用标签自身的颜色，如果为空则使用默认颜色
+                        tagDTO.put("color", tag.getColor() != null ? tag.getColor() : "#409EFF");
                         return tagDTO;
                     }).collect(Collectors.toList());
                     questionDTO.put("tags", tagDTOs);

@@ -7,6 +7,8 @@ import com.llm.eval.repository.QuestionCategoryRepository;
 import com.llm.eval.repository.StandardQuestionRepository;
 import com.llm.eval.repository.TagRepository;
 import com.llm.eval.service.StandardQuestionService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -21,9 +24,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-public class StandardQuestionServiceImpl implements StandardQuestionService {    private final StandardQuestionRepository standardQuestionRepository;
+public class StandardQuestionServiceImpl implements StandardQuestionService {    
+    private final StandardQuestionRepository standardQuestionRepository;
     private final TagRepository tagRepository;
     private final QuestionCategoryRepository categoryRepository;
+    
+    @PersistenceContext
+    private EntityManager entityManager;
     
     public StandardQuestionServiceImpl(
             StandardQuestionRepository standardQuestionRepository,
@@ -34,43 +41,140 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {   
         this.categoryRepository = categoryRepository;
     }
     
+    /**
+     * 手动加载问题的标签
+     * @param questions 需要加载标签的问题列表
+     */
+    private void loadTags(List<StandardQuestion> questions) {
+        if (questions == null || questions.isEmpty()) {
+            return;
+        }
+        
+        // 获取所有问题ID
+        List<Integer> questionIds = questions.stream()
+                .map(StandardQuestion::getStandardQuestionId)
+                .collect(Collectors.toList());
+        
+        // 使用批量查询获取标签
+        String jpql = "SELECT sq.standardQuestionId, t FROM StandardQuestion sq JOIN sq.tags t WHERE sq.standardQuestionId IN :ids";
+        List<Object[]> results = entityManager.createQuery(jpql, Object[].class)
+                .setParameter("ids", questionIds)
+                .getResultList();
+        
+        // 创建问题ID到标签列表的映射
+        java.util.Map<Integer, Set<Tag>> questionTagsMap = new java.util.HashMap<>();
+        for (Object[] result : results) {
+            Integer qId = (Integer) result[0];
+            Tag tag = (Tag) result[1];
+            
+            questionTagsMap.computeIfAbsent(qId, k -> new HashSet<>()).add(tag);
+        }
+        
+        // 为每个问题设置标签
+        for (StandardQuestion question : questions) {
+            Set<Tag> tags = questionTagsMap.get(question.getStandardQuestionId());
+            if (tags != null) {
+                question.setTags(tags);
+            } else {
+                question.setTags(new HashSet<>());
+            }
+        }
+    }
+    
     @Override
     public List<StandardQuestion> getAllStandardQuestions() {
-        return standardQuestionRepository.findAll();
+        List<StandardQuestion> questions = standardQuestionRepository.findAll();
+        loadTags(questions);
+        return questions;
     }
     
     @Override
     public Optional<StandardQuestion> getStandardQuestionById(Integer id) {
-        return standardQuestionRepository.findById(id);
+        Optional<StandardQuestion> questionOpt = standardQuestionRepository.findById(id);
+        questionOpt.ifPresent(q -> {
+            List<StandardQuestion> questions = List.of(q);
+            loadTags(questions);
+        });
+        return questionOpt;
+    }
+    
+    @Override
+    public Optional<StandardQuestion> getStandardQuestionByIdWithTags(Integer id) {
+        return getStandardQuestionById(id);
     }
     
     @Override
     public List<StandardQuestion> getStandardQuestionsByCategoryId(Integer categoryId) {
-        return standardQuestionRepository.findByCategoryCategoryId(categoryId);
+        List<StandardQuestion> questions = standardQuestionRepository.findByCategoryCategoryId(categoryId);
+        loadTags(questions);
+        return questions;
     }
     
     @Override
     public List<StandardQuestion> getStandardQuestionsByTagId(Integer tagId) {
-        return standardQuestionRepository.findByTagId(tagId);
+        List<StandardQuestion> questions = standardQuestionRepository.findByTagId(tagId);
+        // 这里不需要加载标签，因为按标签查询的结果已经包含了该标签
+        return questions;
     }
-      @Override
+    
+    @Override
     public List<StandardQuestion> getQuestionsWithoutStandardAnswers() {
-        return standardQuestionRepository.findWithoutStandardAnswers();
+        List<StandardQuestion> questions = standardQuestionRepository.findWithoutStandardAnswers();
+        loadTags(questions);
+        return questions;
     }
     
     @Override
+    @Transactional(readOnly = true)
     public Page<StandardQuestion> getQuestionsWithoutStandardAnswers(Pageable pageable) {
-        return standardQuestionRepository.findWithoutStandardAnswers(pageable);
+        Page<StandardQuestion> page = standardQuestionRepository.findWithoutStandardAnswers(pageable);
+        loadTags(page.getContent());
+        return page;
     }
     
     @Override
+    @Transactional(readOnly = true)
     public Page<StandardQuestion> getQuestionsWithoutStandardAnswersWithFilters(
             Integer categoryId,
             StandardQuestion.QuestionType questionType,
             StandardQuestion.DifficultyLevel difficulty,
             Pageable pageable) {
-        return standardQuestionRepository.findWithoutStandardAnswersWithFilters(
+        Page<StandardQuestion> page = standardQuestionRepository.findWithoutStandardAnswersWithFilters(
                 categoryId, questionType, difficulty, pageable);
+        loadTags(page.getContent());
+        return page;
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Page<StandardQuestion> getStandardQuestionsByPage(
+            Integer categoryId,
+            StandardQuestion.QuestionType questionType,
+            StandardQuestion.DifficultyLevel difficulty,
+            String keyword,
+            Pageable pageable) {
+        // 如果关键词为空，则传入null，避免无效的模糊查询
+        String searchKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        
+        Page<StandardQuestion> page = standardQuestionRepository.findByFilters(
+                categoryId, questionType, difficulty, searchKeyword, pageable);
+        loadTags(page.getContent());
+        return page;
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Page<StandardQuestion> getQuestionsWithoutCategory(Pageable pageable) {
+        Page<StandardQuestion> page = standardQuestionRepository.findByCategoryIsNull(pageable);
+        loadTags(page.getContent());
+        return page;
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Page<StandardQuestion> getQuestionsWithoutCategoryWithTags(Pageable pageable) {
+        // 直接调用上面的方法，已经实现了手动加载标签
+        return getQuestionsWithoutCategory(pageable);
     }
     
     @Override
@@ -203,29 +307,6 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {   
     @Transactional
     public void deleteStandardQuestion(Integer id) {
         standardQuestionRepository.deleteById(id);
-    }
-
-    @Override
-    public Page<StandardQuestion> getStandardQuestionsByPage(
-            Integer categoryId,
-            StandardQuestion.QuestionType questionType,
-            StandardQuestion.DifficultyLevel difficulty,
-            String keyword,
-            Pageable pageable) {
-        // 如果关键词为空，则传入null，避免无效的模糊查询
-        String searchKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
-        
-        return standardQuestionRepository.findByFilters(
-                categoryId, 
-                questionType, 
-                difficulty, 
-                searchKeyword, 
-                pageable);
-    }
-
-    @Override
-    public Page<StandardQuestion> getQuestionsWithoutCategory(Pageable pageable) {
-        return standardQuestionRepository.findByCategoryIsNull(pageable);
     }
     
     @Override

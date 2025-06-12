@@ -26,6 +26,14 @@ public interface StandardQuestionService {
     Optional<StandardQuestion> getStandardQuestionById(Integer id);
     
     /**
+     * Get a standard question by ID with tags eagerly loaded
+     * 
+     * @param id The ID of the standard question
+     * @return The standard question with tags if found
+     */
+    Optional<StandardQuestion> getStandardQuestionByIdWithTags(Integer id);
+    
+    /**
      * Get standard questions by category ID
      * 
      * @param categoryId The ID of the category
@@ -144,6 +152,14 @@ public interface StandardQuestionService {
      * @return 分页的没有分类的问题列表
      */
     Page<StandardQuestion> getQuestionsWithoutCategory(Pageable pageable);
+    
+    /**
+     * 获取没有分类的问题列表，并立即加载标签
+     * 
+     * @param pageable 分页参数
+     * @return 分页的没有分类的问题列表，含标签
+     */
+    Page<StandardQuestion> getQuestionsWithoutCategoryWithTags(Pageable pageable);
     
     /**
      * 通过分类名称更新问题的分类

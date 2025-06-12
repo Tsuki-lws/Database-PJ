@@ -3,6 +3,7 @@ package com.llm.eval.repository;
 import com.llm.eval.model.StandardQuestion;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -84,7 +85,7 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
     /**
      * 分页查询标准问题，支持按分类、类型、难度和关键词过滤
      */
-    @Query("SELECT DISTINCT sq FROM StandardQuestion sq LEFT JOIN FETCH sq.tags WHERE " +
+    @Query("SELECT sq FROM StandardQuestion sq WHERE " +
            "(:categoryId IS NULL OR sq.category.categoryId = :categoryId) AND " +
            "(:questionType IS NULL OR sq.questionType = :questionType) AND " +
            "(:difficulty IS NULL OR sq.difficulty = :difficulty) AND " +
@@ -133,4 +134,16 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
            "GROUP BY sq.standardQuestionId " +
            "HAVING COUNT(DISTINCT t.tagId) = :#{#tagIds.size()}")
     List<Integer> findByAllTagIds(@Param("tagIds") List<Integer> tagIds);
+    
+    /**
+     * 根据ID查询标准问题，并立即加载标签
+     */
+    @EntityGraph(attributePaths = {"tags"})
+    Optional<StandardQuestion> findById(Integer id);
+    
+    /**
+     * 查询所有标准问题ID
+     */
+    @Query("SELECT sq.standardQuestionId FROM StandardQuestion sq")
+    List<Integer> findAllIds();
 } 

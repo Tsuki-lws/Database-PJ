@@ -84,6 +84,7 @@ public class TagServiceImpl implements TagService {
         // Update properties
         existingTag.setTagName(tag.getTagName());
         existingTag.setDescription(tag.getDescription());
+        existingTag.setColor(tag.getColor()); // 更新颜色属性
         
         return tagRepository.save(existingTag);
     }
@@ -126,7 +127,8 @@ public class TagServiceImpl implements TagService {
             tagDetail.put("tagId", tag.getTagId());
             tagDetail.put("tagName", tag.getTagName());
             tagDetail.put("description", tag.getDescription());
-            tagDetail.put("color", "#409EFF"); // 暂时使用默认颜色
+            // 使用标签自身的颜色，如果为空则使用默认颜色
+            tagDetail.put("color", tag.getColor() != null ? tag.getColor() : "#409EFF");
             tagDetail.put("questionCount", count);
             tagDetails.add(tagDetail);
         }
