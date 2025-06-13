@@ -252,7 +252,19 @@ public class StandardQuestionController {
     }    @GetMapping("/without-answer")
     @Operation(summary = "获取无标准答案的问题")
     public ResponseEntity<List<StandardQuestion>> getQuestionsWithoutAnswer() {
-        return ResponseEntity.ok(questionService.getQuestionsWithoutStandardAnswers());
+        List<StandardQuestion> questions = questionService.getQuestionsWithoutStandardAnswers();
+        
+        // 进行严格过滤，只保留真正没有标准答案的问题
+        List<StandardQuestion> filteredQuestions = questions.stream()
+                .filter(q -> q.getStandardAnswers() == null || q.getStandardAnswers().isEmpty())
+                .toList();
+        
+        // 记录被过滤掉的问题
+        if (filteredQuestions.size() < questions.size()) {
+            logger.warn("从结果中过滤掉了 {} 个错误包含的有标准答案的问题", questions.size() - filteredQuestions.size());
+        }
+        
+        return ResponseEntity.ok(filteredQuestions);
     }
     
     @GetMapping("/without-answer/paged")
@@ -265,6 +277,9 @@ public class StandardQuestionController {
             @Parameter(description = "难度级别") @RequestParam(required = false) StandardQuestion.DifficultyLevel difficulty,
             @Parameter(description = "排序字段") @RequestParam(defaultValue = "createdAt") String sortBy,
             @Parameter(description = "排序方向") @RequestParam(defaultValue = "desc") String sortDir) {
+        
+        logger.info("分页获取无标准答案的问题，参数: page={}, size={}, categoryId={}, questionType={}, difficulty={}, sortBy={}, sortDir={}",
+                page, size, categoryId, questionType, difficulty, sortBy, sortDir);
         
         // 创建排序对象
         Sort sort = Sort.by(sortDir.equalsIgnoreCase("desc") ? 
@@ -282,10 +297,28 @@ public class StandardQuestionController {
                 .map(StandardQuestionWithoutAnswerDTO::fromEntity)
                 .toList();
         
-        // 构建响应
-        PagedResponseDTO<StandardQuestionWithoutAnswerDTO> response = 
-                PagedResponseDTO.fromPageWithMapper(questionPage, dtoList);
+        // 进行严格过滤，只保留真正没有标准答案的问题
+        List<StandardQuestionWithoutAnswerDTO> filteredList = dtoList.stream()
+                .filter(dto -> dto.getStandardAnswers() == null || dto.getStandardAnswers().isEmpty())
+                .toList();
         
+        // 记录被过滤掉的问题
+        if (filteredList.size() < dtoList.size()) {
+            logger.warn("从结果中过滤掉了 {} 个错误包含的有标准答案的问题", dtoList.size() - filteredList.size());
+            dtoList.stream()
+                .filter(dto -> dto.getStandardAnswers() != null && !dto.getStandardAnswers().isEmpty())
+                .forEach(dto -> logger.warn("问题ID {} 被错误地包含在无标准答案列表中，它有 {} 个标准答案",
+                        dto.getStandardQuestionId(), dto.getStandardAnswers().size()));
+        }
+        
+        // 使用过滤后的列表构建响应
+        PagedResponseDTO<StandardQuestionWithoutAnswerDTO> response = 
+                PagedResponseDTO.fromPageWithMapper(questionPage, filteredList);
+        
+        // 更新总数为过滤后的实际数量
+        response.setTotal((long) filteredList.size());
+        
+        logger.info("获取到 {} 个真正无标准答案的问题", filteredList.size());
         return ResponseEntity.ok(response);
     }
 

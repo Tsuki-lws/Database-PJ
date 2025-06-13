@@ -23,6 +23,11 @@ const router = createRouter({
           component: () => import('../views/questions/UncategorizedList.vue')
         },
         {
+          path: 'questions/without-answer',
+          name: 'QuestionsWithoutAnswer',
+          component: () => import('../views/questions/WithoutAnswer.vue')
+        },
+        {
           path: 'questions/create',
           name: 'CreateQuestion',
           component: () => import('../views/questions/Create.vue')

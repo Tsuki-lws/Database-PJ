@@ -109,7 +109,7 @@ export function addTagToQuestion(questionId: number, tagIds: number[]) {
 // 获取未录入标准答案的问题列表
 export function getQuestionsWithoutAnswer(params: QueryParams) {
   return request({
-    url: '/api/questions/without-answer',
+    url: '/api/questions/without-answer/paged',
     method: 'get',
     params
   })

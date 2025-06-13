@@ -6,6 +6,9 @@
         <el-button type="primary" @click="navigateToUncategorized">
           <el-icon><Filter /></el-icon>未分类问题
         </el-button>
+        <el-button type="warning" @click="navigateToWithoutAnswer">
+          <el-icon><Warning /></el-icon>无标准答案问题
+        </el-button>
         <el-button type="primary" @click="navigateToCreate">
           <el-icon><Plus /></el-icon>创建问题
         </el-button>
@@ -143,7 +146,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Plus, Filter } from '@element-plus/icons-vue'
+import { Plus, Filter, Warning } from '@element-plus/icons-vue'
 import { getStandardQuestions, deleteQuestion } from '@/api/question'
 import { getAllCategories } from '@/api/category'
 import { getAllTags, getQuestionsByTags } from '@/api/tag'
@@ -486,6 +489,11 @@ const navigateToEdit = (id: number) => {
 // 导航到未分类问题列表页面
 const navigateToUncategorized = () => {
   router.push('/questions/uncategorized')
+}
+
+// 导航到无标准答案问题列表页面
+const navigateToWithoutAnswer = () => {
+  router.push('/questions/without-answer')
 }
 
 onMounted(() => {

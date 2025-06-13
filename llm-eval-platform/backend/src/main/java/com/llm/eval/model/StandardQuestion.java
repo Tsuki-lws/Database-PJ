@@ -93,7 +93,7 @@ public class StandardQuestion {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Set<Tag> tags;
     
-    @OneToMany(mappedBy = "standardQuestion")
+    @OneToMany(mappedBy = "standardQuestion", fetch = FetchType.EAGER)
     @JsonManagedReference
     private List<StandardAnswer> standardAnswers;
     

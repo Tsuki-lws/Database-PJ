@@ -33,9 +33,17 @@
           </div>
         </div>
         
-        <el-table :data="questionList" style="width: 100%">
+        <el-table :data="paginatedQuestions" style="width: 100%" @row-click="handleRowClick" :row-class-name="tableRowClassName">
           <el-table-column prop="standardQuestionId" label="问题ID" width="100" />
-          <el-table-column prop="question" label="问题内容" show-overflow-tooltip />
+          <el-table-column prop="question" label="问题内容" show-overflow-tooltip>
+            <template #default="scope">
+              <!-- <el-tooltip content="点击查看问题详情" placement="top" :hide-after="1500"> -->
+                <el-link type="primary" @click="navigateToQuestionDetail(scope.row.standardQuestionId)">
+                  {{ scope.row.question }}
+                </el-link>
+              <!-- </el-tooltip> -->
+            </template>
+          </el-table-column>
           <el-table-column prop="questionType" label="类型" width="120">
             <template #default="scope">
               <el-tag :type="getQuestionTypeTag(scope.row.questionType)">
@@ -135,14 +143,23 @@
       </div>
       
         <div class="question-table-container">
-      <el-table
-        v-loading="questionLoading"
-        :data="availableQuestions"
+          <div class="table-tip">
+            <el-alert
+              title="提示：双击行可查看问题详情"
+              type="info"
+              :closable="false"
+              show-icon
+            />
+          </div>
+          <el-table
+            v-loading="questionLoading"
+            :data="availableQuestions"
             :height="tableHeight"
             border
-        @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55"></el-table-column>
-        <el-table-column prop="standardQuestionId" label="ID" width="80"></el-table-column>
+            @selection-change="handleSelectionChange"
+            @row-dblclick="handleRowDoubleClick">
+            <el-table-column type="selection" width="55"></el-table-column>
+            <el-table-column prop="standardQuestionId" label="ID" width="80"></el-table-column>
             <el-table-column prop="question" label="问题内容" min-width="300">
               <template #default="scope">
                 <div class="question-content">{{ scope.row.question }}</div>
@@ -155,20 +172,20 @@
                 </el-tag>
               </template>
             </el-table-column>
-        <el-table-column prop="difficulty" label="难度" width="100">
-          <template #default="scope">
-            <el-tag :type="getDifficultyTag(scope.row.difficulty)">
-              {{ formatDifficulty(scope.row.difficulty) }}
-            </el-tag>
-          </template>
-        </el-table-column>
+            <el-table-column prop="difficulty" label="难度" width="100">
+              <template #default="scope">
+                <el-tag :type="getDifficultyTag(scope.row.difficulty)">
+                  {{ formatDifficulty(scope.row.difficulty) }}
+                </el-tag>
+              </template>
+            </el-table-column>
             <el-table-column prop="category" label="分类" width="150">
               <template #default="scope">
                 <span v-if="scope.row.category">{{ scope.row.category.categoryName }}</span>
                 <span v-else>无分类</span>
               </template>
             </el-table-column>
-      </el-table>
+          </el-table>
         </div>
         
         <div class="dialog-pagination">
@@ -233,6 +250,13 @@ const total = ref(0)
 const queryParams = reactive({
   page: 1,
   size: 10
+})
+
+// 计算属性：根据当前页码和每页数量计算分页后的问题列表
+const paginatedQuestions = computed(() => {
+  const start = (queryParams.page - 1) * queryParams.size
+  const end = start + queryParams.size
+  return questionList.value.slice(start, end)
 })
 
 // 添加问题对话框
@@ -379,13 +403,15 @@ const getDifficultyTag = (difficulty: string) => {
 // 每页数量变化
 const handleSizeChange = (val: number) => {
   queryParams.size = val
-  getQuestions()
+  // 重置为第一页，避免页码超出范围
+  queryParams.page = 1
+  // 前端分页不需要重新请求数据
 }
 
 // 当前页变化
 const handleCurrentChange = (val: number) => {
   queryParams.page = val
-  getQuestions()
+  // 前端分页不需要重新请求数据
 }
 
 // 显示添加问题对话框
@@ -643,6 +669,26 @@ const navigateBack = () => {
   router.back()
 }
 
+// 跳转到问题详情页面
+const navigateToQuestionDetail = (questionId: number) => {
+  router.push(`/questions/detail/${questionId}`)
+}
+
+// 处理行点击事件
+const handleRowClick = (row: any) => {
+  navigateToQuestionDetail(row.standardQuestionId)
+}
+
+// 设置行的class
+const tableRowClassName = () => {
+  return 'clickable-row'
+}
+
+// 处理双击行事件，跳转到问题详情
+const handleRowDoubleClick = (row: any) => {
+  navigateToQuestionDetail(row.standardQuestionId)
+}
+
 onMounted(() => {
   getDatasetDetail()
 })
@@ -731,6 +777,10 @@ onMounted(() => {
   flex: 1;
 }
 
+.table-tip {
+  margin-bottom: 10px;
+}
+
 .question-content {
   max-height: 100px;
   overflow-y: auto;
@@ -786,5 +836,19 @@ onMounted(() => {
 .dialog-buttons {
   display: flex;
   gap: 10px;
+}
+
+/* 可点击行样式 */
+:deep(.clickable-row) {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+:deep(.clickable-row:hover) {
+  background-color: #f0f9ff !important;
+}
+
+:deep(.el-table__row) {
+  transition: all 0.2s;
 }
 </style> 

@@ -139,9 +139,35 @@ public class StandardQuestionServiceImpl implements StandardQuestionService {
             StandardQuestion.QuestionType questionType,
             StandardQuestion.DifficultyLevel difficulty,
             Pageable pageable) {
+        
+        // 添加日志记录
+        System.out.println("获取无标准答案问题，过滤条件: categoryId=" + categoryId + 
+                          ", questionType=" + questionType + 
+                          ", difficulty=" + difficulty);
+        
+        // 获取分页结果
         Page<StandardQuestion> page = standardQuestionRepository.findWithoutStandardAnswersWithFilters(
                 categoryId, questionType, difficulty, pageable);
+        
+        // 加载标签
         loadTags(page.getContent());
+        
+        // 验证结果中的问题确实没有标准答案
+        for (StandardQuestion question : page.getContent()) {
+            // 手动初始化标准答案集合，确保它被加载
+            if (question.getStandardAnswers() != null) {
+                org.hibernate.Hibernate.initialize(question.getStandardAnswers());
+                
+                // 验证该问题确实没有标准答案
+                if (!question.getStandardAnswers().isEmpty()) {
+                    System.err.println("警告: 问题ID " + question.getStandardQuestionId() + 
+                                     " 被错误地包含在无标准答案列表中，它有 " + 
+                                     question.getStandardAnswers().size() + " 个标准答案");
+                }
+            }
+        }
+        
+        System.out.println("获取到 " + page.getContent().size() + " 个无标准答案问题");
         return page;
     }
     

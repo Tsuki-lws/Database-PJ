@@ -35,6 +35,11 @@
               {{ formatStatus(question.status) }}
             </el-tag>
           </el-descriptions-item>
+          <el-descriptions-item label="标准答案">
+            <el-tag :type="answers.length > 0 ? 'success' : 'danger'">
+              {{ answers.length > 0 ? `已有${answers.length}个答案` : '无标准答案' }}
+            </el-tag>
+          </el-descriptions-item>
           <el-descriptions-item label="版本">{{ question.version || '1.0' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ question.createdAt }}</el-descriptions-item>
           <el-descriptions-item label="更新时间">{{ question.updatedAt }}</el-descriptions-item>

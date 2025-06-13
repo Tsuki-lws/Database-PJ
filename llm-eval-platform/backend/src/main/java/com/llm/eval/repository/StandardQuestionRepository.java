@@ -28,15 +28,15 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
     long countByTagId(Integer tagId);
     
     @Query("SELECT sq FROM StandardQuestion sq WHERE sq.standardQuestionId NOT IN " +
-           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true)")
+           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa)")
     List<StandardQuestion> findWithoutStandardAnswers();
     
     @Query("SELECT sq FROM StandardQuestion sq WHERE sq.standardQuestionId NOT IN " +
-           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true)")
+           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa)")
     Page<StandardQuestion> findWithoutStandardAnswers(Pageable pageable);
     
     @Query("SELECT COUNT(sq) FROM StandardQuestion sq WHERE sq.standardQuestionId NOT IN " +
-           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true)")
+           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa)")
     long countWithoutStandardAnswers();
     
     List<StandardQuestion> findByCategoryCategoryId(Integer categoryId);
@@ -59,7 +59,7 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
      * 分页查询没有标准答案的问题，支持按分类、类型、难度过滤
      */
     @Query("SELECT sq FROM StandardQuestion sq WHERE sq.standardQuestionId NOT IN " +
-           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true) " +
+           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa) " +
            "AND (:categoryId IS NULL OR sq.category.categoryId = :categoryId) " +
            "AND (:questionType IS NULL OR sq.questionType = :questionType) " +
            "AND (:difficulty IS NULL OR sq.difficulty = :difficulty)")
@@ -73,7 +73,7 @@ public interface StandardQuestionRepository extends JpaRepository<StandardQuesti
      * 统计没有标准答案的问题数量，支持按分类、类型、难度过滤
      */
     @Query("SELECT COUNT(sq) FROM StandardQuestion sq WHERE sq.standardQuestionId NOT IN " +
-           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa WHERE sa.isFinal = true) " +
+           "(SELECT sa.standardQuestion.standardQuestionId FROM StandardAnswer sa) " +
            "AND (:categoryId IS NULL OR sq.category.categoryId = :categoryId) " +
            "AND (:questionType IS NULL OR sq.questionType = :questionType) " +
            "AND (:difficulty IS NULL OR sq.difficulty = :difficulty)")
