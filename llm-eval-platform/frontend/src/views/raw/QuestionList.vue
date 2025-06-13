@@ -57,23 +57,23 @@
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button size="small" @click="$router.push(`/raw-questions/detail/${row.questionId}`)">
-                查看
-              </el-button>
+            <el-button size="small" @click="$router.push(`/raw-questions/detail/${row.questionId}`)">
+              查看
+            </el-button>
               <el-button size="small" type="warning" @click="handleEdit(row)">
                 编辑
               </el-button>
-              <el-button size="small" type="primary" @click="handleConvert(row)">
+            <el-button size="small" type="primary" @click="handleConvert(row)">
                 转标准
-              </el-button>
-              <el-popconfirm
-                title="确认删除该问题吗？"
-                @confirm="handleDelete(row.questionId)"
-              >
-                <template #reference>
-                  <el-button size="small" type="danger">删除</el-button>
-                </template>
-              </el-popconfirm>
+            </el-button>
+            <el-popconfirm
+              title="确认删除该问题吗？"
+              @confirm="handleDelete(row.questionId)"
+            >
+              <template #reference>
+                <el-button size="small" type="danger">删除</el-button>
+              </template>
+            </el-popconfirm>
             </div>
           </template>
         </el-table-column>

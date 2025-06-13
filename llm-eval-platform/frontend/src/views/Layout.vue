@@ -31,7 +31,7 @@
             <span>标准问答管理</span>
           </template>
           <el-menu-item index="/questions">标准问题列表</el-menu-item>
-          <el-menu-item index="/answers">标准答案列表</el-menu-item>
+          <!-- <el-menu-item index="/answers">标准答案列表</el-menu-item> -->
           <el-menu-item index="/import/standard">标准数据导入</el-menu-item>
           <el-menu-item index="/categories">问题分类</el-menu-item>
           <el-menu-item index="/tags">问题标签</el-menu-item>

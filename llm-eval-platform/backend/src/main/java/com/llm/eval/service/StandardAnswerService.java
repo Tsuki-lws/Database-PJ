@@ -1,6 +1,7 @@
 package com.llm.eval.service;
 
 import com.llm.eval.model.StandardAnswer;
+import com.llm.eval.model.AnswerKeyPoint;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +14,26 @@ public interface StandardAnswerService {
      * @return List of all standard answers
      */
     List<StandardAnswer> getAllStandardAnswers();
+    
+    /**
+     * Get standard answers with pagination and filtering
+     * 
+     * @param page Page number (1-based)
+     * @param size Page size
+     * @param questionId Optional filter by question ID
+     * @param isFinal Optional filter by final status
+     * @return List of standard answers matching the criteria
+     */
+    List<StandardAnswer> getStandardAnswers(int page, int size, Integer questionId, Boolean isFinal);
+    
+    /**
+     * Count standard answers with filtering
+     * 
+     * @param questionId Optional filter by question ID
+     * @param isFinal Optional filter by final status
+     * @return Total count of standard answers matching the criteria
+     */
+    long countStandardAnswers(Integer questionId, Boolean isFinal);
     
     /**
      * Get a standard answer by ID
@@ -69,4 +90,36 @@ public interface StandardAnswerService {
      * @param id The ID of the standard answer to delete
      */
     void deleteStandardAnswer(Integer id);
+    
+    /**
+     * Add a key point to a standard answer
+     * 
+     * @param keyPoint The key point to add
+     * @return The created key point
+     */
+    AnswerKeyPoint addKeyPoint(AnswerKeyPoint keyPoint);
+    
+    /**
+     * Get key points by answer ID
+     * 
+     * @param answerId The ID of the standard answer
+     * @return List of key points for the answer
+     */
+    List<AnswerKeyPoint> getKeyPointsByAnswerId(Integer answerId);
+    
+    /**
+     * Update a key point
+     * 
+     * @param id The ID of the key point to update
+     * @param keyPoint The updated key point
+     * @return The updated key point
+     */
+    AnswerKeyPoint updateKeyPoint(Integer id, AnswerKeyPoint keyPoint);
+    
+    /**
+     * Delete a key point
+     * 
+     * @param id The ID of the key point to delete
+     */
+    void deleteKeyPoint(Integer id);
 } 

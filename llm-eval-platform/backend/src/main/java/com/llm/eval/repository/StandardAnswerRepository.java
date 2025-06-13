@@ -2,8 +2,11 @@ package com.llm.eval.repository;
 
 import com.llm.eval.model.StandardAnswer;
 import com.llm.eval.model.StandardQuestion;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,6 +20,19 @@ public interface StandardAnswerRepository extends JpaRepository<StandardAnswer, 
     
     @Query("SELECT COUNT(sa) FROM StandardAnswer sa WHERE sa.isFinal = true")
     long countFinalStandardAnswers();
+    
+    @Query("SELECT COUNT(sa) FROM StandardAnswer sa WHERE " +
+           "(:questionId IS NULL OR sa.standardQuestion.standardQuestionId = :questionId) AND " +
+           "(:isFinal IS NULL OR sa.isFinal = :isFinal)")
+    long countByFilters(@Param("questionId") Integer questionId, @Param("isFinal") Boolean isFinal);
+    
+    @Query("SELECT sa FROM StandardAnswer sa WHERE " +
+           "(:questionId IS NULL OR sa.standardQuestion.standardQuestionId = :questionId) AND " +
+           "(:isFinal IS NULL OR sa.isFinal = :isFinal)")
+    Page<StandardAnswer> findByFilters(
+            @Param("questionId") Integer questionId, 
+            @Param("isFinal") Boolean isFinal, 
+            Pageable pageable);
     
     List<StandardAnswer> findByStandardQuestionStandardQuestionId(Integer standardQuestionId);
     

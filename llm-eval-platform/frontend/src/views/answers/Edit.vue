@@ -127,7 +127,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getAnswerById, updateAnswer, getAnswerKeyPoints, AnswerKeyPoint } from '@/api/answer'
+import { getAnswerById, updateAnswer, getAnswerKeyPoints } from '@/api/answer'
+import type { AnswerKeyPoint } from '@/api/answer'
 import { getQuestionById } from '@/api/question'
 
 const route = useRoute()
@@ -141,7 +142,7 @@ const answerForm = reactive({
   standardAnswerId: Number(route.params.id) || 0,
   standardQuestionId: 0,
   answer: '',
-  sourceType: 'manual',
+  sourceType: 'manual' as 'manual' | 'raw' | 'crowdsourced' | 'expert',
   sourceAnswerId: undefined,
   sourceId: undefined,
   selectionReason: '',
@@ -152,8 +153,14 @@ const answerForm = reactive({
 
 // 问题信息
 const questionInfo = computed(() => {
-  if (!questionData.value || !questionData.value.question) return '加载中...'
-  return `${questionData.value.standardQuestionId}: ${questionData.value.question}`
+  if (!questionData.value) return '加载中...'
+  if (!questionData.value.question) {
+    if (answerForm.standardQuestionId) {
+      return `问题ID: ${answerForm.standardQuestionId} (无法获取问题内容)`
+    }
+    return '未找到关联问题'
+  }
+  return `${questionData.value.standardQuestionId || answerForm.standardQuestionId}: ${questionData.value.question}`
 })
 
 // 表单验证规则
@@ -170,16 +177,74 @@ const rules = {
 const getAnswerDetail = async () => {
   loading.value = true
   try {
-    const data = await getAnswerById(answerForm.standardAnswerId)
-    Object.assign(answerForm, data)
+    const response = await getAnswerById(answerForm.standardAnswerId)
+    console.log('获取答案详情原始响应:', response)
     
-    // 获取关联问题
-    await getQuestionDetail(data.standardQuestionId)
+    // 处理响应数据
+    let answerData = null
+    if (response && typeof response === 'object') {
+      // 处理标准返回格式：{ code: 200, data: {...}, message: "Success" }
+      if ('code' in response && response.code === 200 && response.data) {
+        answerData = response.data
+      } else if ('data' in response) {
+        answerData = response.data
+      } else {
+        // 如果响应本身就是答案对象
+        answerData = response
+      }
+    }
     
-    // 获取关键点
-    await getKeyPoints()
+    console.log('处理后的答案数据:', answerData)
+    
+    if (answerData) {
+      // 更新表单数据
+      answerForm.standardAnswerId = answerData.standardAnswerId || answerForm.standardAnswerId
+      answerForm.answer = answerData.answer || ''
+      
+      // 处理sourceType，确保类型正确
+      if (answerData.sourceType && ['manual', 'raw', 'crowdsourced', 'expert'].includes(answerData.sourceType)) {
+        answerForm.sourceType = answerData.sourceType as 'manual' | 'raw' | 'crowdsourced' | 'expert'
+      } else {
+        answerForm.sourceType = 'manual'
+      }
+      
+      answerForm.sourceAnswerId = answerData.sourceAnswerId
+      answerForm.sourceId = answerData.sourceId
+      answerForm.selectionReason = answerData.selectionReason || ''
+      answerForm.selectedBy = answerData.selectedBy
+      answerForm.isFinal = answerData.isFinal || false
+      
+      // 获取问题ID - 检查所有可能的数据结构
+      console.log('尝试获取问题ID...')
+      if (answerData.standardQuestionId) {
+        console.log('从standardQuestionId字段获取问题ID:', answerData.standardQuestionId)
+        answerForm.standardQuestionId = answerData.standardQuestionId
+      } else if (answerData.standardQuestion && answerData.standardQuestion.standardQuestionId) {
+        console.log('从standardQuestion对象获取问题ID:', answerData.standardQuestion.standardQuestionId)
+        answerForm.standardQuestionId = answerData.standardQuestion.standardQuestionId
+      } else if (answerData.questionId) {
+        console.log('从questionId字段获取问题ID:', answerData.questionId)
+        answerForm.standardQuestionId = answerData.questionId
+      }
+      
+      console.log('最终获取到的问题ID:', answerForm.standardQuestionId)
+      
+      // 获取关联问题
+      if (answerForm.standardQuestionId) {
+        await getQuestionDetail(answerForm.standardQuestionId)
+      } else {
+        console.error('无法获取问题ID，无法加载问题详情')
+        ElMessage.warning('无法获取关联问题信息')
+      }
+      
+      // 获取关键点
+      await getKeyPoints()
+    } else {
+      ElMessage.error('获取答案详情失败')
+    }
   } catch (error) {
     console.error('获取答案详情失败', error)
+    ElMessage.error('获取答案详情失败')
   } finally {
     loading.value = false
   }
@@ -188,19 +253,62 @@ const getAnswerDetail = async () => {
 // 获取问题详情
 const getQuestionDetail = async (questionId: number) => {
   try {
-    questionData.value = await getQuestionById(questionId)
+    console.log('开始获取问题详情，问题ID:', questionId)
+    const response = await getQuestionById(questionId)
+    console.log('获取问题详情原始响应:', response)
+    
+    // 处理响应数据
+    if (response && typeof response === 'object') {
+      // 处理标准返回格式：{ code: 200, data: {...}, message: "Success" }
+      if ('code' in response && response.code === 200 && response.data) {
+        questionData.value = response.data
+      } else if ('data' in response) {
+        questionData.value = response.data
+      } else {
+        // 如果响应本身就是问题对象
+        questionData.value = response
+      }
+      
+      console.log('处理后的问题数据:', questionData.value)
+      
+      // 验证是否有问题内容
+      if (!questionData.value.question) {
+        console.error('问题数据不包含问题内容')
+        ElMessage.warning('获取问题内容失败')
+      }
+    } else {
+      console.error('获取问题详情失败，响应数据无效')
+      questionData.value = {}
+    }
   } catch (error) {
     console.error('获取问题详情失败', error)
+    questionData.value = {}
+    ElMessage.error('获取问题详情失败')
   }
 }
 
 // 获取关键点
 const getKeyPoints = async () => {
   try {
-    const points = await getAnswerKeyPoints(answerForm.standardAnswerId)
-    answerForm.keyPoints = points || []
+    const response = await getAnswerKeyPoints(answerForm.standardAnswerId)
+    
+    // 处理响应数据
+    if (Array.isArray(response)) {
+      answerForm.keyPoints = response
+    } else if (response && typeof response === 'object') {
+      if (Array.isArray(response.data)) {
+        answerForm.keyPoints = response.data
+      } else if (response.data && Array.isArray(response.data.content)) {
+        answerForm.keyPoints = response.data.content
+      } else {
+        answerForm.keyPoints = []
+      }
+    } else {
+      answerForm.keyPoints = []
+    }
   } catch (error) {
     console.error('获取关键点失败', error)
+    answerForm.keyPoints = []
   }
 }
 
@@ -235,7 +343,12 @@ const submitForm = async () => {
     try {
       await updateAnswer(answerForm.standardAnswerId, answerForm)
       ElMessage.success('更新成功')
-      router.push('/answers')
+      // 返回到问题详情页面
+      if (answerForm.standardQuestionId) {
+        router.push(`/questions/detail/${answerForm.standardQuestionId}`)
+      } else {
+        router.push('/answers')
+      }
     } catch (error) {
       console.error('更新答案失败', error)
     } finally {

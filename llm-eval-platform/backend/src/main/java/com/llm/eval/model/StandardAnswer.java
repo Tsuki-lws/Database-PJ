@@ -6,6 +6,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -67,6 +68,11 @@ public class StandardAnswer {
     @OneToMany(mappedBy = "standardAnswer", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("standardAnswer")
     private List<AnswerKeyPoint> keyPoints;
+    
+    // 获取问题ID的方法
+    public Integer getStandardQuestionId() {
+        return standardQuestion != null ? standardQuestion.getStandardQuestionId() : null;
+    }
     
     public enum SourceType {
         raw, crowdsourced, expert, manual

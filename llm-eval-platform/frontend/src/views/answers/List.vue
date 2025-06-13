@@ -79,11 +79,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { getAnswerList, deleteAnswer, QueryParams } from '@/api/answer'
+import { getAnswerList, deleteAnswer } from '@/api/answer'
+import type { QueryParams } from '@/api/answer'
 
 const router = useRouter()
 const loading = ref(false)
-const answerList = ref([])
+const answerList = ref<any[]>([])
 const total = ref(0)
 
 // 查询参数
@@ -99,10 +100,36 @@ const getList = async () => {
   loading.value = true
   try {
     const res = await getAnswerList(queryParams)
-    answerList.value = res.list || []
-    total.value = res.total || 0
+    
+    // 处理响应数据
+    if (res && typeof res === 'object') {
+      if (res.data && typeof res.data === 'object') {
+        // 标准响应格式
+        const data = res.data
+        if (data.list && Array.isArray(data.list)) {
+          answerList.value = data.list
+          total.value = data.total || 0
+        }
+      } else if (res.list && Array.isArray(res.list)) {
+        // 直接返回带list的对象
+        answerList.value = res.list
+        total.value = res.total || 0
+      } else if (Array.isArray(res)) {
+        // 直接返回数组
+        answerList.value = res
+        total.value = res.length
+      } else {
+        answerList.value = []
+        total.value = 0
+      }
+    } else {
+      answerList.value = []
+      total.value = 0
+    }
   } catch (error) {
     console.error('获取答案列表失败', error)
+    answerList.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -178,6 +205,7 @@ const handleDelete = (row: any) => {
       getList()
     } catch (error) {
       console.error('删除答案失败', error)
+      ElMessage.error('删除失败')
     }
   }).catch(() => {})
 }

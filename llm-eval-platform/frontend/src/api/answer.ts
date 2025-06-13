@@ -14,6 +14,9 @@ export interface StandardAnswer {
   updatedAt?: string
   version?: number
   keyPoints?: AnswerKeyPoint[]
+  standardQuestion?: {
+    standardQuestionId: number
+  }
 }
 
 export interface AnswerKeyPoint {
@@ -81,7 +84,10 @@ export function deleteAnswer(id: number) {
 export function getAnswersByQuestionId(questionId: number) {
   return request({
     url: `/api/answers/question/${questionId}`,
-    method: 'get'
+    method: 'get',
+    params: {
+      _t: new Date().getTime() // 添加时间戳避免缓存问题
+    }
   })
 }
 
@@ -116,5 +122,13 @@ export function deleteKeyPoint(keyPointId: number) {
   return request({
     url: `/api/answers/key-points/${keyPointId}`,
     method: 'delete'
+  })
+}
+
+// 设置为最终版本
+export function setAsFinal(answerId: number) {
+  return request({
+    url: `/api/answers/${answerId}/set-final`,
+    method: 'post'
   })
 } 

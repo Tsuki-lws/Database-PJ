@@ -25,7 +25,7 @@ public class AnswerKeyPoint {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "standard_answer_id", nullable = false)
-    @JsonBackReference
+    @JsonIgnoreProperties({"keyPoints", "hibernateLazyInitializer", "handler"})
     private StandardAnswer standardAnswer;
     
     @Column(name = "point_text", nullable = false)

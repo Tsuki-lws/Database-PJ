@@ -70,15 +70,43 @@
       <el-divider v-if="answers.length > 0" />
 
       <div class="question-answers" v-if="answers.length > 0">
-        <h3>标准答案</h3>
-        <el-card v-for="answer in answers" :key="answer.standardAnswerId" class="answer-card">
-          <div class="answer-header">
-            <span class="answer-title">答案 #{{ answer.standardAnswerId }}</span>
-            <el-tag v-if="answer.isFinal" type="success">最终版本</el-tag>
+        <div class="answers-header">
+          <h3>标准回答列表 ({{ answers.length }})</h3>
+          <el-button type="success" size="small" @click="navigateToCreateAnswer">添加回答</el-button>
+        </div>
+        
+        <div v-for="answer in answers" :key="answer.standardAnswerId" class="answer-item">
+          <div class="answer-meta">
+            <span>ID: {{ answer.standardAnswerId }}</span>
+            <span>来源: {{ formatAnswerSource(answer.sourceType) }}</span>
+            <span>创建时间: {{ formatDate(answer.createdAt) }}</span>
           </div>
           <div class="answer-content">{{ answer.answer }}</div>
-        </el-card>
+          <div class="answer-actions">
+            <el-button size="small" type="primary" @click="navigateToEditAnswer(answer.standardAnswerId)">
+              编辑
+            </el-button>
+            <el-button size="small" type="info" @click="viewKeyPoints(answer)">
+              查看关键点
+            </el-button>
+            <el-popconfirm
+              title="确认删除该回答吗？"
+              @confirm="handleDeleteAnswer(answer.standardAnswerId)"
+            >
+              <template #reference>
+                <el-button size="small" type="danger">删除</el-button>
+              </template>
+            </el-popconfirm>
+          </div>
+        </div>
       </div>
+      
+      <div class="no-answers" v-else>
+        <el-empty description="暂无标准回答">
+          <el-button type="primary" @click="navigateToCreateAnswer">添加回答</el-button>
+        </el-empty>
+      </div>
+
     </el-card>
 
     <!-- 添加标签对话框 -->
@@ -118,6 +146,36 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 关键点对话框 -->
+    <el-dialog
+      v-model="keyPointsDialogVisible"
+      title="答案关键点"
+      width="700px"
+    >
+      <div v-if="currentAnswer && currentAnswer.keyPoints && currentAnswer.keyPoints.length > 0">
+        <el-table :data="currentAnswer.keyPoints" style="width: 100%">
+          <el-table-column prop="pointText" label="关键点内容" min-width="200" />
+          <el-table-column prop="pointType" label="类型" width="100">
+            <template #default="scope">
+              <el-tag :type="getKeyPointTypeTag(scope.row.pointType)">
+                {{ formatKeyPointType(scope.row.pointType) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="pointWeight" label="权重" width="80" />
+          <el-table-column prop="exampleText" label="示例" min-width="150" />
+        </el-table>
+      </div>
+      <div v-else class="no-key-points">
+        该答案暂无关键点
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="keyPointsDialogVisible = false">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -125,7 +183,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getQuestionById } from '@/api/question'
-import { getAnswersByQuestionId } from '@/api/answer'
+import { getAnswersByQuestionId, deleteAnswer, getAnswerKeyPoints } from '@/api/answer'
 import { getAllTags, getTagsByQuestionId, addTagsToQuestion, removeTagFromQuestion } from '@/api/tag'
 import { ElMessage, ElLoading } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -141,6 +199,8 @@ const tagDialogVisible = ref(false)
 const tagForm = ref({
   selectedTags: [] as number[]
 })
+const keyPointsDialogVisible = ref(false)
+const currentAnswer = ref<any>(null)
 
 // 获取问题详情
 const getQuestionDetail = async () => {
@@ -150,7 +210,6 @@ const getQuestionDetail = async () => {
   loading.value = true
   try {
     const response = await getQuestionById(id)
-    console.log('问题详情原始响应:', response)
     
     // 检查响应格式并适当处理
     if (response && typeof response === 'object') {
@@ -171,18 +230,18 @@ const getQuestionDetail = async () => {
         question.value.categoryName = '未分类'
       }
       
-      console.log('问题详情数据:', question.value)
-      
       // 获取问题标签
       await getQuestionTags(id)
+      
+      // 获取问题的标准回答列表
       await getAnswersList(id)
     } else {
-      console.error('获取问题详情返回格式异常:', response)
       question.value = {}
       tags.value = []
     }
   } catch (error) {
-    console.error('获取问题详情失败', error)
+    question.value = {}
+    tags.value = []
   } finally {
     loading.value = false
   }
@@ -192,7 +251,6 @@ const getQuestionDetail = async () => {
 const getQuestionTags = async (id: number) => {
   try {
     const response = await getTagsByQuestionId(id)
-    console.log('问题标签原始响应:', response)
     
     if (Array.isArray(response)) {
       tags.value = response
@@ -202,7 +260,6 @@ const getQuestionTags = async (id: number) => {
       tags.value = []
     }
   } catch (error) {
-    console.error('获取问题标签失败', error)
     tags.value = []
   }
 }
@@ -308,38 +365,46 @@ const removeTag = async (tagId: number) => {
 // 获取问题答案
 const getAnswersList = async (id: number) => {
   try {
-    const response = await getAnswersByQuestionId(id)
-    console.log('问题答案原始响应:', response)
+    const response = await getAnswersByQuestionId(id);
     
     // 检查响应格式并适当处理
-    if (response && typeof response === 'object') {
+    if (Array.isArray(response)) {
+      // 如果直接返回数组，直接使用
+      answers.value = response;
+    } else if (response && typeof response === 'object') {
       // 处理标准返回格式：{ code: 200, data: [...], message: "Success" }
-      const responseObj = response as any
+      const responseObj = response as any;
       if (responseObj.code === 200 && responseObj.data) {
         if (Array.isArray(responseObj.data)) {
-          answers.value = responseObj.data
+          answers.value = responseObj.data;
         } else if (responseObj.data.content && Array.isArray(responseObj.data.content)) {
-          answers.value = responseObj.data.content
+          answers.value = responseObj.data.content;
         } else {
-          answers.value = []
-          console.warn('响应中没有找到预期的答案列表:', response)
+          answers.value = [];
         }
+      } else if (responseObj.content && Array.isArray(responseObj.content)) {
+        // 处理分页响应格式
+        answers.value = responseObj.content;
+      } else {
+        answers.value = [];
       }
-      // 如果响应本身就是数组
-      else if (Array.isArray(response)) {
-        answers.value = response
-      } 
-      else {
-        answers.value = []
-        console.warn('响应格式不符合预期:', response)
-      }
-      console.log('问题答案数据:', answers.value)
     } else {
-      console.error('获取问题答案返回格式异常:', response)
-      answers.value = []
+      answers.value = [];
     }
+    
+    // 将答案按创建时间倒序排列（最新的在前面）
+    answers.value.sort((a: any, b: any) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+    
+    // 将所有答案的isFinal设为false
+    answers.value.forEach(answer => {
+      answer.isFinal = false;
+    });
   } catch (error) {
-    console.error('获取问题答案失败', error)
+    answers.value = [];
   }
 }
 
@@ -453,6 +518,112 @@ const navigateBack = () => {
   router.back()
 }
 
+// 格式化日期
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '未知'
+  const date = new Date(dateStr)
+  return date.toLocaleString()
+}
+
+// 格式化答案来源
+const formatAnswerSource = (sourceType?: string) => {
+  const map: Record<string, string> = {
+    'raw': '原始回答',
+    'crowdsourced': '众包',
+    'expert': '专家',
+    'manual': '手动添加',
+    'undefined': '未知'
+  }
+  return map[sourceType || 'undefined'] || '未知'
+}
+
+// 导航到创建回答页面
+const navigateToCreateAnswer = () => {
+  const id = Number(route.params.id)
+  if (!id) return
+  router.push(`/answers/create/${id}`)
+}
+
+// 导航到编辑回答页面
+const navigateToEditAnswer = (answerId: number) => {
+  router.push(`/answers/edit/${answerId}`)
+}
+
+// 查看关键点
+const viewKeyPoints = async (answer: any) => {
+  currentAnswer.value = { ...answer };
+  
+  // 检查答案对象是否已经包含关键点数据
+  if (answer.keyPoints && Array.isArray(answer.keyPoints) && answer.keyPoints.length > 0) {
+    currentAnswer.value.keyPoints = answer.keyPoints;
+    keyPointsDialogVisible.value = true;
+    return;
+  }
+  
+  // 如果没有关键点数据，则从后端获取
+  if (!currentAnswer.value.keyPoints || currentAnswer.value.keyPoints.length === 0) {
+    try {
+      const response = await getAnswerKeyPoints(answer.standardAnswerId);
+      
+      // 处理后端返回的数据
+      if (Array.isArray(response)) {
+        currentAnswer.value.keyPoints = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        currentAnswer.value.keyPoints = response.data;
+      } else if (response && typeof response === 'object') {
+        // 尝试直接使用响应对象
+        currentAnswer.value.keyPoints = response;
+      } else {
+        currentAnswer.value.keyPoints = [];
+      }
+      
+      // 如果关键点数组为空，显示提示
+      if (!currentAnswer.value.keyPoints || currentAnswer.value.keyPoints.length === 0) {
+        ElMessage.info('该答案暂无关键点');
+      }
+    } catch (error) {
+      currentAnswer.value.keyPoints = [];
+      ElMessage.error('获取关键点失败');
+    }
+  }
+  
+  keyPointsDialogVisible.value = true;
+}
+
+// 删除回答
+const handleDeleteAnswer = async (answerId: number) => {
+  try {
+    await deleteAnswer(answerId)
+    ElMessage.success('删除回答成功')
+    const id = Number(route.params.id)
+    if (id) {
+      await getAnswersList(id)
+    }
+  } catch (error: any) {
+    ElMessage.error('删除回答失败')
+  }
+}
+
+// 获取关键点类型标签
+const getKeyPointTypeTag = (type?: string) => {
+  const map: Record<string, string> = {
+    'required': 'danger',
+    'bonus': 'success',
+    'penalty': 'warning'
+  }
+  return map[type || ''] || 'info'
+}
+
+// 格式化关键点类型
+const formatKeyPointType = (type?: string) => {
+  const map: Record<string, string> = {
+    'required': '必要点',
+    'bonus': '加分点',
+    'penalty': '减分点'
+  }
+  return map[type || ''] || '其他'
+}
+
 onMounted(() => {
   getQuestionDetail()
 })
@@ -547,6 +718,62 @@ onMounted(() => {
 
 .no-tags {
   text-align: center;
+  color: #909399;
+}
+
+.answers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.answers-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.answer-item {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 15px;
+}
+
+.answer-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.answer-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.answer-content {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  margin-bottom: 15px;
+  font-size: 15px;
+}
+
+.answer-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.no-answers {
+  padding: 30px 0;
+  text-align: center;
+}
+
+.no-key-points {
+  text-align: center;
+  padding: 20px;
   color: #909399;
 }
 </style> 

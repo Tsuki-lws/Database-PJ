@@ -52,7 +52,15 @@
         </el-form-item>
 
         <el-form-item label="是否最终版本">
-          <el-switch v-model="answerForm.isFinal"></el-switch>
+          <el-tooltip
+            content="设为最终版本后，该答案将被标记为问题的最终标准答案，同时会取消其他答案的最终版本标记"
+            placement="top"
+          >
+            <div class="flex-center">
+              <el-switch v-model="answerForm.isFinal"></el-switch>
+              <el-icon class="ml-5"><QuestionFilled /></el-icon>
+            </div>
+          </el-tooltip>
         </el-form-item>
 
         <el-divider content-position="left">关键点设置（可选）</el-divider>
@@ -139,9 +147,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
-import { createAnswer, AnswerKeyPoint } from '@/api/answer'
+import { Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { createAnswer, type AnswerKeyPoint, type StandardAnswer } from '@/api/answer'
 import { getQuestionsWithoutAnswer } from '@/api/question'
+import * as answerApi from '@/api/answer'
 
 const route = useRoute()
 const router = useRouter()
@@ -153,12 +162,12 @@ const answerFormRef = ref()
 const questionOptions = ref<{value: number, label: string}[]>([])
 
 // 表单数据
-const answerForm = reactive({
-  standardQuestionId: route.params.questionId ? Number(route.params.questionId) : undefined,
+const answerForm = reactive<StandardAnswer>({
+  standardQuestionId: route.params.questionId ? Number(route.params.questionId) : 0,
   answer: '',
   sourceType: 'manual',
   selectionReason: '',
-  isFinal: true,
+  isFinal: false,
   keyPoints: [] as AnswerKeyPoint[]
 })
 
@@ -186,7 +195,8 @@ const searchQuestions = async (query: string) => {
       page: 1,
       size: 20
     })
-    questionOptions.value = (res.list || []).map((item: any) => ({
+    const data = res.data || res
+    questionOptions.value = (data.list || []).map((item: any) => ({
       value: item.standardQuestionId,
       label: `${item.standardQuestionId}: ${item.question}`
     }))
@@ -199,6 +209,9 @@ const searchQuestions = async (query: string) => {
 
 // 添加关键点
 const addKeyPoint = () => {
+  if (!answerForm.keyPoints) {
+    answerForm.keyPoints = [];
+  }
   answerForm.keyPoints.push({
     pointText: '',
     pointOrder: answerForm.keyPoints.length + 1,
@@ -210,6 +223,8 @@ const addKeyPoint = () => {
 
 // 移除关键点
 const removeKeyPoint = (index: number) => {
+  if (!answerForm.keyPoints) return;
+  
   answerForm.keyPoints.splice(index, 1)
   // 更新顺序
   answerForm.keyPoints.forEach((point, idx) => {
@@ -226,13 +241,79 @@ const submitForm = async () => {
     
     loading.value = true
     try {
-      await createAnswer(answerForm)
-      ElMessage.success('创建成功')
-      router.push('/answers')
+      // 创建一个标准答案对象，但不包含关键点
+      const answerData: any = {
+        ...answerForm,
+        standardQuestion: {
+          standardQuestionId: answerForm.standardQuestionId
+        }
+      }
+      
+      // 保存关键点的副本，因为要从answerData中移除
+      const keyPoints = [...(answerForm.keyPoints || [])];
+      // 从提交数据中移除关键点，后续单独添加
+      delete answerData.keyPoints;
+      
+      console.log('提交标准回答数据:', answerData);
+      const result = await createAnswer(answerData);
+      console.log('创建标准回答结果:', result);
+      
+      // 如果有关键点，并且创建答案成功，则添加关键点
+      const createdAnswerId = result && typeof result === 'object' ? 
+        ((result as any).standardAnswerId || (result as any).data?.standardAnswerId) : null;
+      
+      if (keyPoints.length > 0 && createdAnswerId) {
+        console.log('开始添加关键点，数量:', keyPoints.length, '答案ID:', createdAnswerId);
+        
+        let successCount = 0;
+        let failCount = 0;
+        
+        // 依次添加关键点
+        for (const keyPoint of keyPoints) {
+          try {
+            // 创建一个干净的关键点对象，避免包含不必要的字段
+            const keyPointData = {
+              pointText: keyPoint.pointText,
+              pointOrder: keyPoint.pointOrder,
+              pointWeight: keyPoint.pointWeight,
+              pointType: keyPoint.pointType,
+              exampleText: keyPoint.exampleText || ''
+            };
+            
+            console.log(`添加关键点 ${keyPoint.pointOrder}: ${keyPoint.pointText}`);
+            
+            // 使用命名空间调用，避免命名冲突
+            const response = await answerApi.addKeyPoint(createdAnswerId, keyPointData);
+            console.log('添加关键点成功:', response);
+            successCount++;
+          } catch (error) {
+            console.error('添加关键点失败:', keyPoint, error);
+            failCount++;
+          }
+        }
+        
+        if (failCount > 0) {
+          ElMessage.warning(`创建成功，但有${failCount}个关键点添加失败，请检查控制台错误信息`);
+        } else if (successCount > 0) {
+          ElMessage.success(`创建成功，已添加${successCount}个关键点`);
+        } else {
+          ElMessage.success('创建成功');
+        }
+      } else {
+        ElMessage.success('创建成功');
+      }
+      
+      // 如果是从问题详情页跳转过来，则返回问题详情页
+      if (answerForm.standardQuestionId) {
+        router.push(`/questions/detail/${answerForm.standardQuestionId}`);
+      } else {
+        router.push('/answers');
+      }
     } catch (error) {
-      console.error('创建答案失败', error)
+      console.error('创建答案失败', error);
+      ElMessage.error('创建答案失败，请检查控制台错误信息');
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   })
 }
@@ -295,5 +376,14 @@ onMounted(async () => {
   margin: 20px 0;
   display: flex;
   justify-content: center;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+}
+
+.ml-5 {
+  margin-left: 5px;
 }
 </style> 
