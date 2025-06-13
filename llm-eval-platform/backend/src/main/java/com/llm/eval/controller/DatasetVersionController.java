@@ -61,8 +61,26 @@ public class DatasetVersionController {
     @PostMapping
     @Operation(summary = "创建新数据集版本")
     public ResponseEntity<com.llm.eval.model.DatasetVersion> createDatasetVersion(@Valid @RequestBody com.llm.eval.model.DatasetVersion datasetVersion) {
-        com.llm.eval.model.DatasetVersion createdVersion = datasetVersionService.createDatasetVersion(datasetVersion);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdVersion);
+        try {
+            System.out.println("接收到创建数据集版本请求: " + datasetVersion.getName());
+            
+            // 检查是否包含questionIds参数（前端传递）
+            if (datasetVersion.getQuestionIds() != null && !datasetVersion.getQuestionIds().isEmpty()) {
+                System.out.println("包含问题ID: " + datasetVersion.getQuestionIds().size() + "个");
+                // 使用增强版本的创建方法，支持直接关联问题
+                return ResponseEntity.status(HttpStatus.CREATED).body(
+                    datasetVersionService.createDatasetVersionWithQuestions(datasetVersion, datasetVersion.getQuestionIds())
+                );
+            } else {
+                System.out.println("不包含问题ID，创建空数据集版本");
+                com.llm.eval.model.DatasetVersion createdVersion = datasetVersionService.createDatasetVersion(datasetVersion);
+                return ResponseEntity.status(HttpStatus.CREATED).body(createdVersion);
+            }
+        } catch (Exception e) {
+            System.err.println("创建数据集版本失败: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
     @PutMapping("/{id}")
@@ -127,25 +145,101 @@ public class DatasetVersionController {
     }
 
     // 新增版本管理端点
-
     @GetMapping("/paged")
     @Operation(summary = "分页获取数据集版本列表")
     public ResponseEntity<com.llm.eval.dto.PagedResponseDTO<com.llm.eval.dto.DatasetVersionDTO>> getVersionsPaged(
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Boolean isPublished) {
+            @RequestParam(required = false) Boolean isPublished,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
         try {
-            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-
-            com.llm.eval.dto.PagedResponseDTO<com.llm.eval.dto.DatasetVersionDTO> result;
-            if (isPublished != null) {
-                result = datasetVersionService.getVersionsByPublishStatus(isPublished, pageable);
+            System.out.println("分页获取数据集版本列表: page=" + page + ", size=" + size + 
+                              ", isPublished=" + isPublished + ", keyword=" + keyword +
+                              ", sortBy=" + sortBy + ", sortDir=" + sortDir);
+            
+            // 创建分页请求，注意前端页码从1开始，后端从0开始
+            int adjustedPage = Math.max(0, page - 1); // 确保页码不小于0
+            
+            // 创建排序对象
+            org.springframework.data.domain.Sort sort;
+            if ("asc".equalsIgnoreCase(sortDir)) {
+                sort = org.springframework.data.domain.Sort.by(sortBy).ascending();
             } else {
-                result = datasetVersionService.getVersionsPaged(pageable);
+                sort = org.springframework.data.domain.Sort.by(sortBy).descending();
             }
+            
+            org.springframework.data.domain.Pageable pageable = 
+                org.springframework.data.domain.PageRequest.of(adjustedPage, size, sort);
+            
+            System.out.println("调整后的分页参数: page=" + adjustedPage + ", size=" + size + 
+                              ", sort=" + sort);
 
+            com.llm.eval.dto.PagedResponseDTO<com.llm.eval.dto.DatasetVersionDTO> result = null;
+            
+            try {
+                // 根据参数决定调用哪个查询方法
+                if (keyword != null && !keyword.trim().isEmpty()) {
+                    if (isPublished != null) {
+                        // 按名称搜索 + 发布状态筛选
+                        result = datasetVersionService.searchVersionsByNameAndPublishStatus(
+                            keyword.trim(), isPublished, pageable);
+                    } else {
+                        // 仅按名称搜索
+                        result = datasetVersionService.searchVersionsByName(keyword.trim(), pageable);
+                    }
+                } else if (isPublished != null) {
+                    // 仅按发布状态筛选
+                    result = datasetVersionService.getVersionsByPublishStatus(isPublished, pageable);
+                } else {
+                    // 无筛选条件
+                    result = datasetVersionService.getVersionsPaged(pageable);
+                }
+            } catch (Exception e) {
+                System.err.println("查询数据集版本失败: " + e.getMessage());
+                e.printStackTrace();
+                throw e;
+            }
+            
+            // 确保返回的当前页码与请求的页码一致（前端从1开始）
+            if (result != null) {
+                // 强制设置当前页码为请求的页码
+                result.setCurrentPage(page);
+                System.out.println("强制设置当前页码为请求页码: " + page);
+                
+                // 如果内容为空但总数不为0，可能是页码超出范围，尝试获取第一页
+                if (result.getContent() != null && result.getContent().isEmpty() && result.getTotal() > 0) {
+                    System.out.println("检测到页码可能超出范围，尝试获取第一页");
+                    pageable = org.springframework.data.domain.PageRequest.of(0, size, sort);
+                    
+                    // 重新查询第一页数据
+                    if (keyword != null && !keyword.trim().isEmpty()) {
+                        if (isPublished != null) {
+                            result = datasetVersionService.searchVersionsByNameAndPublishStatus(
+                                keyword.trim(), isPublished, pageable);
+                        } else {
+                            result = datasetVersionService.searchVersionsByName(keyword.trim(), pageable);
+                        }
+                    } else if (isPublished != null) {
+                        result = datasetVersionService.getVersionsByPublishStatus(isPublished, pageable);
+                    } else {
+                        result = datasetVersionService.getVersionsPaged(pageable);
+                    }
+                    
+                    // 设置为第一页
+                    result.setCurrentPage(1);
+                }
+            }
+            
+            System.out.println("查询结果: 总数=" + (result != null ? result.getTotal() : "null") + 
+                              ", 数据条数=" + (result != null && result.getContent() != null ? result.getContent().size() : "null") +
+                              ", 当前页码=" + (result != null ? result.getCurrentPage() : "null"));
+            
             return ResponseEntity.ok(result);
         } catch (Exception e) {
+            System.err.println("获取数据集版本列表失败: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(null);
         }
     }

@@ -266,11 +266,73 @@ public class DatasetVersionServiceImpl implements DatasetVersionService {
     public DatasetVersionDTO getLatestPublishedVersion() {
         List<DatasetVersion> publishedVersions = datasetVersionRepository.findByIsPublishedTrueOrderByCreatedAtDesc();
         if (publishedVersions.isEmpty()) {
-            return null;
+            throw new EntityNotFoundException("No published dataset version found");
         }
         return convertToDTO(publishedVersions.get(0));
-    }    // 辅助方法：转换为DTO
+    }
+    
+    @Override
+    @Transactional
+    public DatasetVersion createDatasetVersionWithQuestions(DatasetVersion datasetVersion, List<Integer> questionIds) {
+        // 先创建数据集版本
+        DatasetVersion createdVersion = createDatasetVersion(datasetVersion);
+        
+        if (questionIds != null && !questionIds.isEmpty()) {
+            // 将List转换为Set
+            Set<Integer> questionIdSet = new HashSet<>(questionIds);
+            
+            // 添加问题到数据集版本
+            try {
+                System.out.println("添加 " + questionIdSet.size() + " 个问题到数据集版本 " + createdVersion.getVersionId());
+                return addQuestionsToDatasetVersion(createdVersion.getVersionId(), questionIdSet);
+            } catch (Exception e) {
+                System.err.println("添加问题到数据集版本失败: " + e.getMessage());
+                e.printStackTrace();
+                // 即使添加问题失败，也返回已创建的数据集版本
+                return createdVersion;
+            }
+        }
+        
+        return createdVersion;
+    }
+    
+    @Override
+    public PagedResponseDTO<DatasetVersionDTO> searchVersionsByName(String keyword, Pageable pageable) {
+        // 使用Spring Data JPA的模糊查询
+        Page<DatasetVersion> page = datasetVersionRepository.findByNameContainingIgnoreCase(keyword, pageable);
+        
+        // 转换为DTO
+        List<DatasetVersionDTO> dtoList = page.getContent().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        
+        // 构建分页响应
+        return PagedResponseDTO.fromPageWithMapper(page, dtoList);
+    }
+    
+    @Override
+    public PagedResponseDTO<DatasetVersionDTO> searchVersionsByNameAndPublishStatus(
+            String keyword, Boolean isPublished, Pageable pageable) {
+        // 使用Spring Data JPA的模糊查询和状态筛选
+        Page<DatasetVersion> page = datasetVersionRepository.findByNameContainingIgnoreCaseAndIsPublished(
+                keyword, isPublished, pageable);
+        
+        // 转换为DTO
+        List<DatasetVersionDTO> dtoList = page.getContent().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        
+        // 构建分页响应
+        return PagedResponseDTO.fromPageWithMapper(page, dtoList);
+    }
+    
     private DatasetVersionDTO convertToDTO(DatasetVersion version) {
+        if (version == null) {
+            return null;
+        }
+
+        System.out.println("转换数据集版本为DTO: id=" + version.getVersionId() + ", name=" + version.getName());
+        
         DatasetVersionDTO dto = new DatasetVersionDTO();
         dto.setVersionId(version.getVersionId());
         dto.setName(version.getName());
@@ -281,6 +343,16 @@ public class DatasetVersionServiceImpl implements DatasetVersionService {
         dto.setQuestionCount(version.getQuestionCount());
         dto.setIsPublished(version.getIsPublished());
         dto.setIsLatest(isLatestVersion(version));
+        
+        // 设置问题IDs
+        if (version.getQuestions() != null) {
+            Set<Integer> questionIds = version.getQuestions().stream()
+                    .map(q -> q.getStandardQuestionId())
+                    .collect(Collectors.toSet());
+            dto.setQuestionIds(questionIds);
+            System.out.println("包含问题数量: " + questionIds.size());
+        }
+        
         return dto;
     }
     

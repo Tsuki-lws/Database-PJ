@@ -35,11 +35,24 @@ export interface QueryParams {
 
 // 获取标准问题列表
 export function getQuestionList(params: QueryParams) {
+  // 确保page参数有值且从1开始
+  const adjustedParams = { ...params };
+  
+  // 添加默认排序参数，如果未指定
+  if (!adjustedParams.sortBy) {
+    adjustedParams.sortBy = 'createdAt';
+  }
+  if (!adjustedParams.sortDir) {
+    adjustedParams.sortDir = 'desc';
+  }
+  
+  console.log('发送问题列表请求，参数:', adjustedParams);
+  
   return request({
     url: '/api/questions',
     method: 'get',
-    params
-  })
+    params: adjustedParams
+  });
 }
 
 // 获取标准问题详情

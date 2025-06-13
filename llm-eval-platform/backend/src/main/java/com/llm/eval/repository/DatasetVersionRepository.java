@@ -69,4 +69,14 @@ public interface DatasetVersionRepository extends JpaRepository<DatasetVersion, 
     @Query("SELECT DISTINCT dv FROM DatasetVersion dv " +
            "JOIN dv.questions q WHERE q.standardQuestionId = :questionId")
     List<DatasetVersion> findByQuestionId(@Param("questionId") Integer questionId);
+    
+    /**
+     * 根据名称模糊查询（忽略大小写）
+     */
+    Page<DatasetVersion> findByNameContainingIgnoreCase(String keyword, Pageable pageable);
+    
+    /**
+     * 根据名称模糊查询和发布状态筛选（忽略大小写）
+     */
+    Page<DatasetVersion> findByNameContainingIgnoreCaseAndIsPublished(String keyword, Boolean isPublished, Pageable pageable);
 }

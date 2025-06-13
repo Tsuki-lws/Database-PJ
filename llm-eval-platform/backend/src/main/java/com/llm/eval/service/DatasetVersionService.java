@@ -145,4 +145,29 @@ public interface DatasetVersionService {
      * @return 取消发布后的版本信息
      */
     DatasetVersion unpublishDatasetVersion(Integer id);
+    
+    /**
+     * 创建数据集版本并关联问题
+     * @param datasetVersion 数据集版本信息
+     * @param questionIds 问题ID列表
+     * @return 创建的数据集版本
+     */
+    DatasetVersion createDatasetVersionWithQuestions(DatasetVersion datasetVersion, List<Integer> questionIds);
+    
+    /**
+     * 按名称搜索数据集版本
+     * @param keyword 搜索关键词
+     * @param pageable 分页参数
+     * @return 分页的版本列表
+     */
+    PagedResponseDTO<DatasetVersionDTO> searchVersionsByName(String keyword, Pageable pageable);
+    
+    /**
+     * 按名称和发布状态搜索数据集版本
+     * @param keyword 搜索关键词
+     * @param isPublished 是否已发布
+     * @param pageable 分页参数
+     * @return 分页的版本列表
+     */
+    PagedResponseDTO<DatasetVersionDTO> searchVersionsByNameAndPublishStatus(String keyword, Boolean isPublished, Pageable pageable);
 }

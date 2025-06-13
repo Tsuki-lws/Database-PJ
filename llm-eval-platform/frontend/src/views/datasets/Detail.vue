@@ -14,7 +14,7 @@
 
       <el-descriptions :column="2" border>
         <el-descriptions-item label="数据集ID">{{ dataset.versionId }}</el-descriptions-item>
-        <el-descriptions-item label="问题数量">{{ dataset.questionCount || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="问题数量">{{ questionList.length || 0 }}</el-descriptions-item>
         <el-descriptions-item label="发布日期">{{ dataset.releaseDate || '未设置' }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ dataset.createdAt }}</el-descriptions-item>
         <el-descriptions-item label="更新时间">{{ dataset.updatedAt }}</el-descriptions-item>
@@ -75,7 +75,7 @@
             v-model:page-size="queryParams.size"
             :page-sizes="[10, 20, 50, 100]"
             layout="total, sizes, prev, pager, next, jumper"
-            :total="total"
+            :total="questionList.length"
             @size-change="handleSizeChange"
             @current-change="handleCurrentChange"
           />
@@ -99,72 +99,106 @@
     </el-card>
 
     <!-- 添加问题对话框 -->
-    <el-dialog v-model="addQuestionDialogVisible" title="添加问题" width="70%">
-      <div class="question-search">
-        <el-input
-          v-model="questionSearchKeyword"
-          placeholder="搜索问题"
-          clearable
-          @keyup.enter="searchQuestions">
-          <template #append>
-            <el-button @click="searchQuestions">
-              <el-icon><Search /></el-icon>
-            </el-button>
-          </template>
-        </el-input>
-      </div>
-      
-      <div class="question-filter">
-        <el-select v-model="questionFilter.categoryId" placeholder="分类" clearable>
-          <el-option 
-            v-for="item in categoryOptions" 
-            :key="item.value" 
-            :label="item.label" 
-            :value="item.value">
-          </el-option>
-        </el-select>
+    <el-dialog v-model="addQuestionDialogVisible" title="添加问题" width="85%" top="5vh" class="question-dialog">
+      <div class="question-dialog-content">
+        <div class="question-search-bar">
+          <el-input
+            v-model="questionSearchKeyword"
+            placeholder="搜索问题"
+            clearable
+            @keyup.enter="searchQuestions">
+            <template #append>
+              <el-button @click="searchQuestions">
+                <el-icon><Search /></el-icon>
+              </el-button>
+            </template>
+          </el-input>
+        </div>
         
-        <el-select v-model="questionFilter.difficulty" placeholder="难度" clearable>
-          <el-option label="简单" value="easy"></el-option>
-          <el-option label="中等" value="medium"></el-option>
-          <el-option label="困难" value="hard"></el-option>
-        </el-select>
+        <div class="question-filter-bar">
+          <el-select v-model="questionFilter.categoryId" placeholder="分类" clearable>
+            <el-option 
+              v-for="item in categoryOptions" 
+              :key="item.value" 
+              :label="item.label" 
+              :value="item.value">
+            </el-option>
+          </el-select>
+          
+          <el-select v-model="questionFilter.difficulty" placeholder="难度" clearable>
+            <el-option label="简单" value="easy"></el-option>
+            <el-option label="中等" value="medium"></el-option>
+            <el-option label="困难" value="hard"></el-option>
+          </el-select>
+          
+          <el-button type="primary" @click="searchQuestions">筛选</el-button>
+        </div>
         
-        <el-button type="primary" @click="searchQuestions">筛选</el-button>
-      </div>
-      
-      <el-table
-        v-loading="questionLoading"
-        :data="availableQuestions"
-        @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55"></el-table-column>
-        <el-table-column prop="standardQuestionId" label="ID" width="80"></el-table-column>
-        <el-table-column prop="question" label="问题内容" show-overflow-tooltip></el-table-column>
-        <el-table-column prop="difficulty" label="难度" width="100">
-          <template #default="scope">
-            <el-tag :type="getDifficultyTag(scope.row.difficulty)">
-              {{ formatDifficulty(scope.row.difficulty) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-      
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="questionQuery.page"
-          v-model:page-size="questionQuery.size"
-          :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next"
-          :total="questionTotal"
-          @size-change="handleQuestionSizeChange"
-          @current-change="handleQuestionCurrentChange">
-        </el-pagination>
+        <div class="question-table-container">
+          <el-table
+            v-loading="questionLoading"
+            :data="availableQuestions"
+            :height="tableHeight"
+            border
+            @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="55"></el-table-column>
+            <el-table-column prop="standardQuestionId" label="ID" width="80"></el-table-column>
+            <el-table-column prop="question" label="问题内容" min-width="300">
+              <template #default="scope">
+                <div class="question-content">{{ scope.row.question }}</div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="questionType" label="类型" width="120">
+              <template #default="scope">
+                <el-tag :type="getQuestionTypeTag(scope.row.questionType)">
+                  {{ formatQuestionType(scope.row.questionType) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="difficulty" label="难度" width="100">
+              <template #default="scope">
+                <el-tag :type="getDifficultyTag(scope.row.difficulty)">
+                  {{ formatDifficulty(scope.row.difficulty) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="category" label="分类" width="150">
+              <template #default="scope">
+                <span v-if="scope.row.category">{{ scope.row.category.categoryName }}</span>
+                <span v-else>无分类</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        
+        <div class="dialog-pagination">
+          <div class="pagination-info" v-if="questionTotal > 0">
+            总计 <span class="highlight-count">{{ questionTotal }}</span> 个问题
+            <template v-if="questionList.length > 0">
+              (已添加 <span class="highlight-count">{{ questionList.length }}</span> 个)
+            </template>
+          </div>
+          <el-pagination
+            v-model:current-page="questionQuery.page"
+            v-model:page-size="questionQuery.size"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="questionTotal"
+            @size-change="handleQuestionSizeChange"
+            @current-change="handleQuestionCurrentChange">
+          </el-pagination>
+        </div>
       </div>
       
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="addQuestionDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleAddQuestions">添加选中问题</el-button>
+          <div class="selected-count" v-if="selectedQuestions.length > 0">
+            已选择 {{ selectedQuestions.length }} 个问题
+          </div>
+          <div class="dialog-buttons">
+            <el-button @click="addQuestionDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="handleAddQuestions">添加选中问题</el-button>
+          </div>
         </span>
       </template>
     </el-dialog>
@@ -172,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
@@ -181,7 +215,8 @@ import {
   getDatasetQuestions, 
   addQuestionsToDataset, 
   removeQuestionFromDataset,
-  publishDatasetVersion 
+  publishDatasetVersion,
+  deleteDatasetVersion
 } from '@/api/dataset'
 import { getQuestionList } from '@/api/question'
 import { getAllCategories } from '@/api/category'
@@ -208,8 +243,8 @@ const questionFilter = reactive({
   difficulty: undefined
 })
 const questionQuery = reactive({
-  page: 1,
-  size: 10,
+  page: 1,       // 后端期望从1开始的页码
+  size: 20,      // 默认每页显示20条
   keyword: '',
   categoryId: undefined,
   difficulty: undefined
@@ -217,7 +252,10 @@ const questionQuery = reactive({
 const availableQuestions = ref<any[]>([])
 const questionTotal = ref(0)
 const selectedQuestions = ref<any[]>([])
-const categoryOptions = ref([])
+const categoryOptions = ref<Array<{value: number, label: string}>>([])
+
+// 表格高度自适应
+const tableHeight = ref(450);
 
 // 获取数据集详情
 const getDatasetDetail = async () => {
@@ -226,10 +264,17 @@ const getDatasetDetail = async () => {
   
   loading.value = true
   try {
-    dataset.value = await getDatasetVersionById(id)
+    const res = await getDatasetVersionById(id)
+    if (res && typeof res === 'object' && 'code' in res && res.code === 200) {
+      dataset.value = res.data || {}
+    } else {
+      dataset.value = {}
+      console.error('获取数据集详情返回数据格式不正确', res)
+    }
     await getQuestions()
   } catch (error) {
     console.error('获取数据集详情失败', error)
+    dataset.value = {}
   } finally {
     loading.value = false
   }
@@ -241,11 +286,31 @@ const getQuestions = async () => {
   if (!id) return
   
   try {
+    console.log('正在获取数据集问题，数据集ID:', id);
     const res = await getDatasetQuestions(id)
-    questionList.value = res || []
-    total.value = res.length || 0
+    console.log('数据集问题API返回:', res);
+    
+    if (res && typeof res === 'object' && 'code' in res && res.code === 200) {
+      if (Array.isArray(res.data)) {
+        questionList.value = res.data;
+      } else if (res.data && typeof res.data === 'object' && 'content' in res.data) {
+        // 处理分页返回格式
+        questionList.value = res.data.content || [];
+      } else {
+        questionList.value = [];
+        console.error('未知的数据集问题返回格式', res.data);
+      }
+      
+      // 更新数据集问题总数
+      dataset.value.questionCount = questionList.value.length;
+      console.log(`数据集问题数量: ${questionList.value.length}`);
+    } else {
+      questionList.value = []
+      console.error('获取数据集问题返回数据格式不正确', res)
+    }
   } catch (error) {
     console.error('获取数据集问题失败', error)
+    questionList.value = []
   }
 }
 
@@ -306,6 +371,16 @@ const handleCurrentChange = (val: number) => {
 // 显示添加问题对话框
 const showAddQuestionDialog = () => {
   addQuestionDialogVisible.value = true
+  // 重置选中问题
+  selectedQuestions.value = []
+  // 计算表格高度
+  nextTick(() => {
+    const windowHeight = window.innerHeight;
+    // 根据窗口高度动态计算表格高度，减去头部和底部空间
+    tableHeight.value = Math.max(300, windowHeight * 0.5);
+    console.log('设置表格高度:', tableHeight.value);
+  });
+  
   searchQuestions()
   getCategories()
 }
@@ -314,21 +389,35 @@ const showAddQuestionDialog = () => {
 const getCategories = async () => {
   try {
     const res = await getAllCategories()
-    categoryOptions.value = res.map((item: any) => ({
-      value: item.categoryId,
-      label: item.name
-    }))
+    if (res && typeof res === 'object' && 'code' in res && res.code === 200) {
+      categoryOptions.value = Array.isArray(res.data) 
+        ? res.data.map((item: any) => ({
+            value: item.categoryId,
+            label: item.name
+          }))
+        : []
+    } else {
+      categoryOptions.value = []
+      console.error('获取分类列表返回数据格式不正确', res)
+    }
   } catch (error) {
     console.error('获取分类列表失败', error)
+    categoryOptions.value = []
   }
 }
 
 // 搜索问题
 const searchQuestions = () => {
+  console.log('执行搜索，参数:', JSON.stringify({
+    keyword: questionSearchKeyword.value,
+    categoryId: questionFilter.categoryId,
+    difficulty: questionFilter.difficulty
+  }));
+  
   questionQuery.keyword = questionSearchKeyword.value
   questionQuery.categoryId = questionFilter.categoryId
   questionQuery.difficulty = questionFilter.difficulty
-  questionQuery.page = 1
+  questionQuery.page = 1  // 重置为第一页
   fetchAvailableQuestions()
 }
 
@@ -336,13 +425,59 @@ const searchQuestions = () => {
 const fetchAvailableQuestions = async () => {
   questionLoading.value = true
   try {
-    const res = await getQuestionList(questionQuery)
-    // 过滤掉已经在数据集中的问题
-    const existingIds = new Set(questionList.value.map(q => q.standardQuestionId))
-    availableQuestions.value = (res.list || []).filter(q => !existingIds.has(q.standardQuestionId))
-    questionTotal.value = res.total || 0
+    // 确保page参数从1开始
+    const queryParams = { ...questionQuery };
+    
+    console.log('请求参数:', JSON.stringify(queryParams));
+    
+    const res = await getQuestionList(queryParams);
+    
+    if (res && typeof res === 'object' && 'code' in res && res.code === 200 && 
+        res.data && typeof res.data === 'object') {
+      // 兼容不同的后端返回格式
+      let content = [], total = 0;
+      
+      if ('content' in res.data) {
+        // 分页格式1: { content: [...], totalElements: 100 }
+        content = res.data.content || [];
+        total = res.data.totalElements || 0;
+      } else if (Array.isArray(res.data)) {
+        // 分页格式2: 直接返回数组
+        content = res.data;
+        total = res.data.length;
+      } else if ('records' in res.data) {
+        // 分页格式3: { records: [...], total: 100 }
+        content = res.data.records || [];
+        total = res.data.total || 0;
+      } else {
+        // 其他格式情况
+        console.error('未知的返回数据格式', res.data);
+        content = [];
+        total = 0;
+      }
+      
+      // 过滤掉已经在数据集中的问题
+      const existingIds = new Set(questionList.value.map((q: any) => q.standardQuestionId))
+      
+      console.log(`数据集已有问题数: ${existingIds.size}`);
+      console.log(`本页返回问题数: ${content.length}, 总问题数: ${total}`);
+      
+      availableQuestions.value = content.filter((q: any) => !existingIds.has(q.standardQuestionId))
+      
+      // 设置总数（这里使用API返回的总数，不考虑过滤）
+      questionTotal.value = total;
+      
+      console.log(`过滤后可添加问题数: ${availableQuestions.value.length}`);
+      console.log(`当前页: ${questionQuery.page}, 每页数量: ${questionQuery.size}, 总页数: ${Math.ceil(total/questionQuery.size)}`);
+    } else {
+      availableQuestions.value = []
+      questionTotal.value = 0
+      console.error('获取问题列表返回数据格式不正确', res)
+    }
   } catch (error) {
     console.error('获取问题列表失败', error)
+    availableQuestions.value = []
+    questionTotal.value = 0
   } finally {
     questionLoading.value = false
   }
@@ -355,12 +490,14 @@ const handleSelectionChange = (selection: any[]) => {
 
 // 处理问题列表每页数量变化
 const handleQuestionSizeChange = (val: number) => {
+  console.log('修改每页显示数量:', val);
   questionQuery.size = val
   fetchAvailableQuestions()
 }
 
 // 处理问题列表页码变化
 const handleQuestionCurrentChange = (val: number) => {
+  console.log('修改当前页码:', val);
   questionQuery.page = val
   fetchAvailableQuestions()
 }
@@ -375,7 +512,7 @@ const handleAddQuestions = async () => {
   try {
     const questionIds = selectedQuestions.value.map(q => q.standardQuestionId)
     await addQuestionsToDataset(dataset.value.versionId, questionIds)
-    ElMessage.success('添加成功')
+    ElMessage.success(`成功添加 ${selectedQuestions.value.length} 个问题`)
     addQuestionDialogVisible.value = false
     getQuestions()
   } catch (error) {
@@ -442,7 +579,7 @@ const handleDelete = () => {
     }
   ).then(async () => {
     try {
-      // 这里应该调用删除API
+      await deleteDatasetVersion(dataset.value.versionId)
       ElMessage.success('删除成功')
       router.push('/datasets')
     } catch (error) {
@@ -515,13 +652,89 @@ onMounted(() => {
   gap: 10px;
 }
 
-.question-search {
+/* 问题选择对话框样式优化 */
+:deep(.question-dialog .el-dialog__body) {
+  padding: 15px 20px;
+}
+
+.question-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  height: 100%;
+}
+
+.question-search-bar {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.question-filter-bar {
+  display: flex;
+  gap: 15px;
   margin-bottom: 15px;
 }
 
-.question-filter {
+.question-table-container {
+  width: 100%;
+  margin-bottom: 10px;
+  flex: 1;
+}
+
+.question-content {
+  max-height: 100px;
+  overflow-y: auto;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.dialog-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  margin-bottom: 10px;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #606266;
+}
+
+.highlight-count {
+  font-weight: bold;
+  color: #409EFF;
+  margin: 0 3px;
+}
+
+/* 确保分页组件在小屏幕上响应式展示 */
+@media screen and (max-width: 768px) {
+  .dialog-pagination {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .question-filter-bar {
+    flex-wrap: wrap;
+  }
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.selected-count {
+  font-weight: bold;
+  color: #409EFF;
+}
+
+.dialog-buttons {
   display: flex;
   gap: 10px;
-  margin-bottom: 15px;
 }
 </style> 

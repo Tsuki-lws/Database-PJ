@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -45,4 +46,8 @@ public class DatasetVersion {
         inverseJoinColumns = @JoinColumn(name = "standard_question_id")
     )
     private Set<StandardQuestion> questions;
+    
+    // 非持久化字段，仅用于接收前端传递的问题ID列表
+    @Transient
+    private List<Integer> questionIds;
 } 
