@@ -35,7 +35,7 @@
               {{ formatStatus(question.status) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="版本">{{ question.version }}</el-descriptions-item>
+          <el-descriptions-item label="版本">{{ question.version || '1.0' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ question.createdAt }}</el-descriptions-item>
           <el-descriptions-item label="更新时间">{{ question.updatedAt }}</el-descriptions-item>
         </el-descriptions>
@@ -210,7 +210,7 @@ const getQuestionDetail = async () => {
   loading.value = true
   try {
     const response = await getQuestionById(id)
-    
+    // console.log('获取问题详情响应:', response)
     // 检查响应格式并适当处理
     if (response && typeof response === 'object') {
       // 处理标准返回格式：{ code: 200, data: {...}, message: "Success" }

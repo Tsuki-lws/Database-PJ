@@ -108,6 +108,7 @@ public class StandardQuestionController {
                 questionDTO.put("questionType", q.getQuestionType());
                 questionDTO.put("difficulty", q.getDifficulty());
                 questionDTO.put("status", q.getStatus());
+                questionDTO.put("version", q.getVersion());
                 questionDTO.put("createdAt", q.getCreatedAt());
                 questionDTO.put("updatedAt", q.getUpdatedAt());
                 
@@ -170,6 +171,7 @@ public class StandardQuestionController {
                         questionDTO.put("questionType", q.getQuestionType());
                         questionDTO.put("difficulty", q.getDifficulty());
                         questionDTO.put("status", q.getStatus());
+                        questionDTO.put("version", q.getVersion());
                         questionDTO.put("createdAt", q.getCreatedAt());
                         questionDTO.put("updatedAt", q.getUpdatedAt());
                         
@@ -494,6 +496,7 @@ public class StandardQuestionController {
                 questionDTO.put("questionType", q.getQuestionType());
                 questionDTO.put("difficulty", q.getDifficulty());
                 questionDTO.put("status", q.getStatus());
+                questionDTO.put("version", q.getVersion());
                 questionDTO.put("createdAt", q.getCreatedAt());
                 questionDTO.put("updatedAt", q.getUpdatedAt());
                 
@@ -564,6 +567,7 @@ public class StandardQuestionController {
             questionDTO.put("questionType", updatedQuestion.getQuestionType());
             questionDTO.put("difficulty", updatedQuestion.getDifficulty());
             questionDTO.put("status", updatedQuestion.getStatus());
+            questionDTO.put("version", updatedQuestion.getVersion());
             questionDTO.put("createdAt", updatedQuestion.getCreatedAt());
             questionDTO.put("updatedAt", updatedQuestion.getUpdatedAt());
             
