@@ -56,7 +56,19 @@ public class DatasetVersionServiceImpl implements DatasetVersionService {
         DatasetVersion version = datasetVersionRepository.findById(versionId)
                 .orElseThrow(() -> new EntityNotFoundException("Dataset version not found with id: " + versionId));
         
-        return version.getQuestions();
+        // 获取问题集合
+        Set<StandardQuestion> questions = version.getQuestions();
+        
+        // 确保标准答案被加载
+        if (questions != null && !questions.isEmpty()) {
+            // 对每个问题手动加载标准答案
+            for (StandardQuestion question : questions) {
+                // 使用Hibernate.initialize确保集合被加载
+                org.hibernate.Hibernate.initialize(question.getStandardAnswers());
+            }
+        }
+        
+        return questions;
     }
     
     @Override

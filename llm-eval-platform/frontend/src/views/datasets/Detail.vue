@@ -102,47 +102,47 @@
     <el-dialog v-model="addQuestionDialogVisible" title="添加问题" width="85%" top="5vh" class="question-dialog">
       <div class="question-dialog-content">
         <div class="question-search-bar">
-          <el-input
-            v-model="questionSearchKeyword"
-            placeholder="搜索问题"
-            clearable
-            @keyup.enter="searchQuestions">
-            <template #append>
-              <el-button @click="searchQuestions">
-                <el-icon><Search /></el-icon>
-              </el-button>
-            </template>
-          </el-input>
-        </div>
-        
+        <el-input
+          v-model="questionSearchKeyword"
+          placeholder="搜索问题"
+          clearable
+          @keyup.enter="searchQuestions">
+          <template #append>
+            <el-button @click="searchQuestions">
+              <el-icon><Search /></el-icon>
+            </el-button>
+          </template>
+        </el-input>
+      </div>
+      
         <div class="question-filter-bar">
-          <el-select v-model="questionFilter.categoryId" placeholder="分类" clearable>
-            <el-option 
-              v-for="item in categoryOptions" 
-              :key="item.value" 
-              :label="item.label" 
-              :value="item.value">
-            </el-option>
-          </el-select>
-          
-          <el-select v-model="questionFilter.difficulty" placeholder="难度" clearable>
-            <el-option label="简单" value="easy"></el-option>
-            <el-option label="中等" value="medium"></el-option>
-            <el-option label="困难" value="hard"></el-option>
-          </el-select>
-          
-          <el-button type="primary" @click="searchQuestions">筛选</el-button>
-        </div>
+        <el-select v-model="questionFilter.categoryId" placeholder="分类" clearable>
+          <el-option 
+            v-for="item in categoryOptions" 
+            :key="item.value" 
+            :label="item.label" 
+            :value="item.value">
+          </el-option>
+        </el-select>
         
+        <el-select v-model="questionFilter.difficulty" placeholder="难度" clearable>
+          <el-option label="简单" value="easy"></el-option>
+          <el-option label="中等" value="medium"></el-option>
+          <el-option label="困难" value="hard"></el-option>
+        </el-select>
+        
+        <el-button type="primary" @click="searchQuestions">筛选</el-button>
+      </div>
+      
         <div class="question-table-container">
-          <el-table
-            v-loading="questionLoading"
-            :data="availableQuestions"
+      <el-table
+        v-loading="questionLoading"
+        :data="availableQuestions"
             :height="tableHeight"
             border
-            @selection-change="handleSelectionChange">
-            <el-table-column type="selection" width="55"></el-table-column>
-            <el-table-column prop="standardQuestionId" label="ID" width="80"></el-table-column>
+        @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55"></el-table-column>
+        <el-table-column prop="standardQuestionId" label="ID" width="80"></el-table-column>
             <el-table-column prop="question" label="问题内容" min-width="300">
               <template #default="scope">
                 <div class="question-content">{{ scope.row.question }}</div>
@@ -155,20 +155,20 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="difficulty" label="难度" width="100">
-              <template #default="scope">
-                <el-tag :type="getDifficultyTag(scope.row.difficulty)">
-                  {{ formatDifficulty(scope.row.difficulty) }}
-                </el-tag>
-              </template>
-            </el-table-column>
+        <el-table-column prop="difficulty" label="难度" width="100">
+          <template #default="scope">
+            <el-tag :type="getDifficultyTag(scope.row.difficulty)">
+              {{ formatDifficulty(scope.row.difficulty) }}
+            </el-tag>
+          </template>
+        </el-table-column>
             <el-table-column prop="category" label="分类" width="150">
               <template #default="scope">
                 <span v-if="scope.row.category">{{ scope.row.category.categoryName }}</span>
                 <span v-else>无分类</span>
               </template>
             </el-table-column>
-          </el-table>
+      </el-table>
         </div>
         
         <div class="dialog-pagination">
@@ -178,15 +178,15 @@
               (已添加 <span class="highlight-count">{{ questionList.length }}</span> 个)
             </template>
           </div>
-          <el-pagination
-            v-model:current-page="questionQuery.page"
-            v-model:page-size="questionQuery.size"
+        <el-pagination
+          v-model:current-page="questionQuery.page"
+          v-model:page-size="questionQuery.size"
             :page-sizes="[10, 20, 50, 100]"
             layout="total, sizes, prev, pager, next, jumper"
-            :total="questionTotal"
-            @size-change="handleQuestionSizeChange"
-            @current-change="handleQuestionCurrentChange">
-          </el-pagination>
+          :total="questionTotal"
+          @size-change="handleQuestionSizeChange"
+          @current-change="handleQuestionCurrentChange">
+        </el-pagination>
         </div>
       </div>
       
@@ -196,8 +196,8 @@
             已选择 {{ selectedQuestions.length }} 个问题
           </div>
           <div class="dialog-buttons">
-            <el-button @click="addQuestionDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="handleAddQuestions">添加选中问题</el-button>
+          <el-button @click="addQuestionDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleAddQuestions">添加选中问题</el-button>
           </div>
         </span>
       </template>
@@ -291,19 +291,39 @@ const getQuestions = async () => {
     console.log('数据集问题API返回:', res);
     
     if (res && typeof res === 'object' && 'code' in res && res.code === 200) {
+      let questionData = [];
+      
+      // 处理不同格式的返回数据
       if (Array.isArray(res.data)) {
-        questionList.value = res.data;
+        questionData = res.data;
+        console.log('数据格式: 数组，长度:', questionData.length);
       } else if (res.data && typeof res.data === 'object' && 'content' in res.data) {
         // 处理分页返回格式
-        questionList.value = res.data.content || [];
+        questionData = res.data.content || [];
+        console.log('数据格式: 分页对象，内容长度:', questionData.length);
       } else {
-        questionList.value = [];
         console.error('未知的数据集问题返回格式', res.data);
       }
+      
+      // 确保每个问题都有hasStandardAnswer字段
+      questionList.value = questionData.map((q: any) => {
+        // 如果后端已经提供了hasStandardAnswer字段，直接使用
+        if ('hasStandardAnswer' in q) {
+          return q;
+        }
+        
+        // 否则，根据standardAnswers字段判断
+        const hasAnswer = q.standardAnswers && Array.isArray(q.standardAnswers) && q.standardAnswers.length > 0;
+        return {
+          ...q,
+          hasStandardAnswer: hasAnswer
+        };
+      });
       
       // 更新数据集问题总数
       dataset.value.questionCount = questionList.value.length;
       console.log(`数据集问题数量: ${questionList.value.length}`);
+      console.log('问题标准答案状态:', questionList.value.map(q => ({ id: q.standardQuestionId, hasAnswer: q.hasStandardAnswer })));
     } else {
       questionList.value = []
       console.error('获取数据集问题返回数据格式不正确', res)
@@ -561,8 +581,38 @@ const handlePublish = () => {
       await publishDatasetVersion(dataset.value.versionId)
       ElMessage.success('发布成功')
       getDatasetDetail()
-    } catch (error) {
+    } catch (error: any) {
       console.error('发布数据集失败', error)
+      
+      // 处理错误响应
+      let errorMessage = '发布失败，请稍后重试'
+      
+      if (error.response) {
+        console.error('错误状态码:', error.response.status)
+        console.error('错误数据:', error.response.data)
+        
+        // 尝试从响应中提取错误信息
+        if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message
+        }
+      }
+      
+      // 显示错误消息
+      ElMessage.error(errorMessage)
+      
+      // 如果是因为没有问题而失败，提示用户添加问题
+      if (errorMessage.includes('no questions') || errorMessage.includes('没有问题')) {
+        ElMessageBox.alert(
+          '发布失败：数据集中没有问题。请先添加问题后再尝试发布。',
+          '发布失败',
+          {
+            confirmButtonText: '添加问题',
+            callback: () => {
+              showAddQuestionDialog()
+            }
+          }
+        )
+      }
     }
   }).catch(() => {})
 }

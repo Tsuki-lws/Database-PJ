@@ -6,9 +6,9 @@
         <el-button type="primary" @click="refreshList">
           <el-icon><Refresh /></el-icon>刷新
         </el-button>
-        <el-button type="primary" @click="navigateToCreate">
-          <el-icon><Plus /></el-icon>创建数据集
-        </el-button>
+      <el-button type="primary" @click="navigateToCreate">
+        <el-icon><Plus /></el-icon>创建数据集
+      </el-button>
       </div>
     </div>
 
@@ -342,6 +342,23 @@ const handleCurrentChange = (val: number) => {
 
 // 发布数据集
 const handlePublish = (row: any) => {
+  // 检查问题数量
+  if (row.questionCount === 0 || row.questionCount === null || row.questionCount === undefined) {
+    ElMessageBox.alert(
+      '该数据集没有包含任何问题，无法发布。请先添加问题后再尝试发布。',
+      '无法发布',
+      {
+        confirmButtonText: '知道了',
+        type: 'warning',
+        callback: () => {
+          // 导航到详情页以添加问题
+          router.push(`/datasets/detail/${row.versionId}`)
+        }
+      }
+    )
+    return
+  }
+
   ElMessageBox.confirm(
     `确认发布数据集 "${row.name}" 吗？发布后将不可修改。`,
     '发布确认',
@@ -355,8 +372,38 @@ const handlePublish = (row: any) => {
       await publishDatasetVersion(row.versionId)
       ElMessage.success('发布成功')
       getList()
-    } catch (error) {
+    } catch (error: any) {
       console.error('发布数据集失败', error)
+      
+      // 处理错误响应
+      let errorMessage = '发布失败，请稍后重试'
+      
+      if (error.response) {
+        console.error('错误状态码:', error.response.status)
+        console.error('错误数据:', error.response.data)
+        
+        // 尝试从响应中提取错误信息
+        if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message
+        }
+      }
+      
+      // 显示错误消息
+      ElMessage.error(errorMessage)
+      
+      // 如果是因为没有问题而失败，提示用户添加问题
+      if (errorMessage.includes('no questions') || errorMessage.includes('没有问题')) {
+        ElMessageBox.alert(
+          '发布失败：数据集中没有问题。请前往详情页添加问题后再尝试发布。',
+          '发布失败',
+          {
+            confirmButtonText: '前往详情页',
+            callback: () => {
+              router.push(`/datasets/detail/${row.versionId}`)
+            }
+          }
+        )
+      }
     }
   }).catch(() => {})
 }

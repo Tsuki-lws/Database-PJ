@@ -12,8 +12,11 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.HashMap;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/datasets")
@@ -49,11 +52,39 @@ public class DatasetVersionController {
 
     @GetMapping("/{id}/questions")
     @Operation(summary = "获取数据集版本中的问题")
-    public ResponseEntity<Set<com.llm.eval.model.StandardQuestion>> getQuestionsInDatasetVersion(@PathVariable("id") Integer id) {
+    public ResponseEntity<List<Map<String, Object>>> getQuestionsInDatasetVersion(@PathVariable("id") Integer id) {
         try {
             Set<com.llm.eval.model.StandardQuestion> questions = datasetVersionService.getQuestionsInDatasetVersion(id);
-            return ResponseEntity.ok(questions);
+            
+            // 将问题转换为Map并添加hasStandardAnswer字段
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (com.llm.eval.model.StandardQuestion question : questions) {
+                Map<String, Object> questionMap = new HashMap<>();
+                questionMap.put("standardQuestionId", question.getStandardQuestionId());
+                questionMap.put("question", question.getQuestion());
+                questionMap.put("questionType", question.getQuestionType());
+                questionMap.put("difficulty", question.getDifficulty());
+                questionMap.put("status", question.getStatus());
+                
+                // 检查是否有标准答案
+                boolean hasStandardAnswer = question.getStandardAnswers() != null && !question.getStandardAnswers().isEmpty();
+                questionMap.put("hasStandardAnswer", hasStandardAnswer);
+                
+                // 添加分类信息（如果存在）
+                if (question.getCategory() != null) {
+                    Map<String, Object> categoryMap = new HashMap<>();
+                    categoryMap.put("categoryId", question.getCategory().getCategoryId());
+                    categoryMap.put("categoryName", question.getCategory().getName());
+                    questionMap.put("category", categoryMap);
+                }
+                
+                result.add(questionMap);
+            }
+            
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
+            System.err.println("获取数据集问题失败: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.notFound().build();
         }
     }
@@ -135,12 +166,24 @@ public class DatasetVersionController {
 
     @PostMapping("/{id}/publish")
     @Operation(summary = "发布数据集版本")
-    public ResponseEntity<com.llm.eval.model.DatasetVersion> publishDatasetVersion(@PathVariable("id") Integer id) {
+    public ResponseEntity<?> publishDatasetVersion(@PathVariable("id") Integer id) {
         try {
             com.llm.eval.model.DatasetVersion publishedVersion = datasetVersionService.publishDatasetVersion(id);
             return ResponseEntity.ok(publishedVersion);
+        } catch (IllegalStateException e) {
+            // 处理没有问题的情况
+            System.err.println("发布数据集版本失败: " + e.getMessage());
+            java.util.Map<String, Object> errorResponse = new java.util.HashMap<>();
+            errorResponse.put("error", "发布失败");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(null);
+            System.err.println("发布数据集版本失败: " + e.getMessage());
+            e.printStackTrace();
+            java.util.Map<String, Object> errorResponse = new java.util.HashMap<>();
+            errorResponse.put("error", "发布失败");
+            errorResponse.put("message", "服务器内部错误");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 
