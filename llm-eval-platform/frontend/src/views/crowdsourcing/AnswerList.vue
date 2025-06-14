@@ -23,8 +23,12 @@
           <span>{{ task.requiredAnswers }}</span>
         </div>
         <div class="info-item">
-          <span class="label">当前答案数:</span>
-          <span>{{ task.currentAnswers }}</span>
+          <span class="label">已提交答案数:</span>
+          <span>{{ task.submittedAnswerCount || task.currentAnswers || 0 }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">已批准答案数:</span>
+          <span>{{ task.approvedAnswerCount || 0 }}</span>
         </div>
         <div class="info-item">
           <span class="label">创建人:</span>

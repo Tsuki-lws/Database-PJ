@@ -47,7 +47,11 @@
             <el-progress 
               :percentage="calculateProgress(scope.row)" 
               :status="getProgressStatus(scope.row.status)"
-            />
+            >
+              <span>
+                {{ scope.row.submittedAnswerCount || scope.row.currentAnswers || 0 }}/{{ scope.row.requiredAnswers }}
+              </span>
+            </el-progress>
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="180">
@@ -215,7 +219,9 @@ const calculateProgress = (task: any) => {
   if (task.requiredAnswers === 0) {
     return 0
   }
-  const currentAnswers = task.currentAnswers || 0
+  
+  // 使用已提交的答案数量
+  const currentAnswers = task.submittedAnswerCount || task.currentAnswers || 0
   return Math.min(Math.floor((currentAnswers / task.requiredAnswers) * 100), 100)
 }
 

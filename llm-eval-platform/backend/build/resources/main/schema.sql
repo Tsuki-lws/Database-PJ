@@ -628,3 +628,42 @@ BEGIN
     WHERE key_point_id = p_key_point_id;
 END //
 DELIMITER ; 
+
+DELIMITER ; 
+
+-- 添加测试用户数据，预先创建几个用户方便测试
+-- 注意：这里的密码是明文的，实际应用中应当使用加密后的密码
+-- 创建管理员用户
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (1, 'admin', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'admin', 'admin@example.com', '系统管理员');
+
+-- 创建普通用户
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (2, 'user1', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user1@example.com', '普通用户1');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (3, 'user2', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user2@example.com', '普通用户2');
+
+-- 创建专家用户
+INSERT INTO users (user_id, username, password, user_type, email, profile, expertise_areas) 
+VALUES (4, 'expert1', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'expert', 'expert1@example.com', '人工智能专家', 'AI, 机器学习, 深度学习');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile, expertise_areas) 
+VALUES (5, 'expert2', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'expert', 'expert2@example.com', '数据库专家', '数据库, SQL, 数据建模, 性能优化');
+
+-- 创建审核员用户
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (6, 'reviewer1', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'reviewer', 'reviewer1@example.com', '内容审核员');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (7, 'reviewer2', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'reviewer', 'reviewer2@example.com', '质量审核员');
+
+-- 添加更多普通用户
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (8, 'user3', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user3@example.com', '普通用户3');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (9, 'user4', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user4@example.com', '普通用户4');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (10, 'user5', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user5@example.com', '普通用户5');

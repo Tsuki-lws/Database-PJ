@@ -2,6 +2,9 @@ package com.llm.eval.controller;
 
 import com.llm.eval.model.CrowdsourcingAnswer;
 import com.llm.eval.model.CrowdsourcingTask;
+import com.llm.eval.model.CrowdsourcingTaskQuestion;
+import com.llm.eval.repository.CrowdsourcingAnswerRepository;
+import com.llm.eval.repository.CrowdsourcingTaskRepository;
 import com.llm.eval.service.CrowdsourcingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,10 +32,17 @@ import java.util.stream.Collectors;
 public class CrowdsourcingController {
 
     private final CrowdsourcingService crowdsourcingService;
+    private final CrowdsourcingAnswerRepository answerRepository;
+    private final CrowdsourcingTaskRepository taskRepository;
 
     @Autowired
-    public CrowdsourcingController(CrowdsourcingService crowdsourcingService) {
+    public CrowdsourcingController(
+            CrowdsourcingService crowdsourcingService, 
+            CrowdsourcingAnswerRepository answerRepository,
+            CrowdsourcingTaskRepository taskRepository) {
         this.crowdsourcingService = crowdsourcingService;
+        this.answerRepository = answerRepository;
+        this.taskRepository = taskRepository;
     }
 
     // 任务管理
@@ -120,6 +130,10 @@ public class CrowdsourcingController {
                         System.out.println("找到的任务状态列表:");
                         for (CrowdsourcingTask task : tasks.getContent()) {
                             System.out.println("任务ID: " + task.getTaskId() + ", 状态: [" + task.getStatus() + "]");
+                            
+                            // 为每个任务添加已提交的答案数量
+                            long submittedAnswerCount = answerRepository.countByTaskId(task.getTaskId());
+                            task.setCurrentAnswers((int)submittedAnswerCount);
                         }
                     }
                 } catch (IllegalArgumentException e) {
@@ -132,6 +146,10 @@ public class CrowdsourcingController {
                         System.out.println("找到的所有任务状态列表:");
                         for (CrowdsourcingTask task : tasks.getContent()) {
                             System.out.println("任务ID: " + task.getTaskId() + ", 状态: [" + task.getStatus() + "]");
+                            
+                            // 为每个任务添加已提交的答案数量
+                            long submittedAnswerCount = answerRepository.countByTaskId(task.getTaskId());
+                            task.setCurrentAnswers((int)submittedAnswerCount);
                         }
                     }
                 }
@@ -144,6 +162,10 @@ public class CrowdsourcingController {
                     System.out.println("找到的所有任务状态列表:");
                     for (CrowdsourcingTask task : tasks.getContent()) {
                         System.out.println("任务ID: " + task.getTaskId() + ", 状态: [" + task.getStatus() + "]");
+                        
+                        // 为每个任务添加已提交的答案数量
+                        long submittedAnswerCount = answerRepository.countByTaskId(task.getTaskId());
+                        task.setCurrentAnswers((int)submittedAnswerCount);
                     }
                 }
             }
@@ -174,6 +196,37 @@ public class CrowdsourcingController {
                 CrowdsourcingTask task = taskOptional.get();
                 System.out.println("成功获取任务详情: 任务ID=" + task.getTaskId() + ", 标题=" + task.getTitle() + ", 状态=" + task.getStatus());
                 
+                // 获取任务的实际答案数量
+                List<CrowdsourcingTaskQuestion> taskQuestions = crowdsourcingService.getTaskQuestions(id);
+                int totalAnswerCount = 0;
+                
+                if (taskQuestions != null && !taskQuestions.isEmpty()) {
+                    for (CrowdsourcingTaskQuestion question : taskQuestions) {
+                        Integer answerCount = question.getCurrentAnswerCount();
+                        if (answerCount != null) {
+                            totalAnswerCount += answerCount;
+                        }
+                    }
+                    System.out.println("从TaskQuestion计算得出任务答案总数: " + totalAnswerCount);
+                }
+                
+                // 通过count查询获取任务的所有答案数量
+                long submittedAnswerCount = answerRepository.countByTaskId(id);
+                long approvedAnswerCount = answerRepository.countByTaskIdAndStatus(id, CrowdsourcingAnswer.AnswerStatus.APPROVED);
+                
+                System.out.println("任务答案数量统计 - 提交总数: " + submittedAnswerCount + ", 已批准数: " + approvedAnswerCount);
+                
+                // 更新任务的当前答案数量
+                if (task.getCurrentAnswers() == null || task.getCurrentAnswers() != approvedAnswerCount) {
+                    task.setCurrentAnswers((int)approvedAnswerCount);
+                    taskRepository.save(task);
+                    System.out.println("已更新任务的当前答案数量为: " + approvedAnswerCount);
+                }
+                
+                // 更新任务的当前答案数量为已提交的答案总数
+                task.setCurrentAnswers((int)submittedAnswerCount);
+                taskRepository.save(task);
+                
                 // 创建简化的DTO
                 Map<String, Object> result = new HashMap<>();
                 result.put("taskId", task.getTaskId());
@@ -182,6 +235,8 @@ public class CrowdsourcingController {
                 result.put("standardQuestionId", task.getStandardQuestionId());
                 result.put("requiredAnswers", task.getRequiredAnswers());
                 result.put("currentAnswers", task.getCurrentAnswers());
+                result.put("submittedAnswerCount", submittedAnswerCount);
+                result.put("approvedAnswerCount", approvedAnswerCount);
                 result.put("status", task.getStatus().toString());
                 result.put("createdAt", task.getCreatedAt());
                 result.put("updatedAt", task.getUpdatedAt());
@@ -295,12 +350,17 @@ public class CrowdsourcingController {
             com.llm.eval.model.CrowdsourcingTask publishedTask = crowdsourcingService.publishTask(id);
             System.out.println("任务发布成功，任务ID: " + publishedTask.getTaskId());
             
+            // 获取任务的所有答案数量
+            long submittedAnswerCount = answerRepository.countByTaskId(id);
+            
             // 创建简化的DTO
             Map<String, Object> result = new HashMap<>();
             result.put("taskId", publishedTask.getTaskId());
             result.put("title", publishedTask.getTitle());
             result.put("status", publishedTask.getStatus().toString());
             result.put("updatedAt", publishedTask.getUpdatedAt());
+            result.put("submittedAnswerCount", submittedAnswerCount);
+            result.put("requiredAnswers", publishedTask.getRequiredAnswers());
             
             return ResponseEntity.ok(result);
         } catch (Exception e) {
@@ -324,12 +384,17 @@ public class CrowdsourcingController {
             com.llm.eval.model.CrowdsourcingTask completedTask = crowdsourcingService.completeTask(id);
             System.out.println("任务完成成功，任务ID: " + completedTask.getTaskId());
             
+            // 获取任务的所有答案数量
+            long submittedAnswerCount = answerRepository.countByTaskId(id);
+            
             // 创建简化的DTO
             Map<String, Object> result = new HashMap<>();
             result.put("taskId", completedTask.getTaskId());
             result.put("title", completedTask.getTitle());
             result.put("status", completedTask.getStatus().toString());
             result.put("updatedAt", completedTask.getUpdatedAt());
+            result.put("submittedAnswerCount", submittedAnswerCount);
+            result.put("requiredAnswers", completedTask.getRequiredAnswers());
             
             return ResponseEntity.ok(result);
         } catch (Exception e) {

@@ -44,10 +44,10 @@
         <div class="item-value">{{ task.description || '无' }}</div>
       </div>
 
-      <div class="detail-item">
+      <!-- <div class="detail-item">
         <div class="item-label">创建人</div>
         <div class="item-value">{{ task.createdBy }}</div>
-      </div>
+      </div> -->
 
       <div class="detail-item">
         <div class="item-label">所需答案数量</div>
@@ -56,10 +56,15 @@
 
       <div class="detail-item">
         <div class="item-label">当前答案数量</div>
-        <div class="item-value">{{ task.currentAnswers }}</div>
+        <div class="item-value">{{ task.submittedAnswerCount || 0 }}</div>
       </div>
+      
+      <!-- <div class="detail-item">
+        <div class="item-label">已提交答案总数</div>
+        <div class="item-value">{{ task.submittedAnswerCount || 0 }}</div>
+      </div> -->
 
-      <div class="detail-item">
+      <!-- <div class="detail-item">
         <div class="item-label">创建时间</div>
         <div class="item-value">{{ formatDateTime(task.createdAt) }}</div>
       </div>
@@ -67,7 +72,7 @@
       <div class="detail-item">
         <div class="item-label">最后更新时间</div>
         <div class="item-value">{{ formatDateTime(task.updatedAt) }}</div>
-      </div>
+      </div> -->
 
       <div class="detail-item">
         <div class="item-label">完成进度</div>
@@ -75,7 +80,11 @@
           <el-progress 
             :percentage="calculateProgress(task)" 
             :status="getProgressStatus(task.status)"
-          />
+          >
+            <span>
+              {{ task.submittedAnswerCount || task.submittedAnswerCount || 0 }}/{{ task.requiredAnswers }}
+            </span>
+          </el-progress>
         </div>
       </div>
 
@@ -217,7 +226,10 @@ const calculateProgress = (task: any) => {
   if (task.requiredAnswers === 0) {
     return 0
   }
-  return Math.min(Math.floor((task.currentAnswers / task.requiredAnswers) * 100), 100)
+  
+  // 优先使用 approvedAnswerCount，这是已批准的答案数量
+  const currentAnswers = task.submittedAnswerCount || task.submittedAnswerCount || 0
+  return Math.min(Math.floor((currentAnswers / task.requiredAnswers) * 100), 100)
 }
 
 // 获取进度条状态

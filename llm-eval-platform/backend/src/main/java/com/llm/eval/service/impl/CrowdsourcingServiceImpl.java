@@ -119,7 +119,16 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
         
         // 设置初始状态
         task.setStatus(CrowdsourcingTask.TaskStatus.DRAFT);
-        task.setCurrentAnswers(0);
+        
+        // 确保当前答案数量字段不为null
+        if (task.getCurrentAnswers() == null) {
+            task.setCurrentAnswers(0);
+        }
+        
+        // 确保所需答案数量字段不为null
+        if (task.getRequiredAnswers() == null) {
+            task.setRequiredAnswers(3); // 默认值
+        }
         
         // 保存任务
         CrowdsourcingTask savedTask = taskRepository.save(task);
@@ -257,6 +266,21 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
             try {
                 CrowdsourcingAnswer savedAnswer = answerRepository.save(answer);
                 System.out.println("保存答案成功: " + savedAnswer);
+                
+                // 更新相关联的CrowdsourcingTaskQuestion的答案计数
+                List<CrowdsourcingTaskQuestion> taskQuestions = taskQuestionRepository.findByTaskId(task.getTaskId());
+                if (!taskQuestions.isEmpty()) {
+                    for (CrowdsourcingTaskQuestion taskQuestion : taskQuestions) {
+                        if (taskQuestion.getStandardQuestionId().equals(answer.getStandardQuestionId())) {
+                            Integer currentCount = taskQuestion.getCurrentAnswerCount() != null ? 
+                                taskQuestion.getCurrentAnswerCount() : 0;
+                            taskQuestion.setCurrentAnswerCount(currentCount + 1);
+                            taskQuestionRepository.save(taskQuestion);
+                            break;
+                        }
+                    }
+                }
+                
                 return savedAnswer;
             } catch (Exception e) {
                 System.err.println("保存答案时捕获异常: " + e.getClass().getName() + ": " + e.getMessage());
@@ -334,7 +358,9 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
             CrowdsourcingTask task = taskRepository.findById(answer.getTaskId())
                     .orElseThrow(() -> new EntityNotFoundException("众包任务不存在"));
             
-            task.setCurrentAnswers(task.getCurrentAnswers() + 1);
+            // 更新当前答案数量
+            Integer currentAnswers = task.getCurrentAnswers() != null ? task.getCurrentAnswers() : 0;
+            task.setCurrentAnswers(currentAnswers + 1);
             
             // 如果达到所需答案数量，自动完成任务
             if (task.getCurrentAnswers() >= task.getRequiredAnswers()) {
