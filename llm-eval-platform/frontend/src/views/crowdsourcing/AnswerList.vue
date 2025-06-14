@@ -26,10 +26,14 @@
           <span class="label">已提交答案数:</span>
           <span>{{ task.submittedAnswerCount || 0 }}</span>
         </div>
-        <div class="info-item">
+        <!-- <div class="info-item">
           <span class="label">已批准答案数:</span>
           <span>{{ task.approvedAnswerCount || 0 }}</span>
         </div>
+        <div class="info-item">
+          <span class="label">已提交答案数:</span>
+          <span>{{ task.promotedAnswerCount || 0 }}</span>
+        </div> -->
         <div class="info-item" v-if="task.createdBy">
           <span class="label">创建人:</span>
           <span>{{ task.createdBy }}</span>
@@ -632,8 +636,62 @@ const handlePromote = (row: any) => {
     }
   ).then(async () => {
     try {
-      await promoteToStandardAnswer(row.answerId)
-      ElMessage.success('答案已提升为标准答案')
+      console.log(`开始提升答案 ID: ${row.answerId} 为标准答案`)
+      const response = await promoteToStandardAnswer(row.answerId) as any
+      console.log('提升答案响应完整数据(stringify):', JSON.stringify(response, null, 2))
+      console.log('提升答案响应完整数据(原始):', response)
+      
+      // 尝试所有可能的数据结构形式来获取标准答案信息
+      let standardAnswer: any = null
+      
+      // 情况1: response直接就是数据
+      if (response && typeof response === 'object' && response.standardAnswerId) {
+        console.log('情况1: response直接是数据')
+        standardAnswer = response
+      } 
+      // 情况2: response.data中包含数据
+      else if (response && response.data && typeof response.data === 'object' && response.data.standardAnswerId) {
+        console.log('情况2: response.data包含数据')
+        standardAnswer = response.data
+      }
+      // 情况3: 尝试解析JSON字符串
+      else if (typeof response === 'string') {
+        console.log('情况3: 尝试解析JSON字符串')
+        try {
+          const parsed = JSON.parse(response)
+          if (parsed && parsed.standardAnswerId) {
+            standardAnswer = parsed
+          }
+        } catch(e) {
+          console.error('解析响应JSON失败:', e)
+        }
+      }
+      
+      console.log('处理后的标准答案对象:', standardAnswer)
+      
+      if (standardAnswer) {
+        // 检查时间字段
+        console.log('创建时间字段值:', standardAnswer.createdAt)
+        console.log('更新时间字段值:', standardAnswer.updatedAt)
+        
+        // 手动格式化时间
+        let createdTime = '未知'
+        if (standardAnswer.createdAt) {
+          try {
+            createdTime = new Date(standardAnswer.createdAt).toLocaleString()
+            console.log('格式化后的创建时间:', createdTime)
+          } catch (e) {
+            console.error('格式化时间出错:', e)
+          }
+        }
+        
+        const answerId = standardAnswer.standardAnswerId || '未知'
+        ElMessage.success(`答案已提升为标准答案，标准答案ID: ${answerId}，创建时间: ${createdTime}，答案ID: ${row.answerId}，版本: ${standardAnswer.version || '无'}`)
+      } else {
+        console.error('无法获取有效的标准答案数据')
+        ElMessage.success('答案已提升为标准答案')
+      }
+      
       getAnswers() // 刷新答案列表
     } catch (error) {
       console.error('提升答案失败:', error)

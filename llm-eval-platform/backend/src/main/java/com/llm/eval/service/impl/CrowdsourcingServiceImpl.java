@@ -280,6 +280,13 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
                             Integer currentCount = taskQuestion.getCurrentAnswerCount() != null ? 
                                 taskQuestion.getCurrentAnswerCount() : 0;
                             taskQuestion.setCurrentAnswerCount(currentCount + 1);
+                            
+                            // 检查是否达到了所需答案数量，如果达到则将isCompleted设置为true
+                            if (task.getRequiredAnswers() != null && taskQuestion.getCurrentAnswerCount() >= task.getRequiredAnswers()) {
+                                taskQuestion.setIsCompleted(true);
+                                System.out.println("问题ID: " + taskQuestion.getStandardQuestionId() + " 已达到所需答案数量，标记为已完成");
+                            }
+                            
                             taskQuestionRepository.save(taskQuestion);
                             break;
                         }
@@ -378,6 +385,22 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
             }
             
             taskRepository.save(task);
+            
+            // 更新相关联的CrowdsourcingTaskQuestion的答案计数和状态
+            List<CrowdsourcingTaskQuestion> taskQuestions = taskQuestionRepository.findByTaskId(task.getTaskId());
+            if (!taskQuestions.isEmpty()) {
+                for (CrowdsourcingTaskQuestion taskQuestion : taskQuestions) {
+                    if (taskQuestion.getStandardQuestionId().equals(answer.getStandardQuestionId())) {
+                        // 检查是否达到了所需答案数量，如果达到则将isCompleted设置为true
+                        if (task.getRequiredAnswers() != null && taskQuestion.getCurrentAnswerCount() >= task.getRequiredAnswers()) {
+                            taskQuestion.setIsCompleted(true);
+                            System.out.println("审核通过：问题ID: " + taskQuestion.getStandardQuestionId() + " 已达到所需答案数量，标记为已完成");
+                        }
+                        taskQuestionRepository.save(taskQuestion);
+                        break;
+                    }
+                }
+            }
         } else {
             answer.setStatus(CrowdsourcingAnswer.AnswerStatus.REJECTED);
         }
@@ -416,7 +439,27 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
         standardAnswer.setSelectedBy(1); // 管理员ID，实际应用中应该从当前登录用户获取
         standardAnswer.setIsFinal(false); // 默认不是最终答案，需要手动设置
         
+        // 设置创建时间和更新时间 - 确保获取最新时间
+        LocalDateTime now = LocalDateTime.now();
+        System.out.println("获取当前时间: " + now);
+        
+        standardAnswer.setCreatedAt(now);
+        standardAnswer.setUpdatedAt(now);
+        standardAnswer.setVersion(1);
+        
+        System.out.println("设置标准答案时间前检查 - createdAt: " + standardAnswer.getCreatedAt());
+        
+        // 再次更新时间确保最新
+        now = LocalDateTime.now();
+        standardAnswer.setCreatedAt(now);
+        standardAnswer.setUpdatedAt(now);
+        
+        // 保存标准答案
         StandardAnswer savedStandardAnswer = standardAnswerRepository.save(standardAnswer);
+        
+        System.out.println("保存标准答案后检查 - createdAt: " + savedStandardAnswer.getCreatedAt());
+        System.out.println("保存标准答案后检查 - updatedAt: " + savedStandardAnswer.getUpdatedAt());
+        System.out.println("保存标准答案后检查 - version: " + savedStandardAnswer.getVersion());
         
         // 更新众包答案状态
         answer.setStatus(CrowdsourcingAnswer.AnswerStatus.PROMOTED);

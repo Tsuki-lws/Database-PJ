@@ -26,23 +26,22 @@
     <el-card shadow="never" class="list-card">
       <el-table v-loading="loading" :data="taskList" style="width: 100%">
         <el-table-column prop="taskId" label="ID" width="80" />
-        <el-table-column prop="title" label="任务标题" show-overflow-tooltip>
+        <el-table-column prop="title" label="任务标题" min-width="200" show-overflow-tooltip>
           <template #default="scope">
             <el-link type="primary" @click="navigateToDetail(scope.row.taskId)">
               {{ scope.row.title }}
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="standardQuestionId" label="标准问题ID" width="120" />
-        <el-table-column prop="requiredAnswers" label="所需答案" width="100" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="requiredAnswers" label="所需答案" width="120" />
+        <el-table-column prop="status" label="状态" width="120">
           <template #default="scope">
             <el-tag :type="getStatusTag(scope.row.status)">
               {{ formatStatus(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="progress" label="进度" width="200">
+        <el-table-column prop="progress" label="进度" width="220">
           <template #default="scope">
             <el-progress 
               :percentage="calculateProgress(scope.row)" 
@@ -59,7 +58,7 @@
             {{ formatDateTime(scope.row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column fixed="right" label="操作" width="250">
+        <el-table-column fixed="right" label="操作" width="280">
           <template #default="scope">
             <el-button link type="primary" @click="navigateToDetail(scope.row.taskId)">查看</el-button>
             <el-button link type="primary" @click="navigateToAnswers(scope.row.taskId)">查看答案</el-button>
@@ -398,4 +397,4 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
 }
-</style> 
+</style>

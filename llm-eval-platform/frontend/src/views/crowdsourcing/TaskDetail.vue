@@ -114,13 +114,13 @@
         <el-table-column prop="id" label="关联ID" width="100"></el-table-column>
         <el-table-column prop="standardQuestionId" label="问题ID" width="100"></el-table-column>
         <el-table-column prop="currentAnswerCount" label="当前答案数量" width="150"></el-table-column>
-        <el-table-column prop="isCompleted" label="是否完成" width="100">
+        <!-- <el-table-column prop="isCompleted" label="是否完成" width="100">
           <template #default="scope">
             <el-tag :type="scope.row.isCompleted ? 'success' : 'info'">
               {{ scope.row.isCompleted ? '已完成' : '未完成' }}
-            </el-tag>
-          </template>
-        </el-table-column>
+            </el-tag> -->
+          <!-- </template> -->
+        <!-- </el-table-column> -->
         <el-table-column prop="createdAt" label="创建时间">
           <template #default="scope">
             {{ formatDateTime(scope.row.createdAt) }}

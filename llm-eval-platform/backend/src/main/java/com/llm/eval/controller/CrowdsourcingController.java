@@ -5,6 +5,7 @@ import com.llm.eval.model.CrowdsourcingTask;
 import com.llm.eval.model.CrowdsourcingTaskQuestion;
 import com.llm.eval.repository.CrowdsourcingAnswerRepository;
 import com.llm.eval.repository.CrowdsourcingTaskRepository;
+import com.llm.eval.repository.StandardAnswerRepository;
 import com.llm.eval.service.CrowdsourcingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,15 +35,18 @@ public class CrowdsourcingController {
     private final CrowdsourcingService crowdsourcingService;
     private final CrowdsourcingAnswerRepository answerRepository;
     private final CrowdsourcingTaskRepository taskRepository;
+    private final StandardAnswerRepository standardAnswerRepository;
 
     @Autowired
     public CrowdsourcingController(
             CrowdsourcingService crowdsourcingService, 
             CrowdsourcingAnswerRepository answerRepository,
-            CrowdsourcingTaskRepository taskRepository) {
+            CrowdsourcingTaskRepository taskRepository,
+            StandardAnswerRepository standardAnswerRepository) {
         this.crowdsourcingService = crowdsourcingService;
         this.answerRepository = answerRepository;
         this.taskRepository = taskRepository;
+        this.standardAnswerRepository = standardAnswerRepository;
     }
 
     // 任务管理
@@ -740,6 +744,24 @@ public class CrowdsourcingController {
             com.llm.eval.model.StandardAnswer standardAnswer = crowdsourcingService.promoteToStandardAnswer(id);
             System.out.println("答案提升成功，标准答案ID: " + standardAnswer.getStandardAnswerId());
             
+            // 打印时间信息
+            System.out.println("标准答案创建时间: " + standardAnswer.getCreatedAt());
+            System.out.println("标准答案更新时间: " + standardAnswer.getUpdatedAt());
+            System.out.println("标准答案版本: " + standardAnswer.getVersion());
+            
+            // 尝试从数据库再次获取以确保所有字段都已更新
+            try {
+                Optional<com.llm.eval.model.StandardAnswer> refreshedAnswer = 
+                    standardAnswerRepository.findById(standardAnswer.getStandardAnswerId());
+                if (refreshedAnswer.isPresent()) {
+                    standardAnswer = refreshedAnswer.get();
+                    System.out.println("已刷新标准答案数据 - ID: " + standardAnswer.getStandardAnswerId());
+                    System.out.println("刷新后的创建时间: " + standardAnswer.getCreatedAt());
+                }
+            } catch (Exception e) {
+                System.err.println("尝试刷新标准答案数据失败: " + e.getMessage());
+            }
+            
             // 创建简化的DTO
             Map<String, Object> result = new HashMap<>();
             result.put("standardAnswerId", standardAnswer.getStandardAnswerId());
@@ -748,6 +770,9 @@ public class CrowdsourcingController {
             result.put("sourceId", standardAnswer.getSourceId());
             result.put("selectionReason", standardAnswer.getSelectionReason());
             result.put("isFinal", standardAnswer.getIsFinal());
+            result.put("createdAt", standardAnswer.getCreatedAt());
+            result.put("updatedAt", standardAnswer.getUpdatedAt());
+            result.put("version", standardAnswer.getVersion());
             
             // 直接返回创建的标准答案对象
             return ResponseEntity.ok(result);
