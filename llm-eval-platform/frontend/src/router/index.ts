@@ -98,7 +98,7 @@ const router = createRouter({
           component: () => import('../views/crowdsourcing/AnswerList.vue')
         },
         {
-          path: 'crowdsourcing/collection/:taskId',
+          path: 'crowdsourcing/collection/:id',
           name: 'CrowdsourcingCollection',
           component: () => import('../views/crowdsourcing/AnswerCollection.vue')
         },

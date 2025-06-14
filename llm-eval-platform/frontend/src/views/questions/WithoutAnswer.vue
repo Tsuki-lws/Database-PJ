@@ -67,7 +67,7 @@
         <el-table-column fixed="right" label="操作" width="180">
           <template #default="scope">
             <el-button link type="primary" @click="navigateToDetail(scope.row.standardQuestionId)">查看</el-button>
-            <el-button link type="success" @click="navigateToAddAnswer(scope.row.standardQuestionId)">添加答案</el-button>
+            <!-- <el-button link type="success" @click="navigateToAddAnswer(scope.row.standardQuestionId)">添加答案</el-button> -->
           </template>
         </el-table-column>
       </el-table>

@@ -16,17 +16,25 @@ const service = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   config => {
-    // 打印请求信息但不包括大型数据对象
-    const logConfig = { ...config };
-    if (logConfig.data && typeof logConfig.data === 'object') {
-      logConfig.data = '数据对象太大，不打印详情';
+    // 在发送请求之前做些什么
+    console.log(`发送${config.method?.toUpperCase()}请求: ${config.url}`, config.params || {});
+    
+    // 确保page参数是数字类型
+    if (config.params && config.params.page !== undefined) {
+      // 将page参数转换为数字
+      const pageNum = Number(config.params.page);
+      if (!isNaN(pageNum)) {
+        config.params.page = pageNum;
+      }
+      console.log('处理后的page参数:', config.params.page);
     }
-    console.log(`发送${config.method?.toUpperCase()}请求: ${config.url}`);
-    return config
+    
+    return config;
   },
   error => {
-    console.error('请求拦截器错误:', error)
-    return Promise.reject(error)
+    // 对请求错误做些什么
+    console.log(error);
+    return Promise.reject(error);
   }
 )
 

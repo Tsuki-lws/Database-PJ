@@ -1,7 +1,8 @@
 package com.llm.eval.repository;
 
 import com.llm.eval.model.CrowdsourcingTask;
-import com.llm.eval.model.CrowdsourcingTask.TaskStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -19,22 +20,30 @@ public interface CrowdsourcingTaskRepository extends JpaRepository<Crowdsourcing
      * @param status 任务状态
      * @return 任务列表
      */
-    List<CrowdsourcingTask> findByStatus(TaskStatus status);
+    List<CrowdsourcingTask> findByStatus(CrowdsourcingTask.TaskStatus status);
     
     /**
-     * 根据问题ID查询任务
+     * 分页查询任务
      * 
-     * @param questionId 问题ID
+     * @param pageable 分页参数
+     * @return 分页任务列表
+     */
+    Page<CrowdsourcingTask> findAll(Pageable pageable);
+    
+    /**
+     * 根据状态分页查询任务
+     * 
+     * @param status 任务状态
+     * @param pageable 分页参数
+     * @return 分页任务列表
+     */
+    Page<CrowdsourcingTask> findByStatus(CrowdsourcingTask.TaskStatus status, Pageable pageable);
+    
+    /**
+     * 根据创建者查询任务
+     * 
+     * @param createdBy 创建者ID
      * @return 任务列表
      */
-    List<CrowdsourcingTask> findByQuestionId(Integer questionId);
-    
-    /**
-     * 查询某个问题下是否已有进行中的任务
-     * 
-     * @param questionId 问题ID
-     * @param status 任务状态
-     * @return 任务数量
-     */
-    long countByQuestionIdAndStatus(Integer questionId, TaskStatus status);
+    List<CrowdsourcingTask> findByCreatedBy(Integer createdBy);
 } 

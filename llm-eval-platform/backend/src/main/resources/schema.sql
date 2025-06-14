@@ -109,43 +109,48 @@ CREATE TABLE standard_question_tags (
 
 -- 众包任务表（提前创建，解决循环引用问题）
 CREATE TABLE crowdsourcing_tasks (
-    task_id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL COMMENT '任务标题',
-    description TEXT COMMENT '任务描述',
-    task_type ENUM('answer_collection', 'answer_review', 'answer_rating') DEFAULT 'answer_collection' COMMENT '任务类型',
-    creator_id INT NOT NULL COMMENT '创建人ID',
-    question_count INT DEFAULT 0 COMMENT '问题数量',
-    min_answers_per_question INT DEFAULT 1 COMMENT '每个问题最少需要的答案数',
-    reward_info TEXT COMMENT '奖励信息',
-    start_time TIMESTAMP NULL COMMENT '开始时间',
-    end_time TIMESTAMP NULL COMMENT '结束时间',
-    status ENUM('draft', 'ongoing', 'completed', 'cancelled') DEFAULT 'draft',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (creator_id) REFERENCES users(user_id) ON DELETE CASCADE
+                                     task_id INT AUTO_INCREMENT PRIMARY KEY,
+                                     title VARCHAR(255) NOT NULL COMMENT '任务标题',
+                                     description TEXT COMMENT '任务描述',
+                                     task_type ENUM('answer_collection', 'answer_review', 'answer_rating') DEFAULT 'answer_collection' COMMENT '任务类型',
+                                     creator_id INT NOT NULL COMMENT '创建人ID',
+                                     question_count INT DEFAULT 0 COMMENT '问题数量',
+                                     min_answers_per_question INT DEFAULT 1 COMMENT '每个问题最少需要的答案数',
+                                     reward_info TEXT COMMENT '奖励信息',
+                                     start_time TIMESTAMP NULL COMMENT '开始时间',
+                                     end_time TIMESTAMP NULL COMMENT '结束时间',
+                                     status ENUM('DRAFT', 'PUBLISHED', 'COMPLETED', 'CLOSED') DEFAULT 'DRAFT',
+                                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                     FOREIGN KEY (creator_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) COMMENT='众包任务管理';
 
 -- 众包候选答案表
 CREATE TABLE crowdsourced_answers (
-    answer_id INT AUTO_INCREMENT PRIMARY KEY,
-    task_id INT COMMENT '关联的众包任务ID',
-    standard_question_id INT NOT NULL,
-    user_id INT COMMENT '提交答案的用户ID，可以为NULL表示匿名提交',
-    answer_text TEXT NOT NULL COMMENT '候选答案文本',
-    submission_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
-    quality_score DECIMAL(3,1) DEFAULT NULL COMMENT '质量评分(0-10)',
-    review_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' COMMENT '审核状态',
-    reviewer_id INT COMMENT '审核人ID',
-    review_time TIMESTAMP NULL COMMENT '审核时间',
-    review_comment TEXT COMMENT '审核意见',
-    is_selected BOOLEAN DEFAULT FALSE COMMENT '是否被选为标准答案',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at DATETIME NULL COMMENT '软删除标记，非空表示已删除',
-    FOREIGN KEY (task_id) REFERENCES crowdsourcing_tasks(task_id) ON DELETE SET NULL,
-    FOREIGN KEY (standard_question_id) REFERENCES standard_questions(standard_question_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
-    FOREIGN KEY (reviewer_id) REFERENCES users(user_id) ON DELETE SET NULL
+                                      answer_id INT AUTO_INCREMENT PRIMARY KEY,
+                                      task_id INT COMMENT '关联的众包任务ID',
+                                      standard_question_id INT NOT NULL,
+                                      user_id INT COMMENT '提交答案的用户ID，可以为NULL表示匿名提交',
+                                      contributor_name VARCHAR(255) COMMENT '提交人名称',
+                                      contributor_email VARCHAR(255) COMMENT '提交人邮箱',
+                                      occupation VARCHAR(100) COMMENT '职业/身份',
+                                      expertise VARCHAR(255) COMMENT '专业领域',
+                                      answer_text TEXT NOT NULL COMMENT '候选答案文本',
+                                      `references` TEXT COMMENT '参考资料',
+                                      submission_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
+                                      quality_score DECIMAL(3,1) DEFAULT NULL COMMENT '质量评分(0-10)',
+                                      review_status ENUM('SUBMITTED', 'APPROVED', 'REJECTED', 'PROMOTED') DEFAULT 'SUBMITTED' COMMENT '审核状态',
+                                      reviewer_id INT COMMENT '审核人ID',
+                                      review_time TIMESTAMP NULL COMMENT '审核时间',
+                                      review_comment TEXT COMMENT '审核意见',
+                                      is_selected BOOLEAN DEFAULT FALSE COMMENT '是否被选为标准答案',
+                                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                      deleted_at DATETIME NULL COMMENT '软删除标记，非空表示已删除',
+                                      FOREIGN KEY (task_id) REFERENCES crowdsourcing_tasks(task_id) ON DELETE SET NULL,
+                                      FOREIGN KEY (standard_question_id) REFERENCES standard_questions(standard_question_id) ON DELETE CASCADE,
+                                      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+                                      FOREIGN KEY (reviewer_id) REFERENCES users(user_id) ON DELETE SET NULL
 ) COMMENT='众包收集的候选答案';
 
 -- 专家回答表
@@ -623,3 +628,42 @@ BEGIN
     WHERE key_point_id = p_key_point_id;
 END //
 DELIMITER ; 
+
+DELIMITER ; 
+
+-- 添加测试用户数据，预先创建几个用户方便测试
+-- 注意：这里的密码是明文的，实际应用中应当使用加密后的密码
+-- 创建管理员用户
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (1, 'admin', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'admin', 'admin@example.com', '系统管理员');
+
+-- 创建普通用户
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (2, 'user1', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user1@example.com', '普通用户1');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (3, 'user2', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user2@example.com', '普通用户2');
+
+-- 创建专家用户
+INSERT INTO users (user_id, username, password, user_type, email, profile, expertise_areas) 
+VALUES (4, 'expert1', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'expert', 'expert1@example.com', '人工智能专家', 'AI, 机器学习, 深度学习');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile, expertise_areas) 
+VALUES (5, 'expert2', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'expert', 'expert2@example.com', '数据库专家', '数据库, SQL, 数据建模, 性能优化');
+
+-- 创建审核员用户
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (6, 'reviewer1', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'reviewer', 'reviewer1@example.com', '内容审核员');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (7, 'reviewer2', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'reviewer', 'reviewer2@example.com', '质量审核员');
+
+-- 添加更多普通用户
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (8, 'user3', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user3@example.com', '普通用户3');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (9, 'user4', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user4@example.com', '普通用户4');
+
+INSERT INTO users (user_id, username, password, user_type, email, profile) 
+VALUES (10, 'user5', '$2a$10$FgNpFVmHYmeN3zq5Fil/8eC8SvAUDAkpOLFZv.VzcnGkdDQJJvkVe', 'regular', 'user5@example.com', '普通用户5');

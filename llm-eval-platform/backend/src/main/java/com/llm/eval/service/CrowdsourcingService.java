@@ -3,9 +3,12 @@ package com.llm.eval.service;
 import com.llm.eval.model.CrowdsourcingAnswer;
 import com.llm.eval.model.CrowdsourcingTask;
 import com.llm.eval.model.StandardAnswer;
+import com.llm.eval.model.CrowdsourcingTaskQuestion;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
  * 众包服务接口
@@ -22,6 +25,15 @@ public interface CrowdsourcingService {
     List<CrowdsourcingTask> getAllTasks();
     
     /**
+     * 分页获取众包任务
+     * 
+     * @param pageable 分页参数
+     * @param status 任务状态（可选）
+     * @return 分页任务列表
+     */
+    Page<CrowdsourcingTask> getPagedTasks(Pageable pageable, String status);
+    
+    /**
      * 根据ID获取众包任务
      * 
      * @param id 任务ID
@@ -31,6 +43,7 @@ public interface CrowdsourcingService {
     
     /**
      * 创建众包任务
+     * 如果传入了standardQuestionId，会同时创建任务与标准问题的关联
      * 
      * @param task 任务对象
      * @return 创建后的任务对象
@@ -68,6 +81,14 @@ public interface CrowdsourcingService {
      * @return 完成后的任务对象
      */
     CrowdsourcingTask completeTask(Integer id);
+    
+    /**
+     * 获取任务关联的问题
+     * 
+     * @param taskId 任务ID
+     * @return 关联问题列表
+     */
+    List<CrowdsourcingTaskQuestion> getTaskQuestions(Integer taskId);
     
     // 答案管理
     /**

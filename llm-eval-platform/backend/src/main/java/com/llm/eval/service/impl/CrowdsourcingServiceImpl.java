@@ -2,16 +2,21 @@ package com.llm.eval.service.impl;
 
 import com.llm.eval.model.CrowdsourcingAnswer;
 import com.llm.eval.model.CrowdsourcingTask;
+import com.llm.eval.model.CrowdsourcingTaskQuestion;
 import com.llm.eval.model.StandardAnswer;
 import com.llm.eval.model.StandardQuestion;
 import com.llm.eval.repository.CrowdsourcingAnswerRepository;
+import com.llm.eval.repository.CrowdsourcingTaskQuestionRepository;
 import com.llm.eval.repository.CrowdsourcingTaskRepository;
 import com.llm.eval.repository.StandardAnswerRepository;
 import com.llm.eval.repository.StandardQuestionRepository;
 import com.llm.eval.service.CrowdsourcingService;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,25 +30,75 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
 
     private final CrowdsourcingTaskRepository taskRepository;
     private final CrowdsourcingAnswerRepository answerRepository;
-    private final StandardQuestionRepository questionRepository;
+    private final StandardQuestionRepository standardQuestionRepository;
     private final StandardAnswerRepository standardAnswerRepository;
+    private final CrowdsourcingTaskQuestionRepository taskQuestionRepository;
 
     @Autowired
     public CrowdsourcingServiceImpl(
             CrowdsourcingTaskRepository taskRepository,
             CrowdsourcingAnswerRepository answerRepository,
-            StandardQuestionRepository questionRepository,
-            StandardAnswerRepository standardAnswerRepository) {
+            StandardQuestionRepository standardQuestionRepository,
+            StandardAnswerRepository standardAnswerRepository,
+            CrowdsourcingTaskQuestionRepository taskQuestionRepository) {
         this.taskRepository = taskRepository;
         this.answerRepository = answerRepository;
-        this.questionRepository = questionRepository;
+        this.standardQuestionRepository = standardQuestionRepository;
         this.standardAnswerRepository = standardAnswerRepository;
+        this.taskQuestionRepository = taskQuestionRepository;
     }
 
     // 任务管理方法
     @Override
     public List<CrowdsourcingTask> getAllTasks() {
         return taskRepository.findAll();
+    }
+
+    @Override
+    public Page<CrowdsourcingTask> getPagedTasks(Pageable pageable, String status) {
+        if (status != null && !status.isEmpty()) {
+            try {
+                // 将状态转换为大写，以匹配枚举值
+                String upperCaseStatus = status.toUpperCase();
+                System.out.println("服务层 - 尝试转换状态参数: [" + status + "] -> [" + upperCaseStatus + "]");
+                
+                // 验证状态值是否有效
+                CrowdsourcingTask.TaskStatus taskStatus = CrowdsourcingTask.TaskStatus.valueOf(upperCaseStatus);
+                System.out.println("服务层 - 状态参数有效: [" + upperCaseStatus + "]");
+                
+                // 使用转换后的大写状态值进行查询
+                Page<CrowdsourcingTask> result = taskRepository.findByStatus(taskStatus, pageable);
+                System.out.println("服务层 - 按状态[" + upperCaseStatus + "]查询，找到[" + result.getTotalElements() + "]条记录");
+                
+                // 打印找到的任务状态
+                if (result.hasContent()) {
+                    System.out.println("服务层 - 找到的任务状态列表:");
+                    for (CrowdsourcingTask task : result.getContent()) {
+                        System.out.println("服务层 - 任务ID: " + task.getTaskId() + ", 状态: [" + task.getStatus() + "]");
+                    }
+                } else {
+                    System.out.println("服务层 - 未找到任务，尝试直接执行SQL查询检查数据库中的状态值");
+                    // 这里可以添加直接执行SQL查询的代码，但这需要EntityManager注入
+                }
+                
+                return result;
+            } catch (IllegalArgumentException e) {
+                System.err.println("服务层 - 无效的状态值: [" + status + "], 查询所有状态");
+                return taskRepository.findAll(pageable);
+            }
+        }
+        System.out.println("服务层 - 状态参数为空，查询所有状态");
+        Page<CrowdsourcingTask> result = taskRepository.findAll(pageable);
+        
+        // 打印找到的所有任务状态
+        if (result.hasContent()) {
+            System.out.println("服务层 - 找到的所有任务状态列表:");
+            for (CrowdsourcingTask task : result.getContent()) {
+                System.out.println("服务层 - 任务ID: " + task.getTaskId() + ", 状态: [" + task.getStatus() + "]");
+            }
+        }
+        
+        return result;
     }
 
     @Override
@@ -54,48 +109,51 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     @Override
     @Transactional
     public CrowdsourcingTask createTask(CrowdsourcingTask task) {
-        // 设置默认状态和时间
-        task.setStatus(CrowdsourcingTask.TaskStatus.DRAFT);
-        task.setCreatedAt(LocalDateTime.now());
-        task.setUpdatedAt(LocalDateTime.now());
-        task.setReceivedAnswers(0);
-        task.setApprovedAnswers(0);
-        
-        // 验证问题是否存在
-        if (!questionRepository.existsById(task.getQuestionId())) {
-            throw new IllegalArgumentException("问题不存在: " + task.getQuestionId());
+        // 验证标准问题是否存在
+        if (task.getStandardQuestionId() != null) {
+            standardQuestionRepository.findById(task.getStandardQuestionId())
+                    .orElseThrow(() -> new EntityNotFoundException("标准问题不存在，ID: " + task.getStandardQuestionId()));
+        } else {
+            throw new IllegalArgumentException("创建任务时必须指定标准问题ID");
         }
         
-        return taskRepository.save(task);
+        // 设置初始状态
+        task.setStatus(CrowdsourcingTask.TaskStatus.DRAFT);
+        task.setCurrentAnswers(0);
+        
+        // 保存任务
+        CrowdsourcingTask savedTask = taskRepository.save(task);
+        
+        // 创建任务-问题关联
+        CrowdsourcingTaskQuestion taskQuestion = new CrowdsourcingTaskQuestion();
+        taskQuestion.setTaskId(savedTask.getTaskId());
+        taskQuestion.setStandardQuestionId(task.getStandardQuestionId());
+        taskQuestion.setCurrentAnswerCount(0);
+        taskQuestion.setIsCompleted(false);
+        
+        taskQuestionRepository.save(taskQuestion);
+        
+        return savedTask;
     }
 
     @Override
     @Transactional
     public CrowdsourcingTask updateTask(Integer id, CrowdsourcingTask task) {
         CrowdsourcingTask existingTask = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("众包任务不存在，ID: " + id));
         
-        // 已发布的任务只能更新部分字段
+        // 只允许在草稿状态下修改关键属性
         if (existingTask.getStatus() != CrowdsourcingTask.TaskStatus.DRAFT) {
-            // 只更新描述和所需答案数量
-            existingTask.setDescription(task.getDescription());
-            existingTask.setRequiredAnswers(task.getRequiredAnswers());
-        } else {
-            // 草稿状态可以更新所有字段
-            existingTask.setTitle(task.getTitle());
-            existingTask.setDescription(task.getDescription());
-            existingTask.setRequiredAnswers(task.getRequiredAnswers());
-            
-            // 如果更改了问题ID，需要验证问题是否存在
-            if (!existingTask.getQuestionId().equals(task.getQuestionId())) {
-                if (!questionRepository.existsById(task.getQuestionId())) {
-                    throw new IllegalArgumentException("问题不存在: " + task.getQuestionId());
-                }
-                existingTask.setQuestionId(task.getQuestionId());
+            if (existingTask.getRequiredAnswers() < task.getRequiredAnswers()) {
+                throw new IllegalStateException("已发布的任务只能减少所需答案数量，不能增加");
             }
         }
         
-        existingTask.setUpdatedAt(LocalDateTime.now());
+        // 更新属性
+        existingTask.setTitle(task.getTitle());
+        existingTask.setDescription(task.getDescription());
+        existingTask.setRequiredAnswers(task.getRequiredAnswers());
+        
         return taskRepository.save(existingTask);
     }
 
@@ -103,11 +161,11 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     @Transactional
     public void deleteTask(Integer id) {
         CrowdsourcingTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("众包任务不存在，ID: " + id));
         
-        // 只能删除草稿状态的任务
-        if (task.getStatus() != CrowdsourcingTask.TaskStatus.DRAFT) {
-            throw new IllegalStateException("只能删除草稿状态的任务");
+        // 如果任务已发布且有答案，不允许删除
+        if (task.getStatus() != CrowdsourcingTask.TaskStatus.DRAFT && task.getCurrentAnswers() > 0) {
+            throw new IllegalStateException("已有答案的任务不能删除，请考虑关闭任务");
         }
         
         taskRepository.deleteById(id);
@@ -117,7 +175,7 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     @Transactional
     public CrowdsourcingTask publishTask(Integer id) {
         CrowdsourcingTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("众包任务不存在，ID: " + id));
         
         // 只能发布草稿状态的任务
         if (task.getStatus() != CrowdsourcingTask.TaskStatus.DRAFT) {
@@ -125,9 +183,6 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
         }
         
         task.setStatus(CrowdsourcingTask.TaskStatus.PUBLISHED);
-        task.setPublishedAt(LocalDateTime.now());
-        task.setUpdatedAt(LocalDateTime.now());
-        
         return taskRepository.save(task);
     }
 
@@ -135,7 +190,7 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     @Transactional
     public CrowdsourcingTask completeTask(Integer id) {
         CrowdsourcingTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("众包任务不存在，ID: " + id));
         
         // 只能完成已发布的任务
         if (task.getStatus() != CrowdsourcingTask.TaskStatus.PUBLISHED) {
@@ -143,9 +198,6 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
         }
         
         task.setStatus(CrowdsourcingTask.TaskStatus.COMPLETED);
-        task.setCompletedAt(LocalDateTime.now());
-        task.setUpdatedAt(LocalDateTime.now());
-        
         return taskRepository.save(task);
     }
 
@@ -168,44 +220,87 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     @Override
     @Transactional
     public CrowdsourcingAnswer submitAnswer(CrowdsourcingAnswer answer) {
-        // 验证任务是否存在并且处于已发布状态
-        CrowdsourcingTask task = taskRepository.findById(answer.getTaskId())
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + answer.getTaskId()));
+        System.out.println("Service层处理提交答案: " + answer);
         
-        if (task.getStatus() != CrowdsourcingTask.TaskStatus.PUBLISHED) {
-            throw new IllegalStateException("只能为已发布的任务提交答案");
+        if (answer == null) {
+            throw new IllegalArgumentException("答案对象不能为null");
         }
         
-        // 设置默认值
-        answer.setCreatedAt(LocalDateTime.now());
-        answer.setUpdatedAt(LocalDateTime.now());
-        answer.setReviewStatus(CrowdsourcingAnswer.ReviewStatus.PENDING);
-        answer.setPromotedToStandard(false);
+        if (answer.getTaskId() == null) {
+            throw new IllegalArgumentException("任务ID不能为null");
+        }
         
-        // 保存答案
-        CrowdsourcingAnswer savedAnswer = answerRepository.save(answer);
-        
-        // 更新任务的已收到答案数量
-        task.setReceivedAnswers(task.getReceivedAnswers() + 1);
-        task.setUpdatedAt(LocalDateTime.now());
-        taskRepository.save(task);
-        
-        return savedAnswer;
+        // 验证任务是否存在
+        try {
+            CrowdsourcingTask task = taskRepository.findById(answer.getTaskId())
+                    .orElseThrow(() -> new EntityNotFoundException("众包任务不存在，ID: " + answer.getTaskId()));
+            
+            // 验证任务状态
+            if (task.getStatus() != CrowdsourcingTask.TaskStatus.PUBLISHED) {
+                throw new IllegalStateException("只能为已发布的任务提交答案");
+            }
+            
+            // 设置初始状态
+            answer.setStatus(CrowdsourcingAnswer.AnswerStatus.SUBMITTED);
+            
+            // 确保task关联对象为null，避免序列化问题
+            answer.setTask(null);
+            
+            // 检查references字段是否有特殊处理需求
+            if (answer.getReferences() != null) {
+                // 打印引用字段的实际内容
+                System.out.println("引用字段内容: [" + answer.getReferences() + "]");
+            }
+            
+            System.out.println("保存答案前: " + answer);
+            
+            try {
+                CrowdsourcingAnswer savedAnswer = answerRepository.save(answer);
+                System.out.println("保存答案成功: " + savedAnswer);
+                return savedAnswer;
+            } catch (Exception e) {
+                System.err.println("保存答案时捕获异常: " + e.getClass().getName() + ": " + e.getMessage());
+                
+                // 获取并打印根本原因
+                Throwable rootCause = e;
+                while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+                    rootCause = rootCause.getCause();
+                }
+                System.err.println("根本原因: " + rootCause.getClass().getName() + ": " + rootCause.getMessage());
+                
+                if (rootCause.getMessage() != null && rootCause.getMessage().contains("references")) {
+                    System.err.println("似乎是由于'references'字段导致的SQL错误，这是MySQL的保留字");
+                }
+                
+                throw e;
+            }
+        } catch (Exception e) {
+            System.err.println("提交答案时发生异常: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @Override
     @Transactional
     public CrowdsourcingAnswer updateAnswer(Integer id, CrowdsourcingAnswer answer) {
         CrowdsourcingAnswer existingAnswer = answerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("答案不存在: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("众包答案不存在，ID: " + id));
         
-        // 只能更新未审核的答案
-        if (existingAnswer.getReviewStatus() != CrowdsourcingAnswer.ReviewStatus.PENDING) {
-            throw new IllegalStateException("只能更新未审核的答案");
+        // 只允许更新未审核的答案
+        if (existingAnswer.getStatus() != CrowdsourcingAnswer.AnswerStatus.SUBMITTED) {
+            throw new IllegalStateException("已审核的答案不能修改");
         }
         
-        existingAnswer.setContent(answer.getContent());
-        existingAnswer.setUpdatedAt(LocalDateTime.now());
+        // 不允许修改任务ID
+        if (!existingAnswer.getTaskId().equals(answer.getTaskId())) {
+            throw new IllegalStateException("不能修改答案所属的任务");
+        }
+        
+        // 更新属性
+        existingAnswer.setAnswerText(answer.getAnswerText());
+        existingAnswer.setContributorName(answer.getContributorName());
+        existingAnswer.setContributorEmail(answer.getContributorEmail());
         
         return answerRepository.save(existingAnswer);
     }
@@ -214,22 +309,13 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     @Transactional
     public void deleteAnswer(Integer id) {
         CrowdsourcingAnswer answer = answerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("答案不存在: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("众包答案不存在，ID: " + id));
         
-        // 只能删除未审核的答案
-        if (answer.getReviewStatus() != CrowdsourcingAnswer.ReviewStatus.PENDING) {
-            throw new IllegalStateException("只能删除未审核的答案");
+        // 如果答案已审核，不允许删除
+        if (answer.getStatus() != CrowdsourcingAnswer.AnswerStatus.SUBMITTED) {
+            throw new IllegalStateException("已审核的答案不能删除");
         }
         
-        // 更新任务的已收到答案数量
-        CrowdsourcingTask task = taskRepository.findById(answer.getTaskId())
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + answer.getTaskId()));
-        
-        task.setReceivedAnswers(task.getReceivedAnswers() - 1);
-        task.setUpdatedAt(LocalDateTime.now());
-        taskRepository.save(task);
-        
-        // 删除答案
         answerRepository.deleteById(id);
     }
 
@@ -238,30 +324,30 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     @Transactional
     public CrowdsourcingAnswer reviewAnswer(Integer id, Boolean approved, String comment) {
         CrowdsourcingAnswer answer = answerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("答案不存在: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("众包答案不存在，ID: " + id));
         
-        // 只能审核未审核的答案
-        if (answer.getReviewStatus() != CrowdsourcingAnswer.ReviewStatus.PENDING) {
-            throw new IllegalStateException("答案已经被审核");
-        }
-        
-        // 设置审核结果
-        answer.setReviewStatus(approved ? 
-                CrowdsourcingAnswer.ReviewStatus.APPROVED : 
-                CrowdsourcingAnswer.ReviewStatus.REJECTED);
-        answer.setReviewComment(comment);
-        answer.setReviewedAt(LocalDateTime.now());
-        answer.setUpdatedAt(LocalDateTime.now());
-        
-        // 如果通过审核，更新任务的已通过审核答案数量
+        // 设置审核状态
         if (approved) {
-            CrowdsourcingTask task = taskRepository.findById(answer.getTaskId())
-                    .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + answer.getTaskId()));
+            answer.setStatus(CrowdsourcingAnswer.AnswerStatus.APPROVED);
             
-            task.setApprovedAnswers(task.getApprovedAnswers() + 1);
-            task.setUpdatedAt(LocalDateTime.now());
+            // 更新任务的已批准答案数量
+            CrowdsourcingTask task = taskRepository.findById(answer.getTaskId())
+                    .orElseThrow(() -> new EntityNotFoundException("众包任务不存在"));
+            
+            task.setCurrentAnswers(task.getCurrentAnswers() + 1);
+            
+            // 如果达到所需答案数量，自动完成任务
+            if (task.getCurrentAnswers() >= task.getRequiredAnswers()) {
+                task.setStatus(CrowdsourcingTask.TaskStatus.COMPLETED);
+            }
+            
             taskRepository.save(task);
+        } else {
+            answer.setStatus(CrowdsourcingAnswer.AnswerStatus.REJECTED);
         }
+        
+        // 设置审核信息
+        answer.setReviewComment(comment);
         
         return answerRepository.save(answer);
     }
@@ -269,44 +355,52 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     @Override
     @Transactional
     public StandardAnswer promoteToStandardAnswer(Integer id) {
+        // 获取众包答案
         CrowdsourcingAnswer answer = answerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("答案不存在: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("众包答案不存在，ID: " + id));
         
-        // 只能提升已通过审核的答案
-        if (answer.getReviewStatus() != CrowdsourcingAnswer.ReviewStatus.APPROVED) {
-            throw new IllegalStateException("只能提升已通过审核的答案");
+        // 验证答案是否已批准
+        if (answer.getStatus() != CrowdsourcingAnswer.AnswerStatus.APPROVED) {
+            throw new IllegalStateException("只有已批准的众包答案才能提升为标准答案");
         }
         
-        // 如果已经提升过，不能重复提升
-        if (answer.getPromotedToStandard()) {
-            throw new IllegalStateException("答案已经被提升为标准答案");
-        }
-        
-        // 获取关联的问题
-        CrowdsourcingTask task = taskRepository.findById(answer.getTaskId())
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + answer.getTaskId()));
-        
-        StandardQuestion question = questionRepository.findById(task.getQuestionId())
-                .orElseThrow(() -> new IllegalArgumentException("问题不存在: " + task.getQuestionId()));
+        // 获取对应的标准问题
+        StandardQuestion question = standardQuestionRepository.findById(answer.getStandardQuestionId())
+                .orElseThrow(() -> new EntityNotFoundException("标准问题不存在"));
         
         // 创建标准答案
         StandardAnswer standardAnswer = new StandardAnswer();
+        // 设置关联的标准问题
         standardAnswer.setStandardQuestion(question);
-        standardAnswer.setAnswer(answer.getContent());
+        standardAnswer.setAnswer(answer.getAnswerText());
+        // 设置来源类型和ID
         standardAnswer.setSourceType(StandardAnswer.SourceType.crowdsourced);
-        standardAnswer.setSourceId(answer.getId());
-        standardAnswer.setIsFinal(false);
-        standardAnswer.setCreatedAt(LocalDateTime.now());
-        standardAnswer.setUpdatedAt(LocalDateTime.now());
+        standardAnswer.setSourceId(answer.getAnswerId());
+        standardAnswer.setSelectionReason("从众包答案提升");
+        standardAnswer.setSelectedBy(1); // 管理员ID，实际应用中应该从当前登录用户获取
+        standardAnswer.setIsFinal(false); // 默认不是最终答案，需要手动设置
         
         StandardAnswer savedStandardAnswer = standardAnswerRepository.save(standardAnswer);
         
         // 更新众包答案状态
-        answer.setPromotedToStandard(true);
-        answer.setPromotedAt(LocalDateTime.now());
-        answer.setUpdatedAt(LocalDateTime.now());
+        answer.setStatus(CrowdsourcingAnswer.AnswerStatus.PROMOTED);
         answerRepository.save(answer);
         
         return savedStandardAnswer;
+    }
+
+    // 添加根据创建者ID查询任务的方法
+    public List<CrowdsourcingTask> getTasksByCreatedBy(Integer createdBy) {
+        return taskRepository.findByCreatedBy(createdBy);
+    }
+
+    @Override
+    public List<CrowdsourcingTaskQuestion> getTaskQuestions(Integer taskId) {
+        // 验证任务是否存在
+        if (!taskRepository.existsById(taskId)) {
+            throw new EntityNotFoundException("众包任务不存在，ID: " + taskId);
+        }
+        
+        return taskQuestionRepository.findByTaskId(taskId);
     }
 } 

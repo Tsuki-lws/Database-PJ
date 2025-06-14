@@ -33,14 +33,8 @@
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="taskType" label="任务类型" width="120">
-          <template #default="scope">
-            <el-tag :type="getTaskTypeTag(scope.row.taskType)">
-              {{ formatTaskType(scope.row.taskType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="questionCount" label="问题数量" width="100" />
+        <el-table-column prop="standardQuestionId" label="标准问题ID" width="120" />
+        <el-table-column prop="requiredAnswers" label="所需答案" width="100" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="scope">
             <el-tag :type="getStatusTag(scope.row.status)">
@@ -56,13 +50,17 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
+        <el-table-column prop="createdAt" label="创建时间" width="180">
+          <template #default="scope">
+            {{ formatDateTime(scope.row.createdAt) }}
+          </template>
+        </el-table-column>
         <el-table-column fixed="right" label="操作" width="250">
           <template #default="scope">
             <el-button link type="primary" @click="navigateToDetail(scope.row.taskId)">查看</el-button>
             <el-button link type="primary" @click="navigateToAnswers(scope.row.taskId)">查看答案</el-button>
             <el-button 
-              v-if="scope.row.status === 'ongoing'"
+              v-if="scope.row.status === 'PUBLISHED'"
               link 
               type="success" 
               @click="navigateToCollection(scope.row.taskId)"
@@ -70,7 +68,7 @@
               参与收集
             </el-button>
             <el-button 
-              v-if="scope.row.status === 'draft'" 
+              v-if="scope.row.status === 'DRAFT'" 
               link 
               type="success" 
               @click="handlePublish(scope.row)"
@@ -78,7 +76,7 @@
               发布
             </el-button>
             <el-button 
-              v-if="scope.row.status === 'ongoing'" 
+              v-if="scope.row.status === 'PUBLISHED'" 
               link 
               type="warning" 
               @click="handleComplete(scope.row)"
@@ -86,7 +84,7 @@
               完成
             </el-button>
             <el-button 
-              v-if="scope.row.status === 'draft'" 
+              v-if="scope.row.status === 'DRAFT'" 
               link 
               type="danger" 
               @click="handleDelete(scope.row)"
@@ -118,69 +116,82 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getTaskList, updateTaskStatus } from '@/api/crowdsourcing'
+import { getPagedTaskList, publishTask, completeTask, deleteTask } from '@/api/crowdsourcing'
+import type { PageResult, QueryParams } from '@/api/crowdsourcing'
 
 const router = useRouter()
 const loading = ref(false)
-const taskList = ref([])
+const taskList = ref<any[]>([])
 const total = ref(0)
 
 // 查询参数
-const queryParams = reactive({
+const queryParams = reactive<QueryParams>({
   page: 1,
   size: 10,
-  status: undefined
+  status: undefined,
+  sort: 'taskId',
+  direction: 'DESC'
 })
 
 // 状态选项
 const statusOptions = [
-  { value: 'draft', label: '草稿' },
-  { value: 'ongoing', label: '进行中' },
-  { value: 'completed', label: '已完成' },
-  { value: 'cancelled', label: '已取消' }
+  { value: 'DRAFT', label: '草稿' },
+  { value: 'PUBLISHED', label: '已发布' },
+  { value: 'COMPLETED', label: '已完成' },
+  { value: 'CLOSED', label: '已关闭' }
 ]
 
 // 获取任务列表
 const getList = async () => {
   loading.value = true
+  taskList.value = []
+  total.value = 0
+  
   try {
-    const res = await getTaskList(queryParams)
-    taskList.value = res.list || []
-    total.value = res.total || 0
+    console.log('开始获取任务列表，当前查询参数:', queryParams)
+    
+    // 构建请求参数，确保参数类型正确
+    const params: Record<string, any> = {
+      page: Number(queryParams.page) - 1, // 前端页码从1开始，后端从0开始，需要转换
+      size: Number(queryParams.size)
+    }
+    
+    // 只有当状态不为空时才添加状态参数
+    if (queryParams.status) {
+      params.status = queryParams.status
+    }
+    
+    console.log('发送请求参数:', params)
+    
+    // 发送请求
+    const response = await getPagedTaskList(params as QueryParams)
+    console.log('获取任务列表响应:', response)
+    
+    // 处理响应数据 - 后端已修改，不再有多余的包装层
+    if (response && response.data) {
+      // 直接处理分页数据
+      taskList.value = response.data.content || []
+      total.value = response.data.totalElements || 0
+      console.log(`成功获取任务列表，共 ${total.value} 条记录`)
+    } else {
+      console.error('响应数据格式不符合预期:', response)
+      ElMessage.error('获取任务列表失败：响应数据格式不正确')
+    }
   } catch (error) {
-    console.error('获取任务列表失败', error)
+    console.error('获取任务列表失败:', error)
+    ElMessage.error('获取任务列表失败，请查看控制台了解详情')
   } finally {
     loading.value = false
   }
 }
 
-// 格式化任务类型
-const formatTaskType = (type: string) => {
-  const map: Record<string, string> = {
-    'answer_collection': '答案收集',
-    'answer_review': '答案审核',
-    'answer_rating': '答案评分'
-  }
-  return map[type] || type
-}
-
-// 获取任务类型标签类型
-const getTaskTypeTag = (type: string) => {
-  const map: Record<string, string> = {
-    'answer_collection': 'primary',
-    'answer_review': 'success',
-    'answer_rating': 'warning'
-  }
-  return map[type] || ''
-}
-
 // 格式化状态
 const formatStatus = (status: string) => {
   const map: Record<string, string> = {
-    'draft': '草稿',
-    'ongoing': '进行中',
-    'completed': '已完成',
-    'cancelled': '已取消'
+    'DRAFT': '草稿',
+    'PUBLISHED': '已发布',
+    'COMPLETED': '已完成',
+    'CLOSED': '已关闭'
   }
   return map[status] || status
 }
@@ -188,34 +199,42 @@ const formatStatus = (status: string) => {
 // 获取状态标签类型
 const getStatusTag = (status: string) => {
   const map: Record<string, string> = {
-    'draft': 'info',
-    'ongoing': 'primary',
-    'completed': 'success',
-    'cancelled': 'danger'
+    'DRAFT': 'info',
+    'PUBLISHED': 'primary',
+    'COMPLETED': 'success',
+    'CLOSED': 'danger'
   }
   return map[status] || ''
 }
 
 // 计算进度
 const calculateProgress = (task: any) => {
-  if (task.status === 'completed') {
+  if (task.status === 'COMPLETED' || task.status === 'CLOSED') {
     return 100
   }
   if (task.requiredAnswers === 0) {
     return 0
   }
-  return Math.min(Math.floor((task.receivedAnswers / task.requiredAnswers) * 100), 100)
+  const currentAnswers = task.currentAnswers || 0
+  return Math.min(Math.floor((currentAnswers / task.requiredAnswers) * 100), 100)
 }
 
 // 获取进度条状态
 const getProgressStatus = (status: string) => {
   const map: Record<string, string> = {
-    'draft': '',
-    'ongoing': 'primary',
-    'completed': 'success',
-    'cancelled': 'exception'
+    'DRAFT': '',
+    'PUBLISHED': 'primary',
+    'COMPLETED': 'success',
+    'CLOSED': 'exception'
   }
   return map[status] || ''
+}
+
+// 格式化日期时间
+const formatDateTime = (dateTimeStr: string) => {
+  if (!dateTimeStr) return '';
+  const date = new Date(dateTimeStr);
+  return date.toLocaleString();
 }
 
 // 搜索
@@ -227,7 +246,11 @@ const handleSearch = () => {
 // 重置查询条件
 const resetQuery = () => {
   queryParams.status = undefined
-  handleSearch()
+  queryParams.page = 1
+  queryParams.size = 10
+  queryParams.sort = 'taskId'
+  queryParams.direction = 'DESC'
+  getList()
 }
 
 // 每页数量变化
@@ -254,11 +277,12 @@ const handlePublish = (row: any) => {
     }
   ).then(async () => {
     try {
-      await updateTaskStatus(row.taskId, 'ongoing')
-      ElMessage.success('发布成功')
+      await publishTask(row.taskId)
+      ElMessage.success('任务发布成功')
       getList()
     } catch (error) {
       console.error('发布任务失败', error)
+      ElMessage.error('发布失败，请重试')
     }
   }).catch(() => {})
 }
@@ -266,7 +290,7 @@ const handlePublish = (row: any) => {
 // 完成任务
 const handleComplete = (row: any) => {
   ElMessageBox.confirm(
-    `确认完成任务 "${row.title}" 吗？`,
+    `确认完成任务 "${row.title}" 吗？完成后将不再接受新的答案。`,
     '完成确认',
     {
       confirmButtonText: '确认',
@@ -275,11 +299,12 @@ const handleComplete = (row: any) => {
     }
   ).then(async () => {
     try {
-      await updateTaskStatus(row.taskId, 'completed')
+      await completeTask(row.taskId)
       ElMessage.success('任务已完成')
       getList()
     } catch (error) {
       console.error('完成任务失败', error)
+      ElMessage.error('操作失败，请重试')
     }
   }).catch(() => {})
 }
@@ -287,7 +312,7 @@ const handleComplete = (row: any) => {
 // 删除任务
 const handleDelete = (row: any) => {
   ElMessageBox.confirm(
-    `确认删除任务 "${row.title}" 吗？`,
+    `确认删除任务 "${row.title}" 吗？此操作不可逆。`,
     '删除确认',
     {
       confirmButtonText: '确认',
@@ -296,32 +321,36 @@ const handleDelete = (row: any) => {
     }
   ).then(async () => {
     try {
-      // 这里应该调用删除API
-      ElMessage.success('删除成功')
+      await deleteTask(row.taskId)
+      ElMessage.success('任务删除成功')
       getList()
     } catch (error) {
       console.error('删除任务失败', error)
+      ElMessage.error('删除失败，请重试')
     }
   }).catch(() => {})
 }
 
-// 导航到创建页面
+// 页面导航
 const navigateToCreate = () => {
   router.push('/crowdsourcing/create')
 }
 
-// 导航到详情页面
 const navigateToDetail = (id: number) => {
   router.push(`/crowdsourcing/detail/${id}`)
 }
 
-// 导航到答案列表页面
 const navigateToAnswers = (id: number) => {
   router.push(`/crowdsourcing/answers/${id}`)
 }
 
-// 导航到收集页面
 const navigateToCollection = (id: number) => {
+  console.log('跳转到收集页面，任务ID:', id)
+  if (!id || isNaN(id)) {
+    console.error('无效的任务ID:', id)
+    ElMessage.error('无效的任务ID，无法跳转')
+    return
+  }
   router.push(`/crowdsourcing/collection/${id}`)
 }
 
@@ -346,13 +375,9 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.list-card {
-  margin-bottom: 20px;
-}
-
 .pagination-container {
+  margin-top: 20px;
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
 }
 </style> 

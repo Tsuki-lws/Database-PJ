@@ -1,7 +1,6 @@
 package com.llm.eval.repository;
 
 import com.llm.eval.model.CrowdsourcingAnswer;
-import com.llm.eval.model.CrowdsourcingAnswer.ReviewStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -25,33 +24,49 @@ public interface CrowdsourcingAnswerRepository extends JpaRepository<Crowdsourci
      * 根据任务ID和审核状态查询答案
      * 
      * @param taskId 任务ID
-     * @param reviewStatus 审核状态
+     * @param status 答案状态
      * @return 答案列表
      */
-    List<CrowdsourcingAnswer> findByTaskIdAndReviewStatus(Integer taskId, ReviewStatus reviewStatus);
+    List<CrowdsourcingAnswer> findByTaskIdAndStatus(Integer taskId, CrowdsourcingAnswer.AnswerStatus status);
     
     /**
-     * 统计特定审核状态的答案数量
+     * 根据状态查询答案
      * 
-     * @param reviewStatus 审核状态
-     * @return 答案数量
+     * @param status 答案状态
+     * @return 答案列表
      */
-    long countByReviewStatus(ReviewStatus reviewStatus);
+    List<CrowdsourcingAnswer> findByStatus(CrowdsourcingAnswer.AnswerStatus status);
     
     /**
-     * 查询某个任务下特定审核状态的答案数量
+     * 根据贡献者姓名查询答案
+     * 
+     * @param contributorName 贡献者姓名
+     * @return 答案列表
+     */
+    List<CrowdsourcingAnswer> findByContributorName(String contributorName);
+    
+    /**
+     * 统计任务的答案总数
      * 
      * @param taskId 任务ID
-     * @param reviewStatus 审核状态
      * @return 答案数量
      */
-    long countByTaskIdAndReviewStatus(Integer taskId, ReviewStatus reviewStatus);
+    long countByTaskId(Integer taskId);
     
     /**
-     * 查询是否已经提升为标准答案的答案列表
+     * 统计特定状态的答案数量
      * 
-     * @param promotedToStandard 是否已提升为标准答案
-     * @return 答案列表
+     * @param status 答案状态
+     * @return 答案数量
      */
-    List<CrowdsourcingAnswer> findByPromotedToStandard(Boolean promotedToStandard);
+    long countByStatus(CrowdsourcingAnswer.AnswerStatus status);
+    
+    /**
+     * 统计特定任务下特定状态的答案数量
+     * 
+     * @param taskId 任务ID
+     * @param status 答案状态
+     * @return 答案数量
+     */
+    long countByTaskIdAndStatus(Integer taskId, CrowdsourcingAnswer.AnswerStatus status);
 } 

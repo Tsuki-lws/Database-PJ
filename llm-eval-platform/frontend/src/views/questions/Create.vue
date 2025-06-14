@@ -147,6 +147,14 @@ const getCategories = async () => {
         value: item.categoryId,
         label: item.name || item.categoryName
       }))
+      
+      // 如果已有选择的分类ID，设置对应的分类名称
+      if (formData.categoryId) {
+        const selectedCategory = categoryOptions.value.find(item => item.value === formData.categoryId)
+        if (selectedCategory) {
+          categoryInput.value = selectedCategory.label
+        }
+      }
     } else {
       console.warn('获取分类列表返回格式不符合预期')
     }
@@ -181,11 +189,16 @@ const submitForm = async (formEl: FormInstance | undefined) => {
           if (existingCategory) {
             // 使用已存在的分类ID
             submitData.categoryId = existingCategory.value
+            // 清除可能存在的category对象，避免冲突
+            submitData.category = undefined
           } else {
             // 使用新分类名称
             submitData.category = {
-              name: categoryInput.value.trim()
+              name: categoryInput.value.trim(),
+              description: "自动创建的分类"
             }
+            // 清除categoryId，避免冲突
+            submitData.categoryId = undefined
           }
         }
         // 如果没有分类，不设置categoryId和category字段
@@ -213,9 +226,19 @@ const submitForm = async (formEl: FormInstance | undefined) => {
           ElMessage.success('创建成功，但无法获取问题ID')
           router.push('/questions')
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('创建失败:', error)
-        ElMessage.error('创建失败，请重试')
+        // 增强错误显示
+        if (error.response && error.response.data) {
+          console.error('服务器返回错误:', error.response.data)
+          if (error.response.data.message) {
+            ElMessage.error(`创建失败: ${error.response.data.message}`)
+          } else {
+            ElMessage.error('创建失败，请重试')
+          }
+        } else {
+          ElMessage.error('创建失败，请重试')
+        }
       } finally {
         submitting.value = false
       }
@@ -239,7 +262,10 @@ const queryCategories = (query: string, cb: (options: any[]) => void) => {
 }
 
 const handleCategorySelect = (item: any) => {
+  // 设置分类ID
   formData.categoryId = item.value
+  // 确保categoryInput显示的是分类名称而不是ID
+  categoryInput.value = item.label
 }
 
 onMounted(() => {

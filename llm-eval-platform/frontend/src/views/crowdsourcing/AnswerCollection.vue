@@ -1,299 +1,390 @@
 <template>
   <div class="answer-collection-container">
     <div class="page-header">
-      <h2>众包答案收集</h2>
-      <el-button @click="$router.push('/crowdsourcing')">返回任务列表</el-button>
+      <h2>参与众包回答</h2>
+      <el-button @click="goBack">返回</el-button>
     </div>
 
-    <el-card shadow="never" class="task-info-card" v-loading="taskLoading">
-      <div class="task-header">
-        <h3>{{ task.title }}</h3>
-        <el-tag :type="getStatusTag(task.status)">{{ formatStatus(task.status) }}</el-tag>
-      </div>
-      <p class="task-description">{{ task.description }}</p>
-      <div class="task-meta">
-        <span>问题数量: {{ task.questionCount || 0 }}</span>
-        <span>每题答案数量: {{ task.minAnswersPerQuestion }}</span>
-        <span>任务奖励: {{ task.rewardInfo || '无' }}</span>
-      </div>
-    </el-card>
-
-    <el-card shadow="never" class="question-list-card">
-      <div class="question-header">
-        <h3>问题列表</h3>
-      </div>
-
-      <el-table v-loading="loading" :data="questionList" style="width: 100%">
-        <el-table-column prop="standardQuestionId" label="问题ID" width="80" />
-        <el-table-column prop="question" label="问题内容" show-overflow-tooltip>
-          <template #default="scope">
-            <el-popover
-              placement="top-start"
-              title="问题内容"
-              :width="400"
-              trigger="hover"
-              :content="scope.row.question">
-              <template #reference>
-                <span>{{ truncateText(scope.row.question, 100) }}</span>
-              </template>
-            </el-popover>
-          </template>
-        </el-table-column>
-        <el-table-column prop="categoryName" label="分类" width="120" />
-        <el-table-column prop="difficulty" label="难度" width="100">
-          <template #default="scope">
-            <el-tag :type="getDifficultyTag(scope.row.difficulty)">
-              {{ formatDifficulty(scope.row.difficulty) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="currentAnswerCount" label="已收集答案" width="120" />
-        <el-table-column prop="requiredAnswers" label="所需答案数" width="120" />
-        <el-table-column prop="status" label="状态" width="120">
-          <template #default="scope">
-            <el-tag :type="getQuestionStatusTag(scope.row)">
-              {{ getQuestionStatusText(scope.row) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column fixed="right" label="操作" width="120">
-          <template #default="scope">
-            <el-button 
-              link 
-              type="primary" 
-              @click="handleAnswer(scope.row)"
-              :disabled="isQuestionCompleted(scope.row)">
-              提交答案
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="queryParams.page"
-          v-model:page-size="queryParams.size"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="total"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
-
-    <!-- 提交答案对话框 -->
-    <el-dialog v-model="answerDialogVisible" title="提交候选答案" width="650px">
-      <el-form :model="answerForm" :rules="answerRules" ref="answerFormRef" label-width="100px">
-        <el-form-item label="问题ID">
-          <span>{{ answerForm.standardQuestionId }}</span>
-        </el-form-item>
-        <el-form-item label="问题内容">
-          <div class="question-content">{{ answerForm.question }}</div>
-        </el-form-item>
-        <el-form-item label="答案内容" prop="answerText">
-          <el-input 
-            v-model="answerForm.answerText" 
-            type="textarea" 
-            :rows="6" 
-            placeholder="请输入您的答案">
-          </el-input>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="answerDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitAnswer" :loading="submitting">提交</el-button>
-        </span>
+    <el-card v-loading="loading" shadow="never" class="collection-card">
+      <template #header>
+        <div class="card-header">
+          <span>{{ task.title || '加载中...' }}</span>
+          <el-tag :type="getStatusTag(task.status)">{{ formatStatus(task.status) }}</el-tag>
+        </div>
       </template>
-    </el-dialog>
+
+      <div v-if="!task.taskId" class="task-error">
+        <el-empty description="无法加载任务信息，请检查任务ID是否正确"></el-empty>
+        <div class="error-actions">
+          <el-button type="primary" @click="getTaskDetails">重试</el-button>
+          <el-button @click="goBack">返回</el-button>
+        </div>
+      </div>
+
+      <div v-else-if="task.status !== 'PUBLISHED'" class="task-closed">
+        <el-empty :description="`当前任务${formatStatus(task.status)}，不接受新的回答`"></el-empty>
+      </div>
+
+      <div v-else>
+        <div class="task-description" v-if="task.description">
+          <h3>任务描述</h3>
+          <p>{{ task.description }}</p>
+        </div>
+
+        <el-divider></el-divider>
+
+        <h3>标准问题</h3>
+        <el-card v-if="standardQuestion" shadow="never" class="question-card">
+          <div class="question-content">
+            {{ standardQuestion.question }}
+          </div>
+        </el-card>
+        <el-empty v-else description="无法加载标准问题"></el-empty>
+
+        <el-divider></el-divider>
+
+        <h3>提交回答</h3>
+        <el-form :model="answerForm" :rules="rules" ref="answerFormRef" label-width="100px">
+          <el-form-item label="回答者姓名" prop="contributorName">
+            <el-input v-model="answerForm.contributorName" placeholder="请输入您的姓名"></el-input>
+          </el-form-item>
+          
+          <el-form-item label="回答者邮箱" prop="contributorEmail">
+            <el-input v-model="answerForm.contributorEmail" placeholder="请输入您的邮箱"></el-input>
+          </el-form-item>
+          
+          <el-form-item label="职业/身份" prop="occupation">
+            <el-select v-model="answerForm.occupation" placeholder="请选择您的职业/身份">
+              <el-option label="学生" value="学生"></el-option>
+              <el-option label="教师" value="教师"></el-option>
+              <el-option label="研究人员" value="研究人员"></el-option>
+              <el-option label="工程师" value="工程师"></el-option>
+              <el-option label="其他" value="其他"></el-option>
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="专业领域" prop="expertise">
+            <el-select v-model="answerForm.expertise" placeholder="请选择您的专业领域" multiple>
+              <el-option label="计算机科学" value="计算机科学"></el-option>
+              <el-option label="人工智能" value="人工智能"></el-option>
+              <el-option label="自然语言处理" value="自然语言处理"></el-option>
+              <el-option label="机器学习" value="机器学习"></el-option>
+              <el-option label="数据科学" value="数据科学"></el-option>
+              <el-option label="其他" value="其他"></el-option>
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="您的回答" prop="answerContent">
+            <el-input 
+              v-model="answerForm.answerContent" 
+              type="textarea" 
+              :rows="8" 
+              placeholder="请在此输入您的回答">
+            </el-input>
+          </el-form-item>
+          
+          <el-form-item label="参考资料" prop="references">
+            <el-input 
+              v-model="answerForm.references" 
+              type="textarea" 
+              :rows="3" 
+              placeholder="如有参考资料，请在此列出（可选）">
+            </el-input>
+          </el-form-item>
+          
+          <el-form-item>
+            <el-button type="primary" @click="submitAnswer">提交回答</el-button>
+            <el-button @click="resetForm">重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElNotification } from 'element-plus'
-import { 
-  getCrowdsourcingTask, 
-  getTaskQuestions,
-  submitCrowdsourcedAnswer
-} from '@/api/crowdsourcing'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { getTaskDetail, submitAnswer as submitCrowdAnswer, getTaskQuestions } from '@/api/crowdsourcing'
+import { getQuestionById } from '@/api/question'
 
-const route = useRoute()
 const router = useRouter()
-const taskId = ref(parseInt(route.params.taskId as string))
+const route = useRoute()
+const loading = ref(true)
 
-// 数据
-const task = ref({} as any)
-const questionList = ref([] as any[])
-const total = ref(0)
-const taskLoading = ref(false)
-const loading = ref(false)
-const submitting = ref(false)
-
-// 查询参数
-const queryParams = reactive({
-  page: 1,
-  size: 10,
-  taskId: taskId.value
+// 使用computed属性确保任务ID为有效的数字
+const taskId = computed(() => {
+  const id = route.params.id
+  if (typeof id === 'string') {
+    const numId = parseInt(id, 10)
+    if (!isNaN(numId)) {
+      console.log('解析任务ID成功:', numId)
+      return numId
+    }
+  }
+  console.error('无效的任务ID参数:', id)
+  return null
 })
 
-// 答案对话框
-const answerDialogVisible = ref(false)
-const answerForm = reactive({
-  taskId: taskId.value,
-  standardQuestionId: 0,
-  question: '',
-  answerText: ''
-})
-const answerRules = {
-  answerText: [{ required: true, message: '请输入答案内容', trigger: 'blur' }]
-}
+const task = ref<any>({})
+const standardQuestion = ref<any>(null)
 const answerFormRef = ref()
 
-// 初始化
-onMounted(() => {
-  getTaskInfo()
-  getQuestions()
+// 回答表单
+const answerForm = reactive({
+  contributorName: '',
+  contributorEmail: '',
+  occupation: '',
+  expertise: [],
+  answerContent: '',
+  references: ''
 })
 
-// 获取任务信息
-const getTaskInfo = async () => {
-  taskLoading.value = true
-  try {
-    const res = await getCrowdsourcingTask(taskId.value)
-    task.value = res.data
-  } catch (error: any) {
-    ElMessage.error('获取任务信息失败: ' + error.message)
-  } finally {
-    taskLoading.value = false
-  }
+// 表单验证规则
+const rules = {
+  contributorName: [
+    { required: true, message: '请输入回答者姓名', trigger: 'blur' }
+  ],
+  contributorEmail: [
+    { required: true, message: '请输入回答者邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+  ],
+  occupation: [
+    { required: true, message: '请选择您的职业/身份', trigger: 'change' }
+  ],
+  expertise: [
+    { required: true, message: '请选择您的专业领域', trigger: 'change' }
+  ],
+  answerContent: [
+    { required: true, message: '请输入回答内容', trigger: 'blur' }
+  ]
 }
 
-// 获取问题列表
-const getQuestions = async () => {
+// 获取任务详情
+const getTaskDetails = async () => {
   loading.value = true
   try {
-    const res = await getTaskQuestions(queryParams)
-    questionList.value = res.data.content || []
-    total.value = res.data.totalElements || 0
-  } catch (error: any) {
-    ElMessage.error('获取问题列表失败: ' + error.message)
+    // 检查任务ID是否有效
+    if (!taskId.value) {
+      console.error('任务ID无效，无法获取任务详情')
+      ElMessage.error('无效的任务ID，请检查URL')
+      return
+    }
+    
+    console.log('开始获取任务详情，任务ID:', taskId.value)
+    const res = await getTaskDetail(taskId.value)
+    console.log('获取任务详情响应:', res)
+    
+    // 适应后端返回结构变化，直接获取任务对象
+    if (res && res.data) {
+      task.value = res.data
+      console.log('任务详情数据:', task.value)
+      
+      // 获取任务关联的标准问题
+      try {
+        const questionsRes = await getTaskQuestions(taskId.value)
+        console.log('获取任务关联问题响应:', questionsRes)
+        
+        // 适应后端返回结构变化，直接获取问题列表
+        if (questionsRes && questionsRes.data && Array.isArray(questionsRes.data) && questionsRes.data.length > 0) {
+          // 使用第一个关联的标准问题
+          const standardQuestionId = questionsRes.data[0].standardQuestionId
+          console.log('找到关联的标准问题ID:', standardQuestionId)
+          await getStandardQuestion(standardQuestionId)
+        } else {
+          console.error('任务没有关联的标准问题')
+          ElMessage.warning('该任务没有关联的标准问题')
+        }
+      } catch (error) {
+        console.error('获取任务关联问题失败:', error)
+        ElMessage.warning('获取任务关联问题失败')
+      }
+    } else {
+      console.error('任务详情数据为空')
+      ElMessage.error('获取任务详情失败：数据为空')
+    }
+  } catch (error) {
+    console.error('获取任务详情失败:', error)
+    ElMessage.error('获取任务详情失败')
   } finally {
     loading.value = false
   }
 }
 
-// 处理答案提交
-const handleAnswer = (question: any) => {
-  answerForm.standardQuestionId = question.standardQuestionId
-  answerForm.question = question.question
-  answerForm.answerText = ''
-  answerDialogVisible.value = true
-}
-
-// 提交答案
-const submitAnswer = async () => {
-  answerFormRef.value.validate(async (valid: boolean) => {
-    if (!valid) return
-    
-    submitting.value = true
-    try {
-      await submitCrowdsourcedAnswer(answerForm)
-      ElMessage.success('答案提交成功')
-      answerDialogVisible.value = false
-      getQuestions() // 刷新问题列表
-    } catch (error: any) {
-      ElMessage.error('答案提交失败: ' + error.message)
-    } finally {
-      submitting.value = false
+// 获取标准问题
+const getStandardQuestion = async (questionId: number) => {
+  try {
+    const res = await getQuestionById(questionId)
+    // 适应后端返回结构变化，直接获取问题对象
+    if (res && res.data) {
+      standardQuestion.value = res.data
+      console.log('获取到标准问题:', standardQuestion.value)
     }
-  })
+  } catch (error) {
+    console.error('获取标准问题失败', error)
+  }
 }
 
 // 格式化状态
 const formatStatus = (status: string) => {
+  if (!status) {
+    console.warn('任务状态为空，使用默认值"未知状态"')
+    return '未知状态'
+  }
+  
   const map: Record<string, string> = {
-    'draft': '草稿',
-    'ongoing': '进行中',
-    'completed': '已完成',
-    'cancelled': '已取消'
+    'DRAFT': '草稿',
+    'PUBLISHED': '已发布',
+    'COMPLETED': '已完成',
+    'CLOSED': '已关闭'
   }
   return map[status] || status
 }
 
 // 获取状态标签类型
 const getStatusTag = (status: string) => {
+  if (!status) {
+    console.warn('任务状态为空，使用默认标签类型"info"')
+    return 'info'
+  }
+  
   const map: Record<string, string> = {
-    'draft': 'info',
-    'ongoing': 'primary',
-    'completed': 'success',
-    'cancelled': 'danger'
+    'DRAFT': 'info',
+    'PUBLISHED': 'primary',
+    'COMPLETED': 'success',
+    'CLOSED': 'danger'
   }
   return map[status] || ''
 }
 
-// 格式化难度
-const formatDifficulty = (difficulty: string) => {
-  const map: Record<string, string> = {
-    'easy': '简单',
-    'medium': '中等',
-    'hard': '困难'
+// 提交回答
+const submitAnswer = async () => {
+  if (!answerFormRef.value) return
+  
+  await answerFormRef.value.validate(async (valid: boolean) => {
+    if (!valid) {
+      return false
+    }
+    
+    // 检查任务ID是否有效
+    if (!taskId.value) {
+      ElMessage.error('无效的任务ID，无法提交回答')
+      return false
+    }
+    
+    loading.value = true
+    try {
+      // 检查任务状态
+      if (task.value.status !== 'PUBLISHED') {
+        ElMessage.error(`当前任务${formatStatus(task.value.status)}，不接受新的回答`)
+        return false
+      }
+      
+      // 检查标准问题ID
+      if (!standardQuestion.value || !standardQuestion.value.standardQuestionId) {
+        console.error('没有找到关联的标准问题ID')
+        ElMessage.error('无法提交回答：没有找到关联的标准问题')
+        return false
+      }
+      
+      // 准备提交数据，包括标准问题ID
+      const submitData = {
+        taskId: taskId.value,
+        standardQuestionId: standardQuestion.value.standardQuestionId,
+        contributorName: answerForm.contributorName,
+        contributorEmail: answerForm.contributorEmail,
+        occupation: answerForm.occupation,
+        expertise: answerForm.expertise.join(','),
+        answerText: answerForm.answerContent,
+        references: answerForm.references
+      }
+      
+      console.log('准备提交回答数据:', submitData)
+      
+      // 先检查连接是否正常
+      try {
+        const checkResponse = await fetch('/api/health', { method: 'GET' })
+          .catch(error => {
+            console.error('健康检查请求失败:', error)
+          })
+        
+        if (checkResponse && checkResponse.ok) {
+          console.log('API服务健康状态正常')
+        }
+      } catch (error) {
+        console.warn('健康检查失败，但仍继续尝试提交答案')
+      }
+      
+      try {
+        const response = await submitCrowdAnswer(taskId.value, submitData)
+        console.log('提交回答响应:', response)
+        
+        // 根据后端返回结构调整成功处理逻辑
+        if (response && response.data) {
+          ElMessage.success('回答提交成功，感谢您的参与！')
+          resetForm()
+        } else {
+          ElMessage.error('提交失败：服务器返回异常')
+        }
+      } catch (error: any) {
+        console.error('提交回答失败:', error)
+        
+        // 显示详细错误信息
+        if (error.response && error.response.data) {
+          const errorData = error.response.data
+          ElMessage.error(`提交失败: ${errorData.message || errorData.error || JSON.stringify(errorData)}`)
+        } else if (error.message) {
+          ElMessage.error(`提交失败: ${error.message}`)
+        } else {
+          ElMessage.error('提交失败，请重试')
+        }
+      } finally {
+        loading.value = false
+      }
+    } catch (error: any) {
+      console.error('提交回答失败:', error)
+      
+      // 显示详细错误信息
+      if (error.response && error.response.data) {
+        const errorData = error.response.data
+        ElMessage.error(`提交失败: ${errorData.message || errorData.error || '未知错误'}`)
+      } else if (error.message) {
+        ElMessage.error(`提交失败: ${error.message}`)
+      } else {
+        ElMessage.error('提交失败，请重试')
+      }
+    }
+  })
+}
+
+// 重置表单
+const resetForm = () => {
+  if (answerFormRef.value) {
+    answerFormRef.value.resetFields()
   }
-  return map[difficulty] || difficulty
 }
 
-// 获取难度标签类型
-const getDifficultyTag = (difficulty: string) => {
-  const map: Record<string, string> = {
-    'easy': 'success',
-    'medium': 'warning',
-    'hard': 'danger'
+// 返回上一页
+const goBack = () => {
+  router.back()
+}
+
+onMounted(() => {
+  // 打印路由参数信息，帮助调试
+  console.log('路由参数:', route.params)
+  console.log('任务ID参数类型:', typeof route.params.id)
+  console.log('任务ID参数值:', route.params.id)
+  console.log('解析后的任务ID:', taskId.value)
+  
+  // 只有在任务ID有效时才获取任务详情
+  if (taskId.value) {
+    getTaskDetails()
+  } else {
+    loading.value = false
+    ElMessage.error('无效的任务ID参数，请检查URL')
   }
-  return map[difficulty] || ''
-}
-
-// 判断问题是否已完成收集
-const isQuestionCompleted = (question: any) => {
-  return question.currentAnswerCount >= question.requiredAnswers
-}
-
-// 获取问题状态标签
-const getQuestionStatusTag = (question: any) => {
-  if (isQuestionCompleted(question)) {
-    return 'success'
-  }
-  return 'primary'
-}
-
-// 获取问题状态文本
-const getQuestionStatusText = (question: any) => {
-  if (isQuestionCompleted(question)) {
-    return '已完成'
-  }
-  return '收集中'
-}
-
-// 截断文本
-const truncateText = (text: string, length: number) => {
-  if (!text) return ''
-  if (text.length <= length) return text
-  return text.substring(0, length) + '...'
-}
-
-// 分页大小变化
-const handleSizeChange = (size: number) => {
-  queryParams.size = size
-  getQuestions()
-}
-
-// 页码变化
-const handleCurrentChange = (page: number) => {
-  queryParams.page = page
-  getQuestions()
-}
+})
 </script>
 
 <style scoped>
@@ -308,46 +399,50 @@ const handleCurrentChange = (page: number) => {
   margin-bottom: 20px;
 }
 
-.task-info-card,
-.question-list-card {
+.collection-card {
   margin-bottom: 20px;
 }
 
-.task-header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
 }
 
 .task-description {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+}
+
+.task-description p {
+  white-space: pre-wrap;
   color: #606266;
-  line-height: 1.5;
 }
 
-.task-meta {
-  display: flex;
-  gap: 20px;
-  color: #909399;
-}
-
-.question-header {
-  margin-bottom: 15px;
+.question-card {
+  margin-bottom: 20px;
 }
 
 .question-content {
+  white-space: pre-wrap;
   padding: 10px;
-  background-color: #f5f7fa;
+  background-color: #f8f9fa;
   border-radius: 4px;
-  margin-bottom: 10px;
-  max-height: 100px;
-  overflow-y: auto;
+  border-left: 4px solid #409EFF;
 }
 
-.pagination-container {
+.task-closed {
+  padding: 40px 0;
+}
+
+.task-error {
+  padding: 40px 0;
+  text-align: center;
+}
+
+.error-actions {
   margin-top: 20px;
   display: flex;
   justify-content: center;
+  gap: 10px;
 }
 </style> 
