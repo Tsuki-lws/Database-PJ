@@ -480,8 +480,38 @@ public class CrowdsourcingController {
             
             System.out.println("找到答案数量: " + answers.getTotalElements());
             
+            // 创建一个新的Page对象，包含简化的DTO而非实体对象
+            List<Map<String, Object>> simplifiedAnswers = answers.getContent().stream()
+                .map(a -> {
+                    Map<String, Object> dto = new HashMap<>();
+                    dto.put("answerId", a.getAnswerId());
+                    dto.put("taskId", a.getTaskId());
+                    dto.put("standardQuestionId", a.getStandardQuestionId());
+                    dto.put("answerText", a.getAnswerText());
+                    dto.put("contributorName", a.getContributorName());
+                    dto.put("contributorEmail", a.getContributorEmail());
+                    dto.put("occupation", a.getOccupation());
+                    dto.put("expertise", a.getExpertise());
+                    dto.put("references", a.getReferences());
+                    dto.put("status", a.getStatus() != null ? a.getStatus().toString() : null);
+                    dto.put("qualityScore", a.getQualityScore());
+                    dto.put("reviewComment", a.getReviewComment());
+                    dto.put("createdAt", a.getCreatedAt());
+                    dto.put("updatedAt", a.getUpdatedAt());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+                
+            Map<String, Object> pageResult = new HashMap<>();
+            pageResult.put("content", simplifiedAnswers);
+            pageResult.put("totalElements", answers.getTotalElements());
+            pageResult.put("totalPages", answers.getTotalPages());
+            pageResult.put("number", answers.getNumber());
+            pageResult.put("size", answers.getSize());
+            pageResult.put("numberOfElements", answers.getNumberOfElements());
+            
             // 返回分页结果
-            return ResponseEntity.ok(answers);
+            return ResponseEntity.ok(pageResult);
         } catch (Exception e) {
             System.err.println("获取任务答案失败: " + e.getMessage());
             e.printStackTrace();
