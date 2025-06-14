@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -237,5 +238,217 @@ public class EvaluationServiceImpl implements EvaluationService {
         }
         
         return entity;
+    }
+
+    @Override
+    public List<LlmAnswer> getUnevaluatedAnswers(Integer modelId, String questionType, Integer categoryId) {
+        // 获取所有模型回答
+        List<LlmAnswer> allAnswers = llmAnswerRepository.findAll();
+        
+        // 过滤已评测的回答
+        List<LlmAnswer> unevaluatedAnswers = allAnswers.stream()
+                .filter(answer -> {
+                    // 检查是否已有评测记录
+                    List<Evaluation> evaluations = evaluationRepository.findByLlmAnswer(answer);
+                    return evaluations.isEmpty();
+                })
+                .filter(answer -> {
+                    // 根据模型ID过滤
+                    if (modelId != null && !answer.getModel().getModelId().equals(modelId)) {
+                        return false;
+                    }
+                    
+                    // 根据问题类型过滤
+                    if (questionType != null && !answer.getStandardQuestion().getQuestionType().toString().equals(questionType)) {
+                        return false;
+                    }
+                    
+                    // 根据分类ID过滤
+                    if (categoryId != null && (answer.getStandardQuestion().getCategory() == null || 
+                            !answer.getStandardQuestion().getCategory().getCategoryId().equals(categoryId))) {
+                        return false;
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        return unevaluatedAnswers;
+    }
+    
+    @Override
+    public Optional<LlmAnswer> getLlmAnswerById(Integer answerId) {
+        return llmAnswerRepository.findById(answerId);
+    }
+    
+    @Override
+    public Optional<StandardAnswer> getStandardAnswerByQuestionId(Integer questionId) {
+        // 记录日志
+        System.out.println("获取问题ID为 " + questionId + " 的标准答案");
+        
+        // 查找与问题关联的所有标准答案
+        List<StandardAnswer> answers = standardAnswerRepository.findAll().stream()
+                .filter(answer -> {
+                    // 检查标准问题ID是否匹配
+                    boolean matches = false;
+                    if (answer.getStandardQuestion() != null && 
+                        answer.getStandardQuestion().getStandardQuestionId() != null) {
+                        matches = answer.getStandardQuestion().getStandardQuestionId().equals(questionId);
+                    } else if (answer.getStandardQuestionId() != null) {
+                        // 直接检查标准问题ID字段
+                        matches = answer.getStandardQuestionId().equals(questionId);
+                    }
+                    return matches;
+                })
+                .filter(answer -> answer.getIsFinal() != null && answer.getIsFinal())
+                .collect(Collectors.toList());
+        
+        System.out.println("找到 " + answers.size() + " 个标准答案");
+        
+        // 如果没有找到答案，尝试通过问题ID直接查询
+        if (answers.isEmpty()) {
+            System.out.println("通过关联关系未找到答案，尝试直接查询");
+            answers = standardAnswerRepository.findByStandardQuestionId(questionId);
+            System.out.println("直接查询找到 " + answers.size() + " 个标准答案");
+        }
+        
+        // 返回第一个最终答案
+        Optional<StandardAnswer> result = answers.isEmpty() ? Optional.empty() : Optional.of(answers.get(0));
+        
+        if (result.isPresent()) {
+            StandardAnswer answer = result.get();
+            System.out.println("返回标准答案 ID: " + answer.getStandardAnswerId() + 
+                              ", 来源类型: " + answer.getSourceType() +
+                              ", 是否最终版: " + answer.getIsFinal());
+        } else {
+            System.out.println("未找到标准答案");
+        }
+        
+        return result;
+    }
+    
+    @Override
+    public List<AnswerKeyPoint> getKeyPointsByAnswerId(Integer standardAnswerId) {
+        System.out.println("获取标准答案ID为 " + standardAnswerId + " 的关键点");
+        
+        Optional<StandardAnswer> standardAnswer = standardAnswerRepository.findById(standardAnswerId);
+        if (standardAnswer.isEmpty()) {
+            System.out.println("未找到标准答案，返回空关键点列表");
+            return new ArrayList<>();
+        }
+        
+        StandardAnswer answer = standardAnswer.get();
+        System.out.println("找到标准答案，来源类型: " + answer.getSourceType());
+        
+        // 尝试从数据库中获取关键点 - 通过标准答案的关联关系
+        List<AnswerKeyPoint> keyPoints = new ArrayList<>();
+        
+        if (answer.getKeyPoints() != null && !answer.getKeyPoints().isEmpty()) {
+            System.out.println("从标准答案的关联关系中找到关键点，数量: " + answer.getKeyPoints().size());
+            // 对关键点按照顺序排序
+            keyPoints = answer.getKeyPoints().stream()
+                    .sorted(Comparator.comparing(AnswerKeyPoint::getPointOrder, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .collect(Collectors.toList());
+        } else {
+            System.out.println("标准答案没有关联的关键点，尝试通过其他方式查找");
+            
+            // 如果是众包提升的标准答案，可能需要特殊处理
+            if (answer.getSourceType() != null && answer.getSourceType() == StandardAnswer.SourceType.crowdsourced) {
+                System.out.println("检测到众包提升的标准答案，源ID: " + answer.getSourceId());
+                // 这里可以添加针对众包提升标准答案的特殊处理
+                // 例如，从众包答案中提取关键点
+            }
+            
+            // 如果没有找到关键点，可以尝试创建一些默认的关键点
+            if (keyPoints.isEmpty() && answer.getAnswer() != null && !answer.getAnswer().isEmpty()) {
+                System.out.println("未找到关键点，尝试从答案内容中提取");
+                
+                // 这里只是一个示例，实际实现应该更复杂
+                String[] paragraphs = answer.getAnswer().split("\n\n");
+                if (paragraphs.length > 1) {
+                    for (int i = 0; i < paragraphs.length; i++) {
+                        String paragraph = paragraphs[i].trim();
+                        if (!paragraph.isEmpty()) {
+                            // 创建一个关键点
+                            // 注意：这里只是示例，实际应该保存到数据库
+                            AnswerKeyPoint keyPoint = new AnswerKeyPoint();
+                            keyPoint.setKeyPointId(i + 1); // 临时ID
+                            keyPoint.setPointText(paragraph.length() > 100 ? paragraph.substring(0, 100) + "..." : paragraph);
+                            keyPoint.setPointType(AnswerKeyPoint.PointType.required);
+                            keyPoint.setPointWeight(new BigDecimal("1.0"));
+                            keyPoint.setPointOrder(i);
+                            keyPoint.setStandardAnswer(answer);
+                            keyPoints.add(keyPoint);
+                        }
+                    }
+                }
+            }
+        }
+        
+        System.out.println("返回关键点数量: " + keyPoints.size());
+        return keyPoints;
+    }
+
+    @Override
+    public Optional<StandardAnswer> getLatestStandardAnswerByQuestionId(Integer questionId) {
+        System.out.println("获取问题ID为 " + questionId + " 的最新标准答案");
+        
+        // 查找与问题关联的所有标准答案
+        List<StandardAnswer> allAnswers = standardAnswerRepository.findAll().stream()
+                .filter(answer -> {
+                    // 检查标准问题ID是否匹配
+                    boolean matches = false;
+                    if (answer.getStandardQuestion() != null && 
+                        answer.getStandardQuestion().getStandardQuestionId() != null) {
+                        matches = answer.getStandardQuestion().getStandardQuestionId().equals(questionId);
+                    } else if (answer.getStandardQuestionId() != null) {
+                        // 直接检查标准问题ID字段
+                        matches = answer.getStandardQuestionId().equals(questionId);
+                    }
+                    return matches;
+                })
+                .collect(Collectors.toList());
+        
+        System.out.println("找到 " + allAnswers.size() + " 个标准答案");
+        
+        // 如果没有找到答案，尝试通过问题ID直接查询
+        if (allAnswers.isEmpty()) {
+            System.out.println("通过关联关系未找到答案，尝试直接查询");
+            allAnswers = standardAnswerRepository.findByStandardQuestionId(questionId);
+            System.out.println("直接查询找到 " + allAnswers.size() + " 个标准答案");
+        }
+        
+        if (allAnswers.isEmpty()) {
+            System.out.println("未找到任何标准答案");
+            return Optional.empty();
+        }
+        
+        // 首先尝试找到最终版本的答案
+        Optional<StandardAnswer> finalAnswer = allAnswers.stream()
+                .filter(answer -> answer.getIsFinal() != null && answer.getIsFinal())
+                .max(Comparator.comparing(StandardAnswer::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+        
+        if (finalAnswer.isPresent()) {
+            StandardAnswer answer = finalAnswer.get();
+            System.out.println("找到最终版本的标准答案，ID: " + answer.getStandardAnswerId() + 
+                              ", 更新时间: " + answer.getUpdatedAt() + 
+                              ", 版本: " + answer.getVersion());
+            return finalAnswer;
+        }
+        
+        // 如果没有最终版本，返回最新更新的答案
+        Optional<StandardAnswer> latestAnswer = allAnswers.stream()
+                .max(Comparator.comparing(StandardAnswer::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+        
+        if (latestAnswer.isPresent()) {
+            StandardAnswer answer = latestAnswer.get();
+            System.out.println("找到最新更新的标准答案，ID: " + answer.getStandardAnswerId() + 
+                              ", 更新时间: " + answer.getUpdatedAt() + 
+                              ", 版本: " + answer.getVersion());
+        } else {
+            System.out.println("未找到最新更新的标准答案");
+        }
+        
+        return latestAnswer;
     }
 } 

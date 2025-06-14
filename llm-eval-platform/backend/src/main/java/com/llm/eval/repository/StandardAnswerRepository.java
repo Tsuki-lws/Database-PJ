@@ -39,4 +39,10 @@ public interface StandardAnswerRepository extends JpaRepository<StandardAnswer, 
     Optional<StandardAnswer> findByStandardQuestionStandardQuestionIdAndIsFinalTrue(Integer standardQuestionId);
     
     Optional<StandardAnswer> findByStandardQuestionAndIsFinalTrue(StandardQuestion standardQuestion);
+    
+    // 通过标准问题ID查找标准答案
+    List<StandardAnswer> findByStandardQuestionId(Integer standardQuestionId);
+    
+    // 通过标准问题ID和isFinal标志查找标准答案
+    Optional<StandardAnswer> findByStandardQuestionIdAndIsFinalTrue(Integer standardQuestionId);
 } 

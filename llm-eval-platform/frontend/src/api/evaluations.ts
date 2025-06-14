@@ -214,4 +214,40 @@ export function getModelComparisonDataList(modelIds: number[]) {
     method: 'get',
     params: { modelIds: modelIds.join(',') }
   })
+}
+
+/**
+ * 获取问题的标准答案
+ * @param questionId 问题ID
+ * @returns 标准答案列表
+ */
+export function getStandardAnswersByQuestionId(questionId: number) {
+  return request({
+    url: `/api/answers/question/${questionId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 获取问题的最终标准答案
+ * @param questionId 问题ID
+ * @returns 最终标准答案
+ */
+export function getFinalStandardAnswerByQuestionId(questionId: number) {
+  return request({
+    url: `/api/answers/question/${questionId}/final`,
+    method: 'get'
+  })
+}
+
+/**
+ * 获取标准答案的关键点
+ * @param answerId 标准答案ID
+ * @returns 关键点列表
+ */
+export function getKeyPointsByAnswerId(answerId: number) {
+  return request({
+    url: `/api/answers/${answerId}/key-points`,
+    method: 'get'
+  })
 } 

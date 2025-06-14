@@ -224,7 +224,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUnevaluatedAnswers, getEvaluationDetail, submitManualEvaluation } from '@/api/evaluations'
+import { getUnevaluatedAnswers, getEvaluationDetail, submitManualEvaluation, getStandardAnswersByQuestionId, getKeyPointsByAnswerId } from '@/api/evaluations'
+import { useRoute } from 'vue-router'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -270,7 +271,18 @@ const categories = ref<any[]>([])
 
 // 初始化
 onMounted(() => {
-  fetchData()
+  // 检查URL参数中是否有answerId
+  const route = useRoute()
+  const answerId = route.query.answerId as string
+  
+  if (answerId) {
+    // 如果有answerId，直接加载该回答的评测详情
+    startEvaluation({ answerId: parseInt(answerId) })
+  } else {
+    // 否则加载待评测列表
+    fetchData()
+  }
+  
   fetchModels()
   fetchCategories()
 })
@@ -324,19 +336,100 @@ const fetchCategories = async () => {
 // 开始评测
 const startEvaluation = async (row: any) => {
   try {
+    console.log('开始评测回答，ID:', row.answerId)
+    
     // 获取评测详情
     const res = await getEvaluationDetail(row.answerId)
-    currentEvaluation.value = res.data
+    console.log('获取到评测详情:', res.data)
+    
+    if (!res.data || res.data.error) {
+      ElMessage.error(`获取评测详情失败: ${res.data?.error || '未知错误'}`)
+      return
+    }
+    
+    // 处理可能的null或undefined值
+    const detailData = {
+      ...res.data,
+      standardAnswer: '',
+      keyPoints: [],
+      questionType: res.data.questionType || 'subjective'
+    }
+    
+    // 先设置当前评测数据，但不包含标准答案和关键点
+    currentEvaluation.value = detailData
+    
+    // 根据问题ID单独请求标准答案
+    if (detailData.questionId) {
+      console.log(`根据问题ID: ${detailData.questionId} 获取标准答案`)
+      try {
+        // 调用API获取标准答案
+        const standardAnswerRes = await getStandardAnswersByQuestionId(detailData.questionId)
+        const standardAnswerData = standardAnswerRes.data || []
+        console.log('获取到标准答案:', standardAnswerData)
+        
+        if (standardAnswerData && standardAnswerData.length > 0) {
+          // 找到最终版本的标准答案，如果没有则使用最新的
+          let targetAnswer = standardAnswerData.find((answer: any) => answer.isFinal === true)
+          if (!targetAnswer) {
+            // 如果没有最终版本，按更新时间排序找最新的
+            standardAnswerData.sort((a: any, b: any) => {
+              return new Date(b.updatedAt || b.createdAt).getTime() - 
+                     new Date(a.updatedAt || a.createdAt).getTime()
+            })
+            targetAnswer = standardAnswerData[0]
+          }
+          
+          console.log('选择的标准答案:', targetAnswer)
+          
+          // 更新当前评测数据中的标准答案
+          currentEvaluation.value.standardAnswer = targetAnswer.answer || ''
+          currentEvaluation.value.standardAnswerId = targetAnswer.standardAnswerId
+          
+          // 单独请求关键点
+          try {
+            const keyPointsRes = await getKeyPointsByAnswerId(targetAnswer.standardAnswerId)
+            const keyPointsData = keyPointsRes.data || []
+            console.log('获取到关键点:', keyPointsData)
+            
+            if (keyPointsData && keyPointsData.length > 0) {
+              // 按照pointOrder排序
+              const sortedKeyPoints = [...keyPointsData].sort((a: any, b: any) => {
+                if (a.pointOrder !== undefined && b.pointOrder !== undefined) {
+                  return a.pointOrder - b.pointOrder
+                }
+                return (a.keyPointId || 0) - (b.keyPointId || 0)
+              })
+              
+              currentEvaluation.value.keyPoints = sortedKeyPoints
+              
+              // 初始化关键点评估状态
+              evaluationForm.keyPointsStatus = sortedKeyPoints.map(() => 'missed')
+            } else {
+              console.log('标准答案没有关键点')
+              currentEvaluation.value.keyPoints = []
+              evaluationForm.keyPointsStatus = []
+            }
+          } catch (error: any) {
+            console.error('获取关键点失败:', error)
+            currentEvaluation.value.keyPoints = []
+            evaluationForm.keyPointsStatus = []
+          }
+        } else {
+          console.log('未找到标准答案')
+          currentEvaluation.value.standardAnswer = ''
+          currentEvaluation.value.keyPoints = []
+        }
+      } catch (error: any) {
+        console.error('获取标准答案失败:', error)
+        ElMessage.warning('获取标准答案失败，将继续评测但没有标准答案参考')
+      }
+    }
     
     // 初始化评测表单
     resetEvaluationForm()
-    
-    // 如果有关键点，初始化关键点状态
-    if (currentEvaluation.value.keyPoints && currentEvaluation.value.keyPoints.length > 0) {
-      evaluationForm.keyPointsStatus = currentEvaluation.value.keyPoints.map(() => 'missed')
-    }
   } catch (error: any) {
-    ElMessage.error('获取评测详情失败: ' + error.message)
+    console.error('获取评测详情失败:', error)
+    ElMessage.error('获取评测详情失败: ' + (error.response?.data?.error || error.message))
   }
 }
 
@@ -360,21 +453,36 @@ const submitEvaluation = async () => {
   
   submitting.value = true
   try {
+    // 构建提交参数
     const params = {
       answerId: currentEvaluation.value.answerId,
       score: evaluationForm.score,
       isCorrect: evaluationForm.isCorrect,
-      keyPointsStatus: evaluationForm.keyPointsStatus,
       dimensions: evaluationForm.dimensions,
       comments: evaluationForm.comments
     }
+    
+    // 只有在有关键点且已评估的情况下才添加关键点状态
+    if (currentEvaluation.value.keyPoints && 
+        currentEvaluation.value.keyPoints.length > 0 && 
+        evaluationForm.keyPointsStatus.length > 0) {
+      (params as any).keyPointsStatus = evaluationForm.keyPointsStatus
+    }
+    
+    // 如果有标准答案ID，添加到参数中
+    if (currentEvaluation.value.standardAnswerId) {
+      (params as any).standardAnswerId = currentEvaluation.value.standardAnswerId
+    }
+    
+    console.log('提交评测数据:', params)
     
     await submitManualEvaluation(params)
     ElMessage.success('评测提交成功')
     backToList()
     fetchData() // 刷新列表
   } catch (error: any) {
-    ElMessage.error('评测提交失败: ' + error.message)
+    console.error('评测提交失败:', error)
+    ElMessage.error('评测提交失败: ' + (error.response?.data?.error || error.message))
   } finally {
     submitting.value = false
   }
@@ -393,7 +501,10 @@ const validateForm = () => {
     }
     
     // 如果有关键点，检查是否全部评估
-    if (currentEvaluation.value.keyPoints && currentEvaluation.value.keyPoints.length > 0) {
+    if (currentEvaluation.value.keyPoints && 
+        currentEvaluation.value.keyPoints.length > 0 && 
+        evaluationForm.keyPointsStatus.length > 0) {
+      console.log('验证关键点评估状态')
       const allEvaluated = evaluationForm.keyPointsStatus.every(status => status !== '')
       if (!allEvaluated) {
         ElMessage.warning('请评估所有关键点')

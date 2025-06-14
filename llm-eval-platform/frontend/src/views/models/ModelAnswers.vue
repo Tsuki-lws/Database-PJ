@@ -301,7 +301,7 @@ const evaluateAnswer = (row: ModelAnswer) => {
   }
   
   router.push({
-    path: '/model-answers/evaluation',
+    path: '/evaluations/manual',
     query: { answerId: row.id }
   })
 }
