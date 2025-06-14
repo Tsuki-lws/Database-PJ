@@ -181,11 +181,22 @@ export function completeTask(taskId: number | null) {
 }
 
 // 获取任务的答案列表
-export function getAnswersByTaskId(taskId: number, params: any) {
+export function getAnswersByTaskId(taskId: number | null, params: any) {
+  if (!taskId || isNaN(Number(taskId))) {
+    console.error('无效的任务ID:', taskId)
+    return Promise.reject(new Error('无效的任务ID'))
+  }
+  
   return request({
     url: `/api/crowdsourcing/tasks/${taskId}/answers`,
     method: 'get',
     params
+  }).then(response => {
+    console.log('获取任务答案列表成功:', response)
+    return response
+  }).catch(error => {
+    console.error('获取任务答案列表失败:', error)
+    return Promise.reject(error)
   })
 }
 
@@ -233,13 +244,14 @@ export function deleteAnswer(answerId: number) {
 }
 
 // 审核答案
-export function reviewAnswer(answerId: number, approved: boolean, comment: string) {
+export function reviewAnswer(answerId: number, approved: boolean, comment: string, qualityScore?: number) {
   return request({
     url: `/api/crowdsourcing/answers/${answerId}/review`,
     method: 'post',
     data: {
       approved,
-      comment
+      comment,
+      qualityScore
     }
   })
 }

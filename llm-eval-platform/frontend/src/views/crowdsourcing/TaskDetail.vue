@@ -161,13 +161,14 @@ const taskId = computed(() => {
   const id = route.params.id
   if (typeof id === 'string') {
     const numId = parseInt(id, 10)
-    if (!isNaN(numId)) {
+    if (!isNaN(numId) && numId > 0) {
       console.log('解析任务ID成功:', numId)
       return numId
     }
   }
   console.error('无效的任务ID参数:', id)
-  return null
+  // 返回0而不是null，避免类型错误
+  return 0
 })
 
 const task = ref<any>({})
@@ -338,13 +339,18 @@ const goBack = () => {
 
 // 导航到答案列表
 const navigateToAnswers = () => {
+  if (!taskId.value) {
+    ElMessage.error('无效的任务ID，无法导航到答案列表')
+    return
+  }
+  console.log('导航到答案列表，任务ID:', taskId.value)
   router.push(`/crowdsourcing/answers/${taskId.value}`)
 }
 
 // 导航到答案收集页面
 const navigateToCollection = () => {
   console.log('从任务详情页跳转到收集页面，任务ID:', taskId.value)
-  if (!taskId.value || isNaN(taskId.value)) {
+  if (!taskId.value || isNaN(Number(taskId.value))) {
     console.error('无效的任务ID:', taskId.value)
     ElMessage.error('无效的任务ID，无法跳转')
     return

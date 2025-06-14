@@ -215,6 +215,11 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     public List<CrowdsourcingAnswer> getAllAnswers() {
         return answerRepository.findAll();
     }
+    
+    @Override
+    public List<CrowdsourcingAnswer> getAnswersByStatus(CrowdsourcingAnswer.AnswerStatus status) {
+        return answerRepository.findByStatus(status);
+    }
 
     @Override
     public Optional<CrowdsourcingAnswer> getAnswerById(Integer id) {
@@ -346,13 +351,18 @@ public class CrowdsourcingServiceImpl implements CrowdsourcingService {
     // 审核相关方法
     @Override
     @Transactional
-    public CrowdsourcingAnswer reviewAnswer(Integer id, Boolean approved, String comment) {
+    public CrowdsourcingAnswer reviewAnswer(Integer id, Boolean approved, String comment, Integer qualityScore) {
         CrowdsourcingAnswer answer = answerRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("众包答案不存在，ID: " + id));
         
         // 设置审核状态
         if (approved) {
             answer.setStatus(CrowdsourcingAnswer.AnswerStatus.APPROVED);
+            
+            // 如果提供了质量评分，则设置
+            if (qualityScore != null) {
+                answer.setQualityScore(qualityScore);
+            }
             
             // 更新任务的已批准答案数量
             CrowdsourcingTask task = taskRepository.findById(answer.getTaskId())

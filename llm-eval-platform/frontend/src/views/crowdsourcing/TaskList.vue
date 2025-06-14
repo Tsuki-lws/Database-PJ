@@ -343,10 +343,22 @@ const navigateToCreate = () => {
 }
 
 const navigateToDetail = (id: number) => {
+  if (!id || isNaN(id)) {
+    console.error('无效的任务ID:', id)
+    ElMessage.error('无效的任务ID，无法跳转到任务详情')
+    return
+  }
+  console.log('从任务列表跳转到任务详情，任务ID:', id)
   router.push(`/crowdsourcing/detail/${id}`)
 }
 
 const navigateToAnswers = (id: number) => {
+  if (!id || isNaN(id)) {
+    console.error('无效的任务ID:', id)
+    ElMessage.error('无效的任务ID，无法跳转到答案列表')
+    return
+  }
+  console.log('从任务列表跳转到答案列表，任务ID:', id)
   router.push(`/crowdsourcing/answers/${id}`)
 }
 

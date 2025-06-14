@@ -8,8 +8,8 @@
     <el-card v-loading="taskLoading" shadow="never" class="task-card">
       <template #header>
         <div class="card-header">
-          <span>{{ task.title }}</span>
-          <el-tag :type="getStatusTag(task.status)">{{ formatStatus(task.status) }}</el-tag>
+          <span>{{ task.title || '加载中...' }}</span>
+          <el-tag v-if="task.status" :type="getStatusTag(task.status)">{{ formatStatus(task.status) }}</el-tag>
         </div>
       </template>
 
@@ -20,17 +20,17 @@
         </div>
         <div class="info-item">
           <span class="label">所需答案数:</span>
-          <span>{{ task.requiredAnswers }}</span>
+          <span>{{ task.requiredAnswers || 0 }}</span>
         </div>
         <div class="info-item">
           <span class="label">已提交答案数:</span>
-          <span>{{ task.submittedAnswerCount || task.currentAnswers || 0 }}</span>
+          <span>{{ task.submittedAnswerCount || 0 }}</span>
         </div>
         <div class="info-item">
           <span class="label">已批准答案数:</span>
           <span>{{ task.approvedAnswerCount || 0 }}</span>
         </div>
-        <div class="info-item">
+        <div class="info-item" v-if="task.createdBy">
           <span class="label">创建人:</span>
           <span>{{ task.createdBy }}</span>
         </div>
@@ -67,7 +67,7 @@
           <template #default="scope">
             <el-popover
               placement="top-start"
-              :title="`${scope.row.contributorName}的回答`"
+              :title="`${scope.row.contributorName || '匿名'}的回答`"
               :width="400"
               trigger="hover"
             >
@@ -301,7 +301,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
@@ -314,7 +314,7 @@ import { getQuestionById } from '@/api/question'
 
 const router = useRouter()
 const route = useRoute()
-const taskId = ref(Number(route.params.id))
+const taskId = ref<number>(0)
 const taskLoading = ref(true)
 const loading = ref(true)
 const submitting = ref(false)
@@ -352,26 +352,62 @@ const reviewForm = reactive({
   comment: '',
   qualityScore: 3 // 默认3分
 })
-const reviewFormRef = ref()
 
 // 详情对话框
 const detailDialogVisible = ref(false)
 const currentAnswer = ref<any>({})
 
+// 初始化任务ID
+const initTaskId = () => {
+  try {
+    const idParam = route.params.taskId
+    
+    if (typeof idParam === 'string' && idParam) {
+      const id = parseInt(idParam, 10)
+      if (!isNaN(id) && id > 0) {
+        console.log('成功解析任务ID:', id)
+        taskId.value = id
+        return true
+      }
+    }
+    
+    console.error('无效的任务ID参数:', route.params.taskId)
+    ElMessage.error('无效的任务ID，请检查URL')
+    return false
+  } catch (error) {
+    console.error('解析任务ID时出错:', error)
+    ElMessage.error('任务ID解析错误')
+    return false
+  }
+}
+
 // 获取任务详情
 const getTaskInfo = async () => {
+  if (!taskId.value || taskId.value <= 0) {
+    console.error('任务ID无效，无法获取任务详情')
+    ElMessage.error('无效的任务ID，无法获取任务详情')
+    taskLoading.value = false
+    return
+  }
+  
   taskLoading.value = true
   try {
+    console.log('API调用: 获取任务详情，任务ID:', taskId.value)
     const res = await getTaskDetail(taskId.value)
-    if (res.data) {
+    if (res && res.data) {
       task.value = res.data
+      console.log('获取到任务详情:', task.value)
+      
       // 获取关联的标准问题
       if (task.value.standardQuestionId) {
         await getStandardQuestion(task.value.standardQuestionId)
       }
+    } else {
+      console.error('获取任务详情失败，返回数据异常')
+      ElMessage.error('获取任务详情失败')
     }
   } catch (error) {
-    console.error('获取任务详情失败', error)
+    console.error('获取任务详情失败:', error)
     ElMessage.error('获取任务详情失败')
   } finally {
     taskLoading.value = false
@@ -380,30 +416,53 @@ const getTaskInfo = async () => {
 
 // 获取标准问题
 const getStandardQuestion = async (questionId: number) => {
+  if (!questionId || questionId <= 0) {
+    console.error('问题ID无效:', questionId)
+    return
+  }
+  
   try {
     const res = await getQuestionById(questionId)
-    if (res.data) {
+    if (res && res.data) {
       standardQuestion.value = res.data
+      console.log('获取标准问题成功:', standardQuestion.value)
     }
   } catch (error) {
-    console.error('获取标准问题失败', error)
+    console.error('获取标准问题失败:', error)
   }
 }
 
 // 获取答案列表
 const getAnswers = async () => {
+  if (!taskId.value || taskId.value <= 0) {
+    console.error('任务ID无效，无法获取答案列表')
+    ElMessage.error('无效的任务ID，无法获取答案列表')
+    loading.value = false
+    return
+  }
+  
   loading.value = true
   try {
-    const res = await getAnswersByTaskId(taskId.value, queryParams)
-    if (res.data) {
+    const params = { 
+      ...queryParams,
+      page: queryParams.page - 1 // 前端页码从1开始，后端从0开始
+    }
+    
+    console.log('API调用: 获取任务答案列表，任务ID:', taskId.value)
+    console.log('获取答案列表，参数:', params)
+    const res = await getAnswersByTaskId(taskId.value, params)
+    
+    if (res && res.data) {
       answerList.value = res.data.content || []
-      total.value = res.data.total || 0
+      total.value = res.data.totalElements || 0
+      console.log(`获取到答案列表, 共${total.value}条记录:`, answerList.value)
     } else {
+      console.error('获取答案列表失败，返回数据异常')
       answerList.value = []
       total.value = 0
     }
   } catch (error) {
-    console.error('获取答案列表失败', error)
+    console.error('获取答案列表失败:', error)
     answerList.value = []
     total.value = 0
   } finally {
@@ -478,7 +537,9 @@ const handleFilter = () => {
 // 重置筛选
 const resetFilter = () => {
   queryParams.status = undefined
-  handleFilter()
+  queryParams.page = 1
+  queryParams.size = 10
+  getAnswers()
 }
 
 // 每页数量变化
@@ -497,7 +558,7 @@ const handleCurrentChange = (val: number) => {
 const handleApprove = (row: any) => {
   reviewType.value = 'approve'
   reviewForm.answerId = row.answerId
-  reviewForm.contributorName = row.contributorName
+  reviewForm.contributorName = row.contributorName || '匿名'
   reviewForm.contributorEmail = row.contributorEmail || ''
   reviewForm.occupation = row.occupation || ''
   reviewForm.expertise = row.expertise || ''
@@ -512,7 +573,7 @@ const handleApprove = (row: any) => {
 const handleReject = (row: any) => {
   reviewType.value = 'reject'
   reviewForm.answerId = row.answerId
-  reviewForm.contributorName = row.contributorName
+  reviewForm.contributorName = row.contributorName || '匿名'
   reviewForm.contributorEmail = row.contributorEmail || ''
   reviewForm.occupation = row.occupation || ''
   reviewForm.expertise = row.expertise || ''
@@ -525,19 +586,30 @@ const handleReject = (row: any) => {
 
 // 提交审核
 const submitReview = async () => {
+  if (!reviewForm.answerId) {
+    ElMessage.error('答案ID无效')
+    return
+  }
+  
   submitting.value = true
   try {
+    const isApproved = reviewType.value === 'approve'
+    const qualityScore = isApproved ? reviewForm.qualityScore : 0
+    
     await reviewAnswer(
       reviewForm.answerId, 
-      reviewType.value === 'approve', 
-      reviewForm.comment
+      isApproved, 
+      reviewForm.comment,
+      qualityScore
     )
-    ElMessage.success(`答案${reviewType.value === 'approve' ? '批准' : '拒绝'}成功`)
+    
+    ElMessage.success(`答案${isApproved ? '批准' : '拒绝'}成功`)
     reviewDialogVisible.value = false
     getAnswers() // 刷新答案列表
+    getTaskInfo() // 刷新任务信息
   } catch (error) {
-    console.error('审核答案失败', error)
-    ElMessage.error(`审核失败，请重试`)
+    console.error('审核答案失败:', error)
+    ElMessage.error('审核失败，请重试')
   } finally {
     submitting.value = false
   }
@@ -545,6 +617,11 @@ const submitReview = async () => {
 
 // 提升为标准答案
 const handlePromote = (row: any) => {
+  if (!row.answerId) {
+    ElMessage.error('答案ID无效')
+    return
+  }
+  
   ElMessageBox.confirm(
     `确认将该答案提升为标准答案吗？`,
     '提升确认',
@@ -559,7 +636,7 @@ const handlePromote = (row: any) => {
       ElMessage.success('答案已提升为标准答案')
       getAnswers() // 刷新答案列表
     } catch (error) {
-      console.error('提升答案失败', error)
+      console.error('提升答案失败:', error)
       ElMessage.error('提升失败，请重试')
     }
   }).catch(() => {})
@@ -576,9 +653,30 @@ const goBack = () => {
   router.back()
 }
 
+// 监听路由参数变化
+watch(() => route.params.taskId, (newId) => {
+  if (newId) {
+    console.log('检测到路由参数变化:', newId)
+    if (initTaskId()) {
+      getTaskInfo()
+      getAnswers()
+    }
+  }
+}, { immediate: false })
+
+// 组件挂载时初始化
 onMounted(() => {
-  getTaskInfo()
-  getAnswers()
+  console.log('答案列表组件挂载，路由参数:', route.params)
+  console.log('任务ID参数类型:', typeof route.params.taskId)
+  console.log('任务ID参数值:', route.params.taskId)
+  
+  if (initTaskId()) {
+    getTaskInfo()
+    getAnswers()
+  } else {
+    // 如果任务ID无效，返回任务列表页面
+    router.push('/crowdsourcing')
+  }
 })
 </script>
 

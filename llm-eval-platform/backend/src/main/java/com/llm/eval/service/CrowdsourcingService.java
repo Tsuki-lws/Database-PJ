@@ -99,6 +99,14 @@ public interface CrowdsourcingService {
     List<CrowdsourcingAnswer> getAllAnswers();
     
     /**
+     * 获取特定状态的所有众包答案
+     * 
+     * @param status 答案状态
+     * @return 答案列表
+     */
+    List<CrowdsourcingAnswer> getAnswersByStatus(CrowdsourcingAnswer.AnswerStatus status);
+    
+    /**
      * 根据ID获取众包答案
      * 
      * @param id 答案ID
@@ -145,9 +153,10 @@ public interface CrowdsourcingService {
      * @param id 答案ID
      * @param approved 是否通过审核
      * @param comment 审核评论
+     * @param qualityScore 质量评分（可选）
      * @return 审核后的答案对象
      */
-    CrowdsourcingAnswer reviewAnswer(Integer id, Boolean approved, String comment);
+    CrowdsourcingAnswer reviewAnswer(Integer id, Boolean approved, String comment, Integer qualityScore);
     
     /**
      * 将众包答案提升为标准答案

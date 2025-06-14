@@ -56,7 +56,12 @@ export function getQuestionList(params: QueryParams) {
 }
 
 // 获取标准问题详情
-export function getQuestionById(id: number) {
+export function getQuestionById(id: number | null) {
+  if (!id || isNaN(Number(id))) {
+    console.error('无效的问题ID:', id)
+    return Promise.reject(new Error('无效的问题ID'))
+  }
+
   return request({
     url: `/api/questions/${id}`,
     method: 'get'

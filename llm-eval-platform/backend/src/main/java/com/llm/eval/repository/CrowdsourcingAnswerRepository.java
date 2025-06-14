@@ -1,6 +1,8 @@
 package com.llm.eval.repository;
 
 import com.llm.eval.model.CrowdsourcingAnswer;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -21,6 +23,15 @@ public interface CrowdsourcingAnswerRepository extends JpaRepository<Crowdsourci
     List<CrowdsourcingAnswer> findByTaskId(Integer taskId);
     
     /**
+     * 根据任务ID查询答案（分页版本）
+     * 
+     * @param taskId 任务ID
+     * @param pageable 分页请求
+     * @return 答案分页列表
+     */
+    Page<CrowdsourcingAnswer> findByTaskId(Integer taskId, Pageable pageable);
+    
+    /**
      * 根据任务ID和审核状态查询答案
      * 
      * @param taskId 任务ID
@@ -28,6 +39,16 @@ public interface CrowdsourcingAnswerRepository extends JpaRepository<Crowdsourci
      * @return 答案列表
      */
     List<CrowdsourcingAnswer> findByTaskIdAndStatus(Integer taskId, CrowdsourcingAnswer.AnswerStatus status);
+    
+    /**
+     * 根据任务ID和审核状态查询答案（分页版本）
+     * 
+     * @param taskId 任务ID
+     * @param status 答案状态
+     * @param pageable 分页请求
+     * @return 答案分页列表
+     */
+    Page<CrowdsourcingAnswer> findByTaskIdAndStatus(Integer taskId, CrowdsourcingAnswer.AnswerStatus status, Pageable pageable);
     
     /**
      * 根据状态查询答案

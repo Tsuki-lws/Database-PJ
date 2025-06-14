@@ -185,9 +185,9 @@ public class CrowdsourcingController {
         try {
             System.out.println("获取众包任务详情，任务ID: " + id);
             
-            if (id == null) {
-                System.err.println("任务ID为空");
-                return ResponseEntity.badRequest().body(Map.of("message", "任务ID不能为空"));
+            if (id == null || id <= 0) {
+                System.err.println("任务ID无效: " + id);
+                return ResponseEntity.badRequest().body(Map.of("message", "任务ID不能为空或无效"));
             }
             
             Optional<CrowdsourcingTask> taskOptional = crowdsourcingService.getTaskById(id);
@@ -407,7 +407,17 @@ public class CrowdsourcingController {
     // 答案管理
     @GetMapping("/answers")
     @Operation(summary = "获取所有众包答案")
-    public ResponseEntity<List<com.llm.eval.model.CrowdsourcingAnswer>> getAllAnswers() {
+    public ResponseEntity<List<com.llm.eval.model.CrowdsourcingAnswer>> getAllAnswers(
+            @RequestParam(value = "status", required = false) String status) {
+        if (status != null && !status.isEmpty()) {
+            try {
+                CrowdsourcingAnswer.AnswerStatus answerStatus = CrowdsourcingAnswer.AnswerStatus.valueOf(status.toUpperCase());
+                return ResponseEntity.ok(crowdsourcingService.getAnswersByStatus(answerStatus));
+            } catch (IllegalArgumentException e) {
+                // 无效的状态值，返回所有答案
+                return ResponseEntity.ok(crowdsourcingService.getAllAnswers());
+            }
+        }
         return ResponseEntity.ok(crowdsourcingService.getAllAnswers());
     }
 
@@ -428,9 +438,55 @@ public class CrowdsourcingController {
 
     @GetMapping("/tasks/{taskId}/answers")
     @Operation(summary = "获取特定任务的所有答案")
-    public ResponseEntity<List<com.llm.eval.model.CrowdsourcingAnswer>> getAnswersByTaskId(
-            @PathVariable("taskId") Integer taskId) {
-        return ResponseEntity.ok(crowdsourcingService.getAnswersByTaskId(taskId));
+    public ResponseEntity<?> getAnswersByTaskId(
+            @PathVariable("taskId") Integer taskId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "status", required = false) String status) {
+        try {
+            System.out.println("获取任务答案列表，任务ID: " + taskId);
+            
+            if (taskId == null || taskId <= 0) {
+                System.err.println("任务ID无效: " + taskId);
+                return ResponseEntity.badRequest().body(Map.of("message", "任务ID不能为空或无效"));
+            }
+            
+            // 创建分页请求
+            Pageable pageable = PageRequest.of(page, size, Sort.Direction.DESC, "createdAt");
+            
+            // 查询数据
+            Page<CrowdsourcingAnswer> answers;
+            
+            if (status != null && !status.isEmpty()) {
+                // 将状态转换为大写，以匹配枚举值
+                String upperCaseStatus = status.toUpperCase();
+                System.out.println("按状态[" + upperCaseStatus + "]过滤答案");
+                
+                try {
+                    // 验证状态值是否有效
+                    CrowdsourcingAnswer.AnswerStatus answerStatus = CrowdsourcingAnswer.AnswerStatus.valueOf(upperCaseStatus);
+                    System.out.println("状态参数有效: [" + upperCaseStatus + "]");
+                    
+                    // 使用状态过滤查询
+                    answers = answerRepository.findByTaskIdAndStatus(taskId, answerStatus, pageable);
+                } catch (IllegalArgumentException e) {
+                    System.err.println("无效的状态值: [" + status + "], 查询所有状态");
+                    answers = answerRepository.findByTaskId(taskId, pageable);
+                }
+            } else {
+                // 不过滤状态
+                answers = answerRepository.findByTaskId(taskId, pageable);
+            }
+            
+            System.out.println("找到答案数量: " + answers.getTotalElements());
+            
+            // 返回分页结果
+            return ResponseEntity.ok(answers);
+        } catch (Exception e) {
+            System.err.println("获取任务答案失败: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "获取任务答案失败: " + e.getMessage()));
+        }
     }
 
     @PostMapping("/tasks/{taskId}/answers")
@@ -596,11 +652,28 @@ public class CrowdsourcingController {
             
             Boolean approved = (Boolean) reviewData.get("approved");
             String comment = (String) reviewData.get("comment");
+            Integer qualityScore = null;
             
-            System.out.println("审核数据: approved=" + approved + ", comment=" + comment);
+            // 如果是批准，获取质量评分
+            if (approved && reviewData.containsKey("qualityScore")) {
+                try {
+                    Object scoreObj = reviewData.get("qualityScore");
+                    if (scoreObj instanceof Number) {
+                        qualityScore = ((Number) scoreObj).intValue();
+                    } else if (scoreObj instanceof String) {
+                        qualityScore = Integer.parseInt((String) scoreObj);
+                    }
+                } catch (Exception e) {
+                    System.err.println("解析质量评分失败: " + e.getMessage());
+                }
+            }
+            
+            System.out.println("审核数据: approved=" + approved + 
+                              ", comment=" + comment + 
+                              ", qualityScore=" + qualityScore);
             
             com.llm.eval.model.CrowdsourcingAnswer reviewedAnswer = 
-                crowdsourcingService.reviewAnswer(id, approved, comment);
+                crowdsourcingService.reviewAnswer(id, approved, comment, qualityScore);
             
             System.out.println("答案审核成功，答案ID: " + reviewedAnswer.getAnswerId() + 
                               ", 状态: " + reviewedAnswer.getStatus());
