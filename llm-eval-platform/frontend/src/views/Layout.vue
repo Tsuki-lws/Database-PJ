@@ -37,6 +37,15 @@
           <el-menu-item index="/tags">问题标签</el-menu-item>
         </el-sub-menu>
         
+        <!-- 模型管理 -->
+        <el-sub-menu index="/models">
+          <template #title>
+            <el-icon><Monitor /></el-icon>
+            <span>模型管理</span>
+          </template>
+          <el-menu-item index="/models">模型列表</el-menu-item>
+        </el-sub-menu>
+        
         <!-- 模型回答管理 -->
         <el-sub-menu index="/model-answers">
           <template #title>
@@ -45,7 +54,7 @@
           </template>
           <el-menu-item index="/answers/model">模型回答列表</el-menu-item>
           <el-menu-item index="/model-answers/import">导入模型回答</el-menu-item>
-          <el-menu-item index="/model-answers/evaluation">模型评测导入</el-menu-item>
+          <!-- <el-menu-item index="/model-answers/evaluation">模型评测导入</el-menu-item> -->
         </el-sub-menu>
         
         <!-- 众包任务管理 -->
@@ -116,7 +125,8 @@ import {
   DataAnalysis, 
   Setting,
   Collection,
-  Upload
+  Upload,
+  Monitor
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

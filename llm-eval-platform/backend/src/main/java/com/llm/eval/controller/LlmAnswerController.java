@@ -1,0 +1,117 @@
+package com.llm.eval.controller;
+
+import com.llm.eval.dto.LlmAnswerDTO;
+import com.llm.eval.service.LlmAnswerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/llm-answers")
+@Tag(name = "LLM Answer API", description = "大语言模型回答管理接口")
+public class LlmAnswerController {
+
+    private final LlmAnswerService llmAnswerService;
+
+    @Autowired
+    public LlmAnswerController(LlmAnswerService llmAnswerService) {
+        this.llmAnswerService = llmAnswerService;
+    }
+
+    @GetMapping
+    @Operation(summary = "分页获取模型回答列表")
+    public ResponseEntity<Map<String, Object>> getAnswers(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "modelId", required = false) Integer modelId,
+            @RequestParam(value = "questionId", required = false) Integer questionId,
+            @RequestParam(value = "batchId", required = false) Integer batchId) {
+        
+        try {
+            // 获取数据
+            List<LlmAnswerDTO> answers;
+            long total = 0;
+            
+            if (modelId != null) {
+                answers = llmAnswerService.getAnswersByModelId(modelId);
+                total = answers.size();
+            } else if (questionId != null) {
+                answers = llmAnswerService.getAnswersByQuestionId(questionId);
+                total = answers.size();
+            } else if (batchId != null) {
+                answers = llmAnswerService.getAnswersByBatchId(batchId);
+                total = answers.size();
+            } else {
+                answers = llmAnswerService.getAllAnswers();
+                total = answers.size();
+            }
+            
+            // 手动分页
+            int fromIndex = page * size;
+            int toIndex = Math.min(fromIndex + size, answers.size());
+            
+            List<LlmAnswerDTO> pagedAnswers = fromIndex < answers.size() ? 
+                    answers.subList(fromIndex, toIndex) : 
+                    List.of();
+            
+            // 构建响应
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", pagedAnswers);
+            response.put("totalElements", total);
+            response.put("totalPages", (int) Math.ceil((double) total / size));
+            response.put("size", size);
+            response.put("number", page);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取模型回答列表失败: " + e.getMessage());
+            return ResponseEntity.ok(errorResponse);
+        }
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "根据ID获取模型回答详情")
+    public ResponseEntity<?> getAnswerById(@PathVariable("id") Integer id) {
+        try {
+            Optional<LlmAnswerDTO> answer = llmAnswerService.getAnswerById(id);
+            return answer.map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取模型回答详情失败: " + e.getMessage());
+            return ResponseEntity.ok(errorResponse);
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除模型回答")
+    public ResponseEntity<?> deleteAnswer(@PathVariable("id") Integer id) {
+        try {
+            boolean deleted = llmAnswerService.deleteAnswer(id);
+            if (deleted) {
+                return ResponseEntity.ok().build();
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "删除模型回答失败: " + e.getMessage());
+            return ResponseEntity.ok(errorResponse);
+        }
+    }
+} 

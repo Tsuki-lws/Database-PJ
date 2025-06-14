@@ -320,6 +320,7 @@ CREATE TABLE llm_models (
     description TEXT,
     api_config JSON COMMENT '模型API配置信息',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL COMMENT '软删除标记，非空表示已删除',
     UNIQUE KEY (name, version)
 ) COMMENT='大语言模型信息';
 
@@ -513,6 +514,7 @@ CREATE INDEX idx_standard_question_versions ON standard_question_versions(standa
 CREATE INDEX idx_standard_answer_versions ON standard_answer_versions(standard_answer_id, version);
 CREATE INDEX idx_key_point_versions ON key_point_versions(key_point_id, version);
 CREATE INDEX idx_option_versions ON option_versions(option_id, version);
+CREATE INDEX idx_llm_models_deleted ON llm_models(deleted_at);
 
 -- 添加存储过程：更新标准问题并保存历史版本
 DELIMITER //

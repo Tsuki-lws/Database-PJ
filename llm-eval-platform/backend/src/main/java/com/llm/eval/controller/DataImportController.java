@@ -8,7 +8,10 @@ import com.llm.eval.dto.RawAnswerDTO;
 import com.llm.eval.dto.StandardQuestionDTO;
 import com.llm.eval.dto.StandardAnswerDTO;
 import com.llm.eval.dto.StandardQALinkDTO;
+import com.llm.eval.dto.LlmAnswerDTO;
+import com.llm.eval.dto.LlmModelDTO;
 import com.llm.eval.service.DataImportService;
+import com.llm.eval.service.LlmAnswerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +24,8 @@ import java.io.IOException;
 import java.util.List;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.springframework.http.HttpStatus;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/import")
@@ -29,10 +34,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 public class DataImportController {
 
     private final DataImportService dataImportService;
+    private final LlmAnswerService llmAnswerService;
 
     @Autowired
-    public DataImportController(DataImportService dataImportService) {
+    public DataImportController(DataImportService dataImportService, LlmAnswerService llmAnswerService) {
         this.dataImportService = dataImportService;
+        this.llmAnswerService = llmAnswerService;
     }
 
     @PostMapping("/raw-qa")
@@ -235,6 +242,60 @@ public class DataImportController {
             log.error("文件上传导入原始回答失败", e);
             return ResponseEntity.badRequest().body(
                     new DataImportResultDTO(false, "导入失败: " + e.getMessage(), 0, 1, 1)
+            );
+        }
+    }
+
+    @PostMapping("/model-answer")
+    @Operation(summary = "导入单个模型回答", description = "导入单个模型对标准问题的回答")
+    public ResponseEntity<DataImportResultDTO> importModelAnswer(@RequestBody Map<String, Object> requestData) {
+        log.info("接收到模型回答导入请求: {}", requestData);
+        try {
+            // 从请求中提取数据
+            Integer questionId = (Integer) requestData.get("questionId");
+            Integer modelId = (Integer) requestData.get("modelId");
+            String answer = (String) requestData.get("answer");
+            Integer responseTime = (Integer) requestData.get("responseTime");
+            String status = (String) requestData.get("status");
+            
+            if (questionId == null || modelId == null || answer == null) {
+                return ResponseEntity.badRequest().body(
+                    new DataImportResultDTO(false, "导入失败: 问题ID、模型ID和回答内容不能为空", 0, 0, 1)
+                );
+            }
+            
+            // 创建LlmAnswerDTO对象
+            LlmAnswerDTO answerDTO = new LlmAnswerDTO();
+            // 设置问题ID - 注意这里需要通过DTO中的standardQuestion对象设置
+            StandardQuestionDTO questionDTO = new StandardQuestionDTO();
+            questionDTO.setStandardQuestionId(questionId);
+            answerDTO.setStandardQuestion(questionDTO);
+            
+            // 设置模型ID - 注意这里需要通过DTO中的model对象设置
+            LlmModelDTO modelDTO = new LlmModelDTO();
+            modelDTO.setModelId(modelId);
+            answerDTO.setModel(modelDTO);
+            
+            // 设置其他属性
+            answerDTO.setContent(answer);
+            answerDTO.setLatency(responseTime);
+            
+            // 保存到数据库
+            LlmAnswerDTO savedAnswer = llmAnswerService.createAnswer(answerDTO);
+            
+            if (savedAnswer != null && savedAnswer.getLlmAnswerId() != null) {
+                return ResponseEntity.ok(
+                    new DataImportResultDTO(true, "模型回答导入成功", 1, 1, 0)
+                );
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    new DataImportResultDTO(false, "导入失败: 保存模型回答时发生错误", 0, 0, 1)
+                );
+            }
+        } catch (Exception e) {
+            log.error("导入模型回答失败", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                new DataImportResultDTO(false, "导入失败: " + e.getMessage(), 0, 0, 1)
             );
         }
     }

@@ -65,6 +65,23 @@ export function createModel(data: LlmModel) {
   })
 }
 
+// 更新模型
+export function updateModel(id: number, data: LlmModel) {
+  return request({
+    url: `/api/models/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+// 删除模型
+export function deleteModel(id: number) {
+  return request({
+    url: `/api/models/${id}`,
+    method: 'delete'
+  })
+}
+
 // 获取评测批次列表
 export function getEvaluationBatches(params: QueryParams) {
   return request({

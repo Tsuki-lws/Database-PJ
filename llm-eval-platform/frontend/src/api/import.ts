@@ -110,14 +110,14 @@ export function importModelAnswer(data: any) {
 
 /**
  * 搜索模型回答
- * @param query 搜索关键词
+ * @param params 查询参数
  * @returns 搜索结果
  */
-export function searchModelAnswers(query: string) {
+export function searchModelAnswers(params: any) {
   return request({
-    url: '/api/answers/search',
+    url: '/api/llm-answers',
     method: 'get',
-    params: { query }
+    params
   })
 }
 
@@ -128,7 +128,7 @@ export function searchModelAnswers(query: string) {
  */
 export function getAnswerDetail(answerId: number) {
   return request({
-    url: `/api/answers/${answerId}`,
+    url: `/api/llm-answers/${answerId}`,
     method: 'get'
   })
 }
@@ -140,7 +140,7 @@ export function getAnswerDetail(answerId: number) {
  */
 export function deleteModelAnswer(answerId: number) {
   return request({
-    url: `/api/answers/${answerId}`,
+    url: `/api/llm-answers/${answerId}`,
     method: 'delete'
   })
 } 

@@ -50,7 +50,7 @@ const router = createRouter({
         {
           path: 'answers/model',
           name: 'ModelAnswers',
-          component: () => import('../views/answers/ModelAnswers.vue')
+          component: () => import('../views/models/ModelAnswers.vue')
         },
         {
           path: 'model-answers',
@@ -66,6 +66,11 @@ const router = createRouter({
           path: 'model-answers/evaluation',
           name: 'ImportModelEvaluation',
           component: () => import('../views/import/ImportModelEvaluation.vue')
+        },
+        {
+          path: 'models',
+          name: 'Models',
+          component: () => import('../views/models/List.vue')
         },
         {
           path: 'answers/create/:questionId',
