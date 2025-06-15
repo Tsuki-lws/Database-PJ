@@ -178,7 +178,11 @@
         </el-form-item>
 
         <el-form-item label="问题分类" prop="categoryId">
-          <el-select v-model="convertForm.categoryId" placeholder="请选择问题分类">
+          <el-select 
+            v-model="convertForm.categoryId" 
+            placeholder="请选择问题分类"
+            teleported
+            popper-class="category-select-dropdown">
             <el-option
               v-for="category in categories"
               :key="category.categoryId"
@@ -229,6 +233,8 @@
             placeholder="请选择关联的标准问题"
             filterable
             remote
+            teleported
+            popper-class="standard-question-dropdown"
             :remote-method="searchStandardQuestions"
             :loading="questionsLoading">
             <el-option
