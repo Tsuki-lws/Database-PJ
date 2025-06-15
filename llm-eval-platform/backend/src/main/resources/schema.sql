@@ -324,7 +324,7 @@ CREATE TABLE llm_models (
     UNIQUE KEY (name, version)
 ) COMMENT='大语言模型信息';
 
--- 评测批次表（简化版）
+-- 评测批次表
 CREATE TABLE evaluation_batches (
     batch_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -371,7 +371,7 @@ CREATE TABLE llm_answers (
     FOREIGN KEY (parent_answer_id) REFERENCES llm_answers(llm_answer_id) ON DELETE SET NULL
 ) COMMENT='模型生成的回答';
 
--- 评测结果表（简化版）
+-- 评测结果表
 CREATE TABLE evaluations (
     evaluation_id INT AUTO_INCREMENT PRIMARY KEY,
     llm_answer_id INT NOT NULL,
@@ -390,7 +390,7 @@ CREATE TABLE evaluations (
     FOREIGN KEY (batch_id) REFERENCES evaluation_batches(batch_id) ON DELETE SET NULL
 ) COMMENT='模型回答的评测结果';
 
--- 评测关键点详情表（简化版）
+-- 评测关键点详情表
 CREATE TABLE evaluation_key_points (
     id INT AUTO_INCREMENT PRIMARY KEY,
     evaluation_id INT NOT NULL,
@@ -402,7 +402,7 @@ CREATE TABLE evaluation_key_points (
     FOREIGN KEY (key_point_id) REFERENCES answer_key_points(key_point_id) ON DELETE CASCADE
 ) COMMENT='评测关键点结果';
 
--- 评测提示模板表（简化版）
+-- 评测提示模板表
 CREATE TABLE evaluation_prompt_templates (
     template_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -482,7 +482,7 @@ CREATE INDEX idx_standard_qa_pairs ON standard_qa_pairs(standard_question_id, st
 CREATE INDEX idx_qa_source_ids ON standard_qa_pairs(source_question_id, source_answer_id);
 CREATE INDEX idx_key_points ON answer_key_points(standard_answer_id);
 
--- 创建索引以优化查询性能（简化版）
+-- 创建索引以优化查询性能
 CREATE INDEX idx_raw_questions_source ON raw_questions(source);
 CREATE INDEX idx_raw_questions_deleted ON raw_questions(deleted_at);
 CREATE INDEX idx_standard_questions_category ON standard_questions(category_id);

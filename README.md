@@ -1,111 +1,135 @@
-# LLM评测平台
+# LLM评测平台 - 项目使用说明
 
-这是一个大语言模型（LLM）评测平台，用于评估和比较不同大语言模型的性能。
+## 项目概述
 
-## 功能特点
+LLM评测平台是一个用于评估和比较大语言模型性能的综合性系统。该平台提供了完整的问题管理、标准答案管理、评测管理、众包任务管理以及数据导入等功能。
 
-### 评测功能
-- 支持自动评测、人工评测和评判模型评测
-- 支持对单个问题进行人工评测
-- 支持批量评测和结果分析
-- 支持多维度评测（准确性、完整性、清晰度等）
-- 支持关键点评估
+## 系统架构
 
-### 数据管理
-- 原始问题和回答管理
-- 标准问题和标准答案管理
-- 数据集版本管理
-- 众包任务管理
+- **前端**: Vue 3 + TypeScript + Element Plus
+- **后端**: Spring Boot 3.2.3 + Spring Data JPA
+- **数据库**: MySQL 8.0
+- **文档**: Swagger/OpenAPI 3.0
 
-### 导入导出
-- 支持导入模型回答（单条）
-- 支持导入模型评测结果（单条）
-- 支持批量导入评测结果（JSON、CSV、Excel格式）
-- 支持导出评测结果
+## 项目获取
 
-### 结果分析
-- 模型评测结果对比
-- 评测结果可视化
-- 按分类、难度等维度分析
+### Git仓库
 
-## 项目结构
-
-### 前端
-- 基于Vue 3 + TypeScript + Element Plus
-- 采用组件化开发
-- 使用Vue Router进行路由管理
-
-### 后端
-- 基于Spring Boot
-- RESTful API设计
-- 使用JPA进行数据访问
-- 支持多种数据库
-
-## 主要页面
-
-1. 首页：展示评测概览和快速操作
-2. 评测列表：管理评测批次
-3. 评测详情：查看评测基本信息和进度
-4. 评测结果：查看评测结果详情和分析
-5. 人工评测：对单个问题进行人工评测
-6. 模型回答导入：导入单条模型回答
-7. 模型评测导入：导入单条模型评测结果
-8. 评测结果导入：批量导入评测结果
-
-## 开发指南
-
-### 环境要求
-- Node.js 16+
-- JDK 11+
-- Maven 3.6+
-
-### 前端开发
 ```bash
-# 进入前端目录
-cd frontend
+# 克隆项目
+git clone git@github.com:Tsuki-lws/Database-PJ.git
 
-# 安装依赖
-npm install
-
-# 启动开发服务器
-npm run dev
+# 进入项目目录
+cd Database-PJ
 ```
 
-### 后端开发
+**仓库地址**: https://github.com/Tsuki-lws/Database-PJ
+
+## 环境准备
+
+### 必需软件
+
+- **JDK 17** 或更高版本
+- **MySQL 8.0** 或更高版本
+- **Gradle 8.x**
+- **IDE** IntelliJ IDEA 
+
+### 数据库配置
+
+1. **创建数据库**
+
+```sql
+CREATE DATABASE llm_eval_db;
+CREATE USER 'llm_user'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON llm_eval_db.* TO 'llm_user'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+2. **配置数据库连接**
+
+编辑 `backend/src/main/resources/application.properties`:
+
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/llm_eval_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+spring.datasource.username=llm_user
+spring.datasource.password=your_password
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+```
+
+## 项目启动
+
+### 后端启动
+
+1. **命令行方式**
+
 ```bash
 # 进入后端目录
 cd backend
 
-# 编译项目
-mvn clean package
+# 构建项目
+./gradlew clean build
 
 # 运行项目
-java -jar target/llm-eval-platform.jar
+./gradlew bootRun
 ```
 
-## API文档
+2. **IDE方式**
 
-### 评测相关API
-- `GET /api/evaluations/batches`: 获取评测批次列表
-- `GET /api/evaluations/batches/{batchId}`: 获取评测批次详情
-- `POST /api/evaluations/batches`: 创建评测批次
-- `POST /api/evaluations/batches/{batchId}/start`: 开始执行评测批次
-- `GET /api/evaluations/batches/{batchId}/results`: 获取评测结果
-- `GET /api/evaluations/batches/{batchId}/results/{questionId}`: 获取评测结果详情
-- `GET /api/evaluations/unevaluated`: 获取待评测的回答
-- `GET /api/evaluations/detail/{answerId}`: 获取评测详情
-- `POST /api/evaluations/manual`: 提交人工评测结果
-- `GET /api/evaluations/batches/{batchId}/export`: 导出评测结果
+- 在IDE中打开项目
+- 找到 `LlmEvalPlatformApplication.java`
+- 右键运行主类
 
-### 问题相关API
-- `GET /api/questions/search`: 搜索标准问题
-- `GET /api/questions/{questionId}`: 获取问题详情
-- `GET /api/questions`: 获取问题列表
-- `POST /api/questions`: 创建问题
-- `PUT /api/questions/{questionId}`: 更新问题
-- `DELETE /api/questions/{questionId}`: 删除问题
 
-### 导入相关API
-- `POST /api/import/model-answer`: 导入单条模型回答
-- `GET /api/answers/search`: 搜索模型回答
-- `GET /api/answers/{answerId}`: 获取模型回答详情 
+### 前端启动
+
+1. **环境要求**
+
+- **Node.js** 18.0 或更高版本
+- **npm** 或 **yarn** 包管理器
+
+2. **安装依赖**
+
+```bash
+# 进入前端目录
+cd frontend
+
+# 安装依赖包
+npm install
+# 或使用 yarn
+yarn install
+```
+
+3. **开发模式启动**
+
+```bash
+# 启动开发服务器
+npm run dev
+# 或使用 yarn
+yarn dev
+```
+
+
+4. **验证启动**
+
+开发模式启动成功后访问：
+- **前端应用**: http://localhost:5173
+- **默认登录页面**: http://localhost:5173
+
+### 完整启动流程
+
+1. **启动后端服务**
+   ```bash
+   cd backend
+   ./gradlew bootRun
+   ```
+
+2. **启动前端服务** (新终端窗口)
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+3. **访问应用**
+   - 前端界面: http://localhost:5173
