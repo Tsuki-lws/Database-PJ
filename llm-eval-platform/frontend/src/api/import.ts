@@ -102,7 +102,7 @@ export function importDataset(file: File) {
  */
 export function importModelAnswer(data: any) {
   return request({
-    url: '/api/import/model-answer',
+    url: '/api/llm-answers',
     method: 'post',
     data
   })
@@ -142,5 +142,43 @@ export function deleteModelAnswer(answerId: number) {
   return request({
     url: `/api/llm-answers/${answerId}`,
     method: 'delete'
+  })
+}
+
+/**
+ * 获取所有包含模型回答的数据集列表
+ * @returns 数据集列表
+ */
+export function getDatasetVersionsWithAnswers() {
+  return request({
+    url: '/api/llm-answers/datasets',
+    method: 'get'
+  })
+}
+
+/**
+ * 获取特定数据集中特定问题的所有模型回答
+ * @param datasetId 数据集ID
+ * @param questionId 问题ID
+ * @returns 模型回答列表
+ */
+export function getModelAnswersForQuestion(datasetId: number, questionId: number) {
+  return request({
+    url: `/api/llm-answers/datasets/${datasetId}/questions/${questionId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 获取特定数据集中特定问题的所有模型回答
+ * @param datasetId 数据集ID
+ * @param params 查询参数
+ * @returns 问题和模型回答情况
+ */
+export function getQuestionsWithAnswersInDataset(datasetId: number, params: any) {
+  return request({
+    url: `/api/llm-answers/datasets/${datasetId}`,
+    method: 'get',
+    params
   })
 } 

@@ -82,6 +82,56 @@ public class LlmAnswerController {
         }
     }
 
+    @GetMapping("/datasets")
+    @Operation(summary = "获取所有包含模型回答的数据集列表")
+    public ResponseEntity<?> getDatasetVersionsWithAnswers() {
+        try {
+            List<Map<String, Object>> datasets = llmAnswerService.getDatasetVersionsWithAnswers();
+            return ResponseEntity.ok(datasets);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取数据集列表失败: " + e.getMessage());
+            return ResponseEntity.ok(errorResponse);
+        }
+    }
+    
+    @GetMapping("/datasets/{datasetId}")
+    @Operation(summary = "获取特定数据集中的问题和模型回答情况")
+    public ResponseEntity<?> getQuestionsWithAnswersInDataset(
+            @PathVariable("datasetId") Integer datasetId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "hasAnswer", required = false) Boolean hasAnswer) {
+        try {
+            Map<String, Object> result = llmAnswerService.getQuestionsWithAnswersInDataset(
+                    datasetId, page, size, keyword, hasAnswer);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取数据集问题和模型回答失败: " + e.getMessage());
+            return ResponseEntity.ok(errorResponse);
+        }
+    }
+    
+    @GetMapping("/datasets/{datasetId}/questions/{questionId}")
+    @Operation(summary = "获取特定数据集中特定问题的所有模型回答")
+    public ResponseEntity<?> getModelAnswersForQuestion(
+            @PathVariable("datasetId") Integer datasetId,
+            @PathVariable("questionId") Integer questionId) {
+        try {
+            List<LlmAnswerDTO> answers = llmAnswerService.getModelAnswersForQuestionInDataset(datasetId, questionId);
+            return ResponseEntity.ok(answers);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取问题的模型回答失败: " + e.getMessage());
+            return ResponseEntity.ok(errorResponse);
+        }
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取模型回答详情")
     public ResponseEntity<?> getAnswerById(@PathVariable("id") Integer id) {

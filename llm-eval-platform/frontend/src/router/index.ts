@@ -63,6 +63,16 @@ const router = createRouter({
           component: () => import('../views/import/ImportModelAnswer.vue')
         },
         {
+          path: 'model-answers/dataset/:id',
+          name: 'DatasetQuestions',
+          component: () => import('../views/models/DatasetQuestions.vue')
+        },
+        {
+          path: 'model-answers/dataset/:datasetId/question/:questionId',
+          name: 'QuestionAnswers',
+          component: () => import('../views/models/QuestionAnswers.vue')
+        },
+        {
           path: 'model-answers/evaluation',
           name: 'ImportModelEvaluation',
           component: () => import('../views/import/ImportModelEvaluation.vue')
@@ -141,6 +151,16 @@ const router = createRouter({
           path: 'evaluations/results/:batchId',
           name: 'EvaluationResults',
           component: () => import('../views/evaluations/Results.vue')
+        },
+        {
+          path: 'evaluations/result/:id',
+          name: 'EvaluationResult',
+          component: () => import('../views/evaluations/EvaluationResult.vue')
+        },
+        {
+          path: 'evaluations/model',
+          name: 'ModelEvaluations',
+          component: () => import('../views/evaluations/ModelEvaluations.vue')
         },
         {
           path: 'evaluations/results',

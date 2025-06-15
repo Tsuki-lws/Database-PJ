@@ -2,79 +2,10 @@
   <div class="manual-evaluation-container">
     <div class="page-header">
       <h2>人工评测</h2>
-    </div>
-
-    <!-- 搜索和筛选 -->
-    <el-card shadow="never" class="filter-container">
-      <el-form :model="queryParams" label-width="100px" :inline="true">
-        <el-form-item label="模型">
-          <el-select v-model="queryParams.modelId" placeholder="选择模型" clearable>
-            <el-option
-              v-for="model in models"
-              :key="model.modelId"
-              :label="model.name + ' ' + model.version"
-              :value="model.modelId"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="问题类型">
-          <el-select v-model="queryParams.questionType" placeholder="选择问题类型" clearable>
-            <el-option label="主观题" value="subjective" />
-            <el-option label="客观题" value="objective" />
-            <el-option label="单选题" value="single_choice" />
-            <el-option label="多选题" value="multiple_choice" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="queryParams.categoryId" placeholder="选择问题分类" clearable>
-            <el-option
-              v-for="category in categories"
-              :key="category.categoryId"
-              :label="category.name"
-              :value="category.categoryId"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
-          <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
-    <!-- 评测列表 -->
-    <el-card v-if="!currentEvaluation" shadow="never" class="list-card">
-      <el-table v-loading="loading" :data="evaluationList" style="width: 100%">
-        <el-table-column prop="questionId" label="问题ID" width="80" />
-        <el-table-column prop="question" label="问题" show-overflow-tooltip />
-        <el-table-column prop="modelName" label="模型" width="120" />
-        <el-table-column prop="status" label="评测状态" width="100">
-          <template #default="scope">
-            <el-tag :type="getStatusType(scope.row.status)">
-              {{ getStatusText(scope.row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column fixed="right" label="操作" width="150">
-          <template #default="scope">
-            <el-button link type="primary" @click="startEvaluation(scope.row)">评测</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="queryParams.page"
-          v-model:page-size="queryParams.size"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="total"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
+      <div>
+        <el-button @click="goBack">返回</el-button>
       </div>
-    </el-card>
+    </div>
 
     <!-- 评测界面 -->
     <div v-if="currentEvaluation" class="evaluation-interface">
@@ -82,7 +13,6 @@
         <template #header>
           <div class="card-header">
             <span>问题详情</span>
-            <el-button link @click="backToList">返回列表</el-button>
           </div>
         </template>
         <div class="question-content">
@@ -213,34 +143,29 @@
           
           <el-form-item>
             <el-button type="primary" @click="submitEvaluation" :loading="submitting">提交评测</el-button>
-            <el-button @click="backToList">取消</el-button>
+            <el-button @click="goBack">取消</el-button>
           </el-form-item>
         </el-form>
       </el-card>
+    </div>
+    
+    <div v-else class="loading-container" v-loading="loading">
+      <span v-if="!loading">未找到需要评测的回答</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUnevaluatedAnswers, getEvaluationDetail, submitManualEvaluation, getStandardAnswersByQuestionId, getKeyPointsByAnswerId } from '@/api/evaluations'
-import { useRoute } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { getEvaluationDetail, submitManualEvaluation, getStandardAnswersByQuestionId, getKeyPointsByAnswerId } from '@/api/evaluations'
+import { useRoute, useRouter } from 'vue-router'
 
 const loading = ref(false)
 const submitting = ref(false)
-const evaluationList = ref<any[]>([])
-const total = ref(0)
 const currentEvaluation = ref<any>(null)
-
-// 查询参数
-const queryParams = reactive({
-  page: 1,
-  size: 10,
-  modelId: '',
-  questionType: '',
-  categoryId: ''
-})
+const route = useRoute()
+const router = useRouter()
 
 // 评测表单
 const evaluationForm = reactive({
@@ -265,76 +190,23 @@ const scoreMarks = {
   10: '10'
 }
 
-// 模型和分类数据
-const models = ref<any[]>([])
-const categories = ref<any[]>([])
-
 // 初始化
 onMounted(() => {
   // 检查URL参数中是否有answerId
-  const route = useRoute()
   const answerId = route.query.answerId as string
   
   if (answerId) {
     // 如果有answerId，直接加载该回答的评测详情
     startEvaluation({ answerId: parseInt(answerId) })
   } else {
-    // 否则加载待评测列表
-    fetchData()
-  }
-  
-  fetchModels()
-  fetchCategories()
-})
-
-// 获取待评测列表
-const fetchData = async () => {
-  loading.value = true
-  try {
-    const res = await getUnevaluatedAnswers(queryParams)
-    evaluationList.value = res.data.content || []
-    total.value = res.data.totalElements || 0
-  } catch (error: any) {
-    ElMessage.error('获取待评测列表失败: ' + error.message)
-  } finally {
+    ElMessage.error('未提供有效的回答ID')
     loading.value = false
   }
-}
-
-// 获取模型列表
-const fetchModels = async () => {
-  try {
-    // 模拟API调用
-    models.value = [
-      { modelId: 1, name: 'GPT-4', version: '0613' },
-      { modelId: 2, name: 'Claude 2', version: '' },
-      { modelId: 3, name: 'LLaMA 2', version: '70B' },
-      { modelId: 4, name: 'Mistral', version: '7B' },
-      { modelId: 5, name: 'Baichuan 2', version: '13B' }
-    ]
-  } catch (error: any) {
-    ElMessage.error('获取模型列表失败: ' + error.message)
-  }
-}
-
-// 获取分类列表
-const fetchCategories = async () => {
-  try {
-    // 模拟API调用
-    categories.value = [
-      { categoryId: 1, name: '编程' },
-      { categoryId: 2, name: '数学' },
-      { categoryId: 3, name: '物理' },
-      { categoryId: 4, name: '化学' },
-      { categoryId: 5, name: '生物' }
-    ]
-  } catch (error: any) {
-    ElMessage.error('获取分类列表失败: ' + error.message)
-  }
-}
+})
 
 // 开始评测
 const startEvaluation = async (row: any) => {
+  loading.value = true
   try {
     console.log('开始评测回答，ID:', row.answerId)
     
@@ -344,6 +216,7 @@ const startEvaluation = async (row: any) => {
     
     if (!res.data || res.data.error) {
       ElMessage.error(`获取评测详情失败: ${res.data?.error || '未知错误'}`)
+      loading.value = false
       return
     }
     
@@ -430,6 +303,8 @@ const startEvaluation = async (row: any) => {
   } catch (error: any) {
     console.error('获取评测详情失败:', error)
     ElMessage.error('获取评测详情失败: ' + (error.response?.data?.error || error.message))
+  } finally {
+    loading.value = false
   }
 }
 
@@ -476,10 +351,17 @@ const submitEvaluation = async () => {
     
     console.log('提交评测数据:', params)
     
-    await submitManualEvaluation(params)
+    const res = await submitManualEvaluation(params)
     ElMessage.success('评测提交成功')
-    backToList()
-    fetchData() // 刷新列表
+    
+    // 评测成功后跳转到评测结果页面
+    if (res.data && res.data.evaluationId) {
+      router.push({
+        path: `/evaluations/result/${res.data.evaluationId}`
+      })
+    } else {
+      goBack()
+    }
   } catch (error: any) {
     console.error('评测提交失败:', error)
     ElMessage.error('评测提交失败: ' + (error.response?.data?.error || error.message))
@@ -524,57 +406,9 @@ const validateForm = () => {
   return true
 }
 
-// 返回列表
-const backToList = () => {
-  currentEvaluation.value = null
-  resetEvaluationForm()
-}
-
-// 搜索
-const handleSearch = () => {
-  queryParams.page = 1
-  fetchData()
-}
-
-// 重置查询条件
-const resetQuery = () => {
-  queryParams.page = 1
-  queryParams.modelId = ''
-  queryParams.questionType = ''
-  queryParams.categoryId = ''
-  fetchData()
-}
-
-// 每页数量变化
-const handleSizeChange = (val: number) => {
-  queryParams.size = val
-  fetchData()
-}
-
-// 当前页变化
-const handleCurrentChange = (val: number) => {
-  queryParams.page = val
-  fetchData()
-}
-
-// 获取状态类型（用于标签颜色）
-const getStatusType = (status: string) => {
-  switch (status) {
-    case 'pending': return 'info'
-    case 'in_progress': return 'warning'
-    case 'completed': return 'success'
-    default: return 'info'
-  }
-}
-
-// 获取状态文本
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'pending': return '待评测'
-    case 'in_progress': return '评测中'
-    case 'completed': return '已完成'
-    default: return '未知'
-  }
+// 返回上一页
+const goBack = () => {
+  router.back()
 }
 
 // 获取关键点类型（用于标签颜色）
@@ -604,21 +438,17 @@ const getPointTypeText = (type: string) => {
 }
 
 .page-header {
-  margin-bottom: 20px;
-}
-
-.filter-container {
-  margin-bottom: 20px;
-}
-
-.list-card {
-  margin-bottom: 20px;
-}
-
-.pagination-container {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 20px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
 }
 
 .evaluation-interface {

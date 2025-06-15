@@ -308,7 +308,7 @@ public class EvaluationServiceImpl implements EvaluationService {
         // 如果没有找到答案，尝试通过问题ID直接查询
         if (answers.isEmpty()) {
             System.out.println("通过关联关系未找到答案，尝试直接查询");
-            answers = standardAnswerRepository.findByStandardQuestionId(questionId);
+            answers = standardAnswerRepository.findByStandardQuestionStandardQuestionId(questionId);
             System.out.println("直接查询找到 " + answers.size() + " 个标准答案");
         }
         
@@ -414,7 +414,7 @@ public class EvaluationServiceImpl implements EvaluationService {
         // 如果没有找到答案，尝试通过问题ID直接查询
         if (allAnswers.isEmpty()) {
             System.out.println("通过关联关系未找到答案，尝试直接查询");
-            allAnswers = standardAnswerRepository.findByStandardQuestionId(questionId);
+            allAnswers = standardAnswerRepository.findByStandardQuestionStandardQuestionId(questionId);
             System.out.println("直接查询找到 " + allAnswers.size() + " 个标准答案");
         }
         

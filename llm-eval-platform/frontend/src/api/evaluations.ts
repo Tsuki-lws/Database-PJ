@@ -250,4 +250,37 @@ export function getKeyPointsByAnswerId(answerId: number) {
     url: `/api/answers/${answerId}/key-points`,
     method: 'get'
   })
+}
+
+/**
+ * 获取模型评测结果列表
+ * @param params 查询参数
+ * @returns 评测结果列表
+ */
+export function getModelEvaluations(params: any) {
+  // 首先尝试调用特定的模型评测接口
+  return request({
+    url: '/api/evaluations/model',
+    method: 'get',
+    params
+  }).catch(error => {
+    console.warn('模型评测接口调用失败，尝试使用通用评测接口:', error);
+    // 如果特定接口失败，尝试使用通用评测接口
+    return request({
+      url: '/api/evaluations',
+      method: 'get',
+      params
+    });
+  });
+}
+
+/**
+ * 获取模型评测统计数据
+ * @returns 模型评测统计数据
+ */
+export function getModelEvaluationStatistics() {
+  return request({
+    url: '/api/evaluations/model/statistics',
+    method: 'get'
+  })
 } 

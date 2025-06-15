@@ -560,36 +560,48 @@ const viewKeyPoints = async (answer: any) => {
   
   // 检查答案对象是否已经包含关键点数据
   if (answer.keyPoints && Array.isArray(answer.keyPoints) && answer.keyPoints.length > 0) {
+    console.log('使用已有关键点数据:', answer.keyPoints);
     currentAnswer.value.keyPoints = answer.keyPoints;
     keyPointsDialogVisible.value = true;
     return;
   }
   
   // 如果没有关键点数据，则从后端获取
-  if (!currentAnswer.value.keyPoints || currentAnswer.value.keyPoints.length === 0) {
     try {
+    console.log('从后端获取关键点数据，答案ID:', answer.standardAnswerId);
       const response = await getAnswerKeyPoints(answer.standardAnswerId);
+    console.log('获取关键点响应:', response);
       
       // 处理后端返回的数据
       if (Array.isArray(response)) {
         currentAnswer.value.keyPoints = response;
+      console.log('关键点数据(数组):', response);
       } else if (response && response.data && Array.isArray(response.data)) {
         currentAnswer.value.keyPoints = response.data;
+      console.log('关键点数据(data数组):', response.data);
       } else if (response && typeof response === 'object') {
         // 尝试直接使用响应对象
-        currentAnswer.value.keyPoints = response;
+      currentAnswer.value.keyPoints = [response];
+      console.log('关键点数据(对象):', response);
       } else {
         currentAnswer.value.keyPoints = [];
+      console.log('未找到关键点数据');
       }
       
       // 如果关键点数组为空，显示提示
       if (!currentAnswer.value.keyPoints || currentAnswer.value.keyPoints.length === 0) {
+      console.log('该答案暂无关键点');
         ElMessage.info('该答案暂无关键点');
+    } else {
+      console.log(`找到 ${currentAnswer.value.keyPoints.length} 个关键点`);
+      
+      // 更新原始答案对象中的关键点数据，以便下次不需要重新请求
+      answer.keyPoints = [...currentAnswer.value.keyPoints];
       }
-    } catch (error) {
+  } catch (error: any) {
+    console.error('获取关键点失败:', error);
       currentAnswer.value.keyPoints = [];
-      ElMessage.error('获取关键点失败');
-    }
+    ElMessage.error(`获取关键点失败: ${error.message || '未知错误'}`);
   }
   
   keyPointsDialogVisible.value = true;

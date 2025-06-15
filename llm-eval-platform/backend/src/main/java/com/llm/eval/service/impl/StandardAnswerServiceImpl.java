@@ -133,9 +133,81 @@ public class StandardAnswerServiceImpl implements StandardAnswerService {
         existingAnswer.setUpdatedAt(LocalDateTime.now());
         existingAnswer.setVersion(existingAnswer.getVersion() + 1);
         
-        // Don't update isFinal here
+        // 更新isFinal状态
+        if (standardAnswer.getIsFinal() != null && standardAnswer.getIsFinal()) {
+            // 如果设置为最终版本，先取消其他最终版本
+            Integer questionId = existingAnswer.getStandardQuestion().getStandardQuestionId();
+            Optional<StandardAnswer> existingFinalAnswer = 
+                    standardAnswerRepository.findByStandardQuestionStandardQuestionIdAndIsFinalTrue(questionId);
+            
+            existingFinalAnswer.ifPresent(answer -> {
+                if (!answer.getStandardAnswerId().equals(id)) {
+                    System.out.println("找到现有最终版本答案，ID: " + answer.getStandardAnswerId() + ", 取消其最终版本标记");
+                    answer.setIsFinal(false);
+                    answer.setUpdatedAt(LocalDateTime.now());
+                    standardAnswerRepository.save(answer);
+                }
+            });
+            
+            existingAnswer.setIsFinal(true);
+        } else {
+            existingAnswer.setIsFinal(standardAnswer.getIsFinal() != null ? standardAnswer.getIsFinal() : existingAnswer.getIsFinal());
+        }
         
-        return standardAnswerRepository.save(existingAnswer);
+        // 保存更新后的答案
+        StandardAnswer savedAnswer = standardAnswerRepository.save(existingAnswer);
+        
+        // 处理关键点更新
+        if (standardAnswer.getKeyPoints() != null && !standardAnswer.getKeyPoints().isEmpty()) {
+            System.out.println("处理关键点更新，关键点数量: " + standardAnswer.getKeyPoints().size());
+            
+            // 获取现有关键点
+            List<AnswerKeyPoint> existingKeyPoints = answerKeyPointRepository.findByStandardAnswerOrderByPointOrder(existingAnswer);
+            
+            // 遍历提交的关键点
+            for (AnswerKeyPoint keyPoint : standardAnswer.getKeyPoints()) {
+                if (keyPoint.getKeyPointId() != null) {
+                    // 更新现有关键点
+                    AnswerKeyPoint existingKeyPoint = existingKeyPoints.stream()
+                            .filter(kp -> kp.getKeyPointId().equals(keyPoint.getKeyPointId()))
+                            .findFirst()
+                            .orElse(null);
+                    
+                    if (existingKeyPoint != null) {
+                        System.out.println("更新现有关键点，ID: " + existingKeyPoint.getKeyPointId());
+                        existingKeyPoint.setPointText(keyPoint.getPointText());
+                        existingKeyPoint.setPointOrder(keyPoint.getPointOrder());
+                        existingKeyPoint.setPointWeight(keyPoint.getPointWeight());
+                        existingKeyPoint.setPointType(keyPoint.getPointType());
+                        existingKeyPoint.setExampleText(keyPoint.getExampleText());
+                        existingKeyPoint.setUpdatedAt(LocalDateTime.now());
+                        existingKeyPoint.setVersion(existingKeyPoint.getVersion() + 1);
+                        answerKeyPointRepository.save(existingKeyPoint);
+                    }
+                } else {
+                    // 添加新关键点
+                    System.out.println("添加新关键点");
+                    keyPoint.setStandardAnswer(savedAnswer);
+                    keyPoint.setCreatedAt(LocalDateTime.now());
+                    keyPoint.setUpdatedAt(LocalDateTime.now());
+                    keyPoint.setVersion(1);
+                    answerKeyPointRepository.save(keyPoint);
+                }
+            }
+            
+            // 删除不再存在的关键点
+            for (AnswerKeyPoint existingKeyPoint : existingKeyPoints) {
+                boolean stillExists = standardAnswer.getKeyPoints().stream()
+                        .anyMatch(kp -> kp.getKeyPointId() != null && kp.getKeyPointId().equals(existingKeyPoint.getKeyPointId()));
+                
+                if (!stillExists) {
+                    System.out.println("删除不再存在的关键点，ID: " + existingKeyPoint.getKeyPointId());
+                    answerKeyPointRepository.delete(existingKeyPoint);
+                }
+            }
+        }
+        
+        return savedAnswer;
     }
     
     @Override

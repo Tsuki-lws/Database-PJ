@@ -334,4 +334,120 @@ public class EvaluationController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+    
+    @GetMapping("/model")
+    @Operation(summary = "获取模型评测结果列表")
+    public ResponseEntity<?> getModelEvaluations(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "modelId", required = false) Integer modelId,
+            @RequestParam(value = "question", required = false) String question,
+            @RequestParam(value = "evaluationType", required = false) String evaluationType,
+            @RequestParam(value = "minScore", required = false) BigDecimal minScore,
+            @RequestParam(value = "maxScore", required = false) BigDecimal maxScore) {
+        
+        try {
+            System.out.println("获取模型评测结果列表，参数: " + 
+                              "page=" + page + ", size=" + size + 
+                              ", modelId=" + modelId + ", question=" + question + 
+                              ", evaluationType=" + evaluationType + 
+                              ", minScore=" + minScore + ", maxScore=" + maxScore);
+            
+            // 获取评测结果列表
+            List<EvaluationDTO> evaluations = evaluationService.getAllEvaluations();
+            
+            // 应用筛选条件
+            List<EvaluationDTO> filteredEvaluations = evaluations.stream()
+                .filter(eval -> modelId == null || (eval.getModelId() != null && eval.getModelId().equals(modelId)))
+                .filter(eval -> question == null || (eval.getQuestion() != null && eval.getQuestion().contains(question)))
+                .filter(eval -> evaluationType == null || (eval.getMethod() != null && eval.getMethod().equals(evaluationType)))
+                .filter(eval -> minScore == null || (eval.getScore() != null && eval.getScore().compareTo(minScore) >= 0))
+                .filter(eval -> maxScore == null || (eval.getScore() != null && eval.getScore().compareTo(maxScore) <= 0))
+                .collect(Collectors.toList());
+            
+            // 手动分页
+            int fromIndex = page * size;
+            int toIndex = Math.min(fromIndex + size, filteredEvaluations.size());
+            
+            List<EvaluationDTO> pagedEvaluations = fromIndex < filteredEvaluations.size() ? 
+                    filteredEvaluations.subList(fromIndex, toIndex) : 
+                    List.of();
+            
+            // 构建响应
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", pagedEvaluations);
+            response.put("totalElements", filteredEvaluations.size());
+            response.put("totalPages", (int) Math.ceil((double) filteredEvaluations.size() / size));
+            response.put("size", size);
+            response.put("number", page);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取模型评测结果列表失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+    
+    @GetMapping("/model/statistics")
+    @Operation(summary = "获取模型评测统计数据")
+    public ResponseEntity<?> getModelEvaluationStatistics() {
+        try {
+            // 获取所有评测结果
+            List<EvaluationDTO> evaluations = evaluationService.getAllEvaluations();
+            
+            // 按模型分组
+            Map<Integer, List<EvaluationDTO>> evaluationsByModel = evaluations.stream()
+                .filter(eval -> eval.getModelId() != null)
+                .collect(Collectors.groupingBy(EvaluationDTO::getModelId));
+            
+            // 计算每个模型的统计数据
+            List<Map<String, Object>> statistics = new ArrayList<>();
+            
+            evaluationsByModel.forEach((modelId, modelEvaluations) -> {
+                Map<String, Object> modelStat = new HashMap<>();
+                modelStat.put("modelId", modelId);
+                
+                // 获取模型名称
+                String modelName = modelEvaluations.stream()
+                    .map(EvaluationDTO::getModelName)
+                    .filter(name -> name != null && !name.isEmpty())
+                    .findFirst()
+                    .orElse("未知模型");
+                
+                modelStat.put("modelName", modelName);
+                modelStat.put("evaluationCount", modelEvaluations.size());
+                
+                // 计算平均分
+                double avgScore = modelEvaluations.stream()
+                    .filter(eval -> eval.getScore() != null)
+                    .mapToDouble(eval -> eval.getScore().doubleValue())
+                    .average()
+                    .orElse(0.0);
+                
+                modelStat.put("avgScore", avgScore);
+                
+                // 计算评测维度平均分
+                Map<String, Double> dimensions = new HashMap<>();
+                dimensions.put("accuracy", 0.0);
+                dimensions.put("completeness", 0.0);
+                dimensions.put("clarity", 0.0);
+                
+                // 这里需要根据实际情况计算维度得分
+                // 假设评测维度信息存储在评测的comments字段中
+                
+                modelStat.put("dimensions", dimensions);
+                
+                statistics.add(modelStat);
+            });
+            
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取模型评测统计数据失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
 } 

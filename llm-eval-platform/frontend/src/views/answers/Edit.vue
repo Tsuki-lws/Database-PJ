@@ -341,16 +341,42 @@ const submitForm = async () => {
     
     loading.value = true
     try {
-      await updateAnswer(answerForm.standardAnswerId, answerForm)
-      ElMessage.success('更新成功')
-      // 返回到问题详情页面
-      if (answerForm.standardQuestionId) {
-        router.push(`/questions/detail/${answerForm.standardQuestionId}`)
-      } else {
-        router.push('/answers')
+      // 确保关键点数据格式正确
+      const formData = { ...answerForm }
+      
+      // 处理关键点数据
+      if (formData.keyPoints && formData.keyPoints.length > 0) {
+        // 确保每个关键点都有standardAnswerId
+        formData.keyPoints = formData.keyPoints.map(point => {
+          return {
+            ...point,
+            standardAnswerId: formData.standardAnswerId
+          }
+        })
+        
+        // 确保每个关键点都有正确的顺序
+        formData.keyPoints.forEach((point, index) => {
+          if (!point.pointOrder) {
+            point.pointOrder = index + 1
+          }
+        })
+        
+        console.log('提交的关键点数据:', formData.keyPoints)
       }
-    } catch (error) {
+      
+      // 提交更新
+      await updateAnswer(formData.standardAnswerId, formData)
+      ElMessage.success('更新成功')
+      
+      // 返回到问题详情页面
+      if (formData.standardQuestionId) {
+        router.push(`/questions/detail/${formData.standardQuestionId}`)
+      } else {
+        router.back()
+      }
+    } catch (error: any) {
       console.error('更新答案失败', error)
+      ElMessage.error(`更新失败: ${error.message || '未知错误'}`)
     } finally {
       loading.value = false
     }

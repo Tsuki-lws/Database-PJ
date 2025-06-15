@@ -1,5 +1,6 @@
 package com.llm.eval.repository;
 
+import com.llm.eval.model.DatasetVersion;
 import com.llm.eval.model.EvaluationBatch;
 import com.llm.eval.model.LlmAnswer;
 import com.llm.eval.model.LlmModel;
@@ -23,4 +24,10 @@ public interface LlmAnswerRepository extends JpaRepository<LlmAnswer, Integer> {
     List<LlmAnswer> findByModelAndBatch(LlmModel model, EvaluationBatch batch);
     
     List<LlmAnswer> findByStandardQuestionAndBatch(StandardQuestion standardQuestion, EvaluationBatch batch);
+    
+    List<LlmAnswer> findByDatasetVersion(DatasetVersion datasetVersion);
+    
+    long countByDatasetVersion(DatasetVersion datasetVersion);
+    
+    List<LlmAnswer> findByStandardQuestionAndDatasetVersion(StandardQuestion standardQuestion, DatasetVersion datasetVersion);
 } 

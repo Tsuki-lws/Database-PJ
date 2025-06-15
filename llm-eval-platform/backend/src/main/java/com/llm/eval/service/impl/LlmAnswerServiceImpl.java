@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -134,6 +136,158 @@ public class LlmAnswerServiceImpl implements LlmAnswerService {
         // 这里应该实现批量生成回答的逻辑
         // 由于这是一个复杂的功能，这里只返回空列表作为占位符
         return new ArrayList<>();
+    }
+    
+    @Override
+    public List<Map<String, Object>> getDatasetVersionsWithAnswers() {
+        // 获取所有数据集版本
+        List<DatasetVersion> datasets = datasetVersionRepository.findAll();
+        
+        // 转换为前端需要的格式
+        return datasets.stream().map(dataset -> {
+            Map<String, Object> datasetInfo = new HashMap<>();
+            datasetInfo.put("datasetId", dataset.getVersionId());
+            datasetInfo.put("name", dataset.getName());
+            // 数据集版本没有version字段，使用versionId代替
+            datasetInfo.put("version", dataset.getVersionId());
+            datasetInfo.put("isPublished", dataset.getIsPublished());
+            datasetInfo.put("createdAt", dataset.getCreatedAt());
+            
+            // 获取该数据集中的问题数量
+            long questionCount = dataset.getQuestions() != null ? dataset.getQuestions().size() : 0;
+            datasetInfo.put("questionCount", questionCount);
+            
+            // 获取该数据集中的模型回答数量 - 使用Repository方法
+            long answerCount = llmAnswerRepository.countByDatasetVersion(dataset);
+            datasetInfo.put("answerCount", answerCount);
+            
+            return datasetInfo;
+        }).collect(Collectors.toList());
+    }
+    
+    @Override
+    public Map<String, Object> getQuestionsWithAnswersInDataset(Integer datasetId, int page, int size) {
+        // 使用新的方法实现，不过滤关键词和回答状态
+        return getQuestionsWithAnswersInDataset(datasetId, page, size, null, null);
+    }
+    
+    @Override
+    public Map<String, Object> getQuestionsWithAnswersInDataset(Integer datasetId, int page, int size, String keyword, Boolean hasAnswer) {
+        // 获取数据集
+        Optional<DatasetVersion> datasetOpt = datasetVersionRepository.findById(datasetId);
+        if (datasetOpt.isEmpty()) {
+            return Map.of("error", "数据集不存在");
+        }
+        
+        DatasetVersion dataset = datasetOpt.get();
+        
+        // 获取该数据集中的所有问题
+        List<StandardQuestion> questions = new ArrayList<>(dataset.getQuestions());
+        
+        // 按关键词过滤
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String lowerKeyword = keyword.toLowerCase().trim();
+            questions = questions.stream()
+                    .filter(q -> q.getQuestion() != null && q.getQuestion().toLowerCase().contains(lowerKeyword))
+                    .collect(Collectors.toList());
+        }
+        
+        // 计算总问题数
+        int totalBeforeAnswerFilter = questions.size();
+        
+        // 按回答状态过滤
+        if (hasAnswer != null) {
+            List<StandardQuestion> filteredQuestions = new ArrayList<>();
+            
+            for (StandardQuestion question : questions) {
+                // 获取该问题在当前数据集中的回答
+                List<LlmAnswer> answers = llmAnswerRepository.findByStandardQuestionAndDatasetVersion(question, dataset);
+                
+                // 根据hasAnswer参数过滤
+                if ((hasAnswer && !answers.isEmpty()) || (!hasAnswer && answers.isEmpty())) {
+                    filteredQuestions.add(question);
+                }
+            }
+            
+            questions = filteredQuestions;
+        }
+        
+        // 计算分页信息
+        int total = questions.size();
+        int totalPages = (int) Math.ceil((double) total / size);
+        int fromIndex = page * size;
+        int toIndex = Math.min(fromIndex + size, total);
+        
+        // 手动分页
+        List<StandardQuestion> pagedQuestions = fromIndex < total ? 
+                questions.subList(fromIndex, toIndex) : new ArrayList<>();
+        
+        // 转换为前端需要的格式
+        List<Map<String, Object>> questionList = pagedQuestions.stream().map(question -> {
+            Map<String, Object> questionInfo = new HashMap<>();
+            questionInfo.put("questionId", question.getStandardQuestionId());
+            questionInfo.put("question", question.getQuestion());
+            questionInfo.put("questionType", question.getQuestionType());
+            questionInfo.put("difficulty", question.getDifficulty());
+            
+            // 获取该问题的所有模型回答 - 使用Repository方法
+            List<LlmAnswer> answers = llmAnswerRepository.findByStandardQuestionAndDatasetVersion(question, dataset);
+            
+            // 统计模型回答信息
+            long answerCount = answers.size();
+            List<String> modelNames = answers.stream()
+                    .filter(answer -> answer.getModel() != null)
+                    .map(answer -> answer.getModel().getName() + " " + 
+                         (answer.getModel().getVersion() != null ? answer.getModel().getVersion() : ""))
+                    .distinct()
+                    .collect(Collectors.toList());
+            
+            questionInfo.put("answerCount", answerCount);
+            questionInfo.put("models", modelNames);
+            
+            return questionInfo;
+        }).collect(Collectors.toList());
+        
+        // 构建返回结果
+        Map<String, Object> result = new HashMap<>();
+        result.put("content", questionList);
+        result.put("totalElements", total);
+        result.put("totalPages", totalPages);
+        result.put("size", size);
+        result.put("number", page);
+        result.put("dataset", Map.of(
+            "datasetId", dataset.getVersionId(),
+            "name", dataset.getName(),
+            // 数据集版本没有version字段，使用versionId代替
+            "version", dataset.getVersionId(),
+            "isPublished", dataset.getIsPublished()
+        ));
+        
+        return result;
+    }
+    
+    @Override
+    public List<LlmAnswerDTO> getModelAnswersForQuestionInDataset(Integer datasetId, Integer questionId) {
+        // 获取数据集
+        Optional<DatasetVersion> datasetOpt = datasetVersionRepository.findById(datasetId);
+        if (datasetOpt.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // 获取问题
+        Optional<StandardQuestion> questionOpt = standardQuestionRepository.findById(questionId);
+        if (questionOpt.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // 获取该数据集中该问题的所有模型回答 - 使用Repository方法
+        List<LlmAnswer> answers = llmAnswerRepository.findByStandardQuestionAndDatasetVersion(
+                questionOpt.get(), datasetOpt.get());
+        
+        // 转换为DTO
+        return answers.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
     
     private LlmAnswerDTO convertToDTO(LlmAnswer entity) {
