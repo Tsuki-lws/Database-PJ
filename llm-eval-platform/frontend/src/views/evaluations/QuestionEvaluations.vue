@@ -64,8 +64,8 @@
         </el-table-column>
         <el-table-column prop="method" label="评测方法" width="120">
           <template #default="scope">
-            <el-tag :type="getMethodType(scope.row.method)">
-              {{ getMethodText(scope.row.method) }}
+            <el-tag type="primary">
+              人工评测
             </el-tag>
           </template>
         </el-table-column>

@@ -87,7 +87,7 @@
         <el-table :data="resultData.keyPoints" style="width: 100%">
           <el-table-column prop="pointText" label="关键点" />
           <el-table-column prop="pointWeight" label="权重" width="80" />
-          <el-table-column prop="matchStatus" label="匹配状态" width="120">
+          <el-table-column label="匹配状态" width="120">
             <template #default="scope">
               <el-tag :type="getMatchStatusType(scope.row.matchStatus)">
                 {{ getMatchStatusText(scope.row.matchStatus) }}
@@ -95,6 +95,13 @@
             </template>
           </el-table-column>
         </el-table>
+        
+        <div v-if="resultData.keyPoints.length > 0" class="keypoints-summary">
+          <div class="summary-item">
+            <span class="label">匹配率:</span>
+            <span class="value">{{ calculateMatchRate() }}%</span>
+          </div>
+        </div>
       </el-card>
 
       <el-card v-if="resultData.comments" shadow="hover" class="comments-card">
@@ -161,6 +168,13 @@ const fetchEvaluationResult = async (evaluationId: number) => {
       const data = res.data;
       console.log('处理评测结果数据:', data);
       
+      // 调试：打印关键点数据结构
+      if (data.keyPoints) {
+        console.log('API返回的关键点数据结构:', JSON.stringify(data.keyPoints[0] || {}, null, 2));
+      } else {
+        console.log('API未返回关键点数据');
+      }
+      
       // 创建一个临时对象，避免直接修改reactive对象的属性
       const tempData = {
         id: data.evaluationId || data.id || evaluationId,
@@ -175,12 +189,33 @@ const fetchEvaluationResult = async (evaluationId: number) => {
         questionType: data.questionType || 'subjective',
         category: data.category || '未分类',
         options: data.options || [],
-        keyPoints: (data.keyPoints || []).map((point: any) => ({
-          ...point,
-          matchStatus: point.matchStatus || 'missed'
-        })),
+        keyPoints: [],
         comments: data.comments || ''
       };
+
+      // 处理关键点数据，确保属性名一致
+      if (data.keyPoints && Array.isArray(data.keyPoints) && data.keyPoints.length > 0) {
+        console.log('处理关键点数据，数量:', data.keyPoints.length);
+        
+        tempData.keyPoints = data.keyPoints.map((point: any) => {
+          // 确保关键点数据结构与前端组件期望的一致
+          const processedPoint = {
+            pointId: point.pointId,
+            pointText: point.pointText || '',
+            pointWeight: point.pointWeight || 1,
+            // 确保matchStatus存在，默认为missed
+            matchStatus: point.matchStatus || 'missed'
+          };
+          
+          console.log(`关键点 ${processedPoint.pointId}: ${processedPoint.pointText}, 匹配状态: ${processedPoint.matchStatus}`);
+          
+          return processedPoint;
+        });
+        
+        console.log('处理后的关键点数据:', tempData.keyPoints);
+      } else {
+        console.log('未找到关键点数据或为空数组');
+      }
       
       // 将临时对象的属性赋值给reactive对象
       Object.assign(resultData, tempData);
@@ -338,6 +373,23 @@ const getMatchStatusText = (status: string) => {
     default: return '未知'
   }
 }
+
+// 计算关键点匹配率
+const calculateMatchRate = () => {
+  if (!resultData.keyPoints || resultData.keyPoints.length === 0) return 0;
+  
+  const totalPoints = resultData.keyPoints.length;
+  const matchedPoints = resultData.keyPoints.filter(
+    point => point.matchStatus === 'matched'
+  ).length;
+  const partialPoints = resultData.keyPoints.filter(
+    point => point.matchStatus === 'partial'
+  ).length;
+  
+  // 完全匹配算1分，部分匹配算0.5分
+  const score = matchedPoints + (partialPoints * 0.5);
+  return Math.round((score / totalPoints) * 100);
+}
 </script>
 
 <style scoped>
@@ -453,5 +505,28 @@ const getMatchStatusText = (status: string) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.keypoints-summary {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #ebeef5;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+}
+
+.summary-item .label {
+  margin-right: 5px;
+  color: #606266;
+}
+
+.summary-item .value {
+  font-weight: bold;
+  color: #409EFF;
 }
 </style> 

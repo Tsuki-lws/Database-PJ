@@ -711,6 +711,47 @@ public class EvaluationController {
                 // 简单示例：随机评分，实际中应该使用文本相似度、关键点匹配等复杂算法
                 evaluationDTO.setScore(new BigDecimal(Math.random() * 10).setScale(2, BigDecimal.ROUND_HALF_UP));
                 evaluationDTO.setComments("自动评测生成的评分");
+                
+                // 处理关键点评估
+                List<AnswerKeyPoint> keyPoints = evaluationService.getKeyPointsByAnswerId(
+                        standardAnswerOpt.get().getStandardAnswerId());
+                
+                if (!keyPoints.isEmpty()) {
+                    System.out.println("自动评测：处理关键点评估，关键点数量: " + keyPoints.size());
+                    
+                    // 创建关键点评估列表
+                    List<EvaluationKeyPointDTO> keyPointEvals = new ArrayList<>();
+                    
+                    // 简单示例：随机生成关键点匹配状态
+                    // 实际应该基于文本相似度、关键词匹配等算法来判断
+                    for (AnswerKeyPoint keyPoint : keyPoints) {
+                        EvaluationKeyPointDTO keyPointEval = new EvaluationKeyPointDTO();
+                        keyPointEval.setKeyPointId(keyPoint.getKeyPointId());
+                        
+                        // 随机生成匹配状态，仅用于演示
+                        // 实际应该基于模型回答内容与关键点的匹配程度来判断
+                        double matchScore = Math.random();
+                        if (matchScore > 0.7) {
+                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MATCHED);
+                        } else if (matchScore > 0.3) {
+                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.PARTIAL);
+                        } else {
+                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MISSED);
+                        }
+                        
+                        keyPointEvals.add(keyPointEval);
+                    }
+                    
+                    // 将关键点评估结果转换为JSON字符串
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    try {
+                        evaluationDTO.setKeyPointsEvaluation(objectMapper.writeValueAsString(keyPointEvals));
+                        System.out.println("关键点评估JSON: " + evaluationDTO.getKeyPointsEvaluation());
+                    } catch (Exception e) {
+                        System.err.println("关键点评估JSON序列化失败: " + e.getMessage());
+                        evaluationDTO.setKeyPointsEvaluation("[]");
+                    }
+                }
             } else {
                 // 如果是人工评测，返回需要人工评测的信息
                 return ResponseEntity.ok(Map.of(

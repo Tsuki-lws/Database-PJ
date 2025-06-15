@@ -69,7 +69,7 @@
               <el-button 
                 link 
                 type="danger" 
-                @click="handleRemoveQuestion(scope.row)">
+                @click="(event: MouseEvent) => handleRemoveQuestion(event, scope.row)">
                 移除
               </el-button>
             </template>
@@ -474,6 +474,8 @@ const fetchAvailableQuestions = async () => {
     // 确保page参数从1开始
     const queryParams = { ...questionQuery };
     
+    // 不再添加excludeIds参数，改为前端过滤
+    
     console.log('请求参数:', JSON.stringify(queryParams));
     
     const res = await getQuestionList(queryParams);
@@ -502,13 +504,13 @@ const fetchAvailableQuestions = async () => {
         total = 0;
       }
       
-      // 过滤掉已经在数据集中的问题
-      const existingIds = new Set(questionList.value.map((q: any) => q.standardQuestionId))
+      // 前端过滤掉已经在数据集中的问题
+      const existingIds = new Set(questionList.value.map((q: any) => q.standardQuestionId));
       
       console.log(`数据集已有问题数: ${existingIds.size}`);
       console.log(`本页返回问题数: ${content.length}, 总问题数: ${total}`);
       
-      availableQuestions.value = content.filter((q: any) => !existingIds.has(q.standardQuestionId))
+      availableQuestions.value = content.filter((q: any) => !existingIds.has(q.standardQuestionId));
       
       // 设置总数（这里使用API返回的总数，不考虑过滤）
       questionTotal.value = total;
@@ -567,7 +569,10 @@ const handleAddQuestions = async () => {
 }
 
 // 移除问题
-const handleRemoveQuestion = (row: any) => {
+const handleRemoveQuestion = (event: MouseEvent, row: any) => {
+  // 阻止事件冒泡，防止触发行点击事件
+  event.stopPropagation();
+  
   ElMessageBox.confirm(
     `确认从数据集中移除问题 ID: ${row.standardQuestionId} 吗？`,
     '移除确认',

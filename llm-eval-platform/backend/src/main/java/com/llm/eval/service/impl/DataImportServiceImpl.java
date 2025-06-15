@@ -110,12 +110,89 @@ public class DataImportServiceImpl implements DataImportService {
     public DataImportResultDTO importStandardQA(MultipartFile file) throws IOException {
         log.info("开始导入标准问答数据，文件名: {}", file.getOriginalFilename());
         
-        List<StandardQAImportDTO> standardQAs = objectMapper.readValue(
-                file.getInputStream(),
-                objectMapper.getTypeFactory().constructCollectionType(List.class, StandardQAImportDTO.class)
-        );
-        
-        return importStandardQAs(standardQAs);
+        try {
+            // 使用Jackson直接解析JSON数据为List<Map>，以便处理字段名称的差异
+            List<Map<String, Object>> jsonData = objectMapper.readValue(
+                    file.getInputStream(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class)
+            );
+            
+            log.info("解析到{}条标准问答数据", jsonData.size());
+            
+            List<StandardQAImportDTO> standardQAs = new ArrayList<>();
+            
+            // 将Map转换为StandardQAImportDTO对象
+            for (Map<String, Object> item : jsonData) {
+                StandardQAImportDTO qaDTO = new StandardQAImportDTO();
+                
+                // 处理基本字段
+                if (item.containsKey("qa_id")) {
+                    qaDTO.setQaId(convertToInteger(item.get("qa_id")));
+                }
+                if (item.containsKey("source_question_id")) {
+                    qaDTO.setSourceQuestionId(convertToInteger(item.get("source_question_id")));
+                }
+                if (item.containsKey("source_answer_id")) {
+                    qaDTO.setSourceAnswerId(convertToInteger(item.get("source_answer_id")));
+                }
+                if (item.containsKey("question")) {
+                    qaDTO.setQuestion((String) item.get("question"));
+                }
+                if (item.containsKey("answer")) {
+                    qaDTO.setAnswer((String) item.get("answer"));
+                }
+                
+                // 处理关键点数据
+                if (item.containsKey("key_points")) {
+                    Object keyPointsObj = item.get("key_points");
+                    List<String> keyPoints = new ArrayList<>();
+                    
+                    if (keyPointsObj instanceof List) {
+                        // 如果是列表类型，直接转换
+                        @SuppressWarnings("unchecked")
+                        List<Object> keyPointsList = (List<Object>) keyPointsObj;
+                        
+                        for (Object kp : keyPointsList) {
+                            if (kp instanceof String) {
+                                keyPoints.add((String) kp);
+                                log.info("添加关键点: {}", kp);
+                            }
+                        }
+                    }
+                    
+                    qaDTO.setKeyPoints(keyPoints);
+                    log.info("设置关键点数量: {}", keyPoints.size());
+                }
+                
+                standardQAs.add(qaDTO);
+            }
+            
+            return importStandardQAs(standardQAs);
+        } catch (Exception e) {
+            log.error("导入标准问答数据失败", e);
+            return new DataImportResultDTO(false, "导入失败: " + e.getMessage(), 0, 1, 1);
+        }
+    }
+
+    // 辅助方法：将Object转换为Integer
+    private Integer convertToInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Integer) {
+            return (Integer) value;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        if (value instanceof String) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     @Override

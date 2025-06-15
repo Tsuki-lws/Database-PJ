@@ -102,7 +102,7 @@ export function importDataset(file: File) {
  */
 export function importModelAnswer(data: any) {
   return request({
-    url: '/api/llm-answers',
+    url: '/api/import/model-answer',
     method: 'post',
     data
   })

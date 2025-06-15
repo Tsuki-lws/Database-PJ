@@ -514,13 +514,13 @@ const submitImport = async () => {
     if (valid) {
       submitLoading.value = true
       try {
-        // 构建提交数据
+        // 构建提交数据，修改为与后端匹配的格式
         const submitData = {
-          standardQuestionId: importForm.questionId,
+          questionId: importForm.questionId,
           modelId: importForm.modelId,
-          content: importForm.answer,
-          latency: importForm.responseTime,
-          datasetVersionId: importForm.datasetId
+          answer: importForm.answer,
+          responseTime: importForm.responseTime,
+          status: importForm.status
         }
         
         await importModelAnswer(submitData)

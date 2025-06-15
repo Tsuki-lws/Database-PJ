@@ -4,7 +4,7 @@
       <h2>模型评测结果</h2>
     </div>
 
-    <el-card shadow="never" class="filter-container">
+    <!-- <el-card shadow="never" class="filter-container">
       <el-form :model="queryParams" label-width="80px" :inline="true">
         <el-form-item label="模型">
           <el-select v-model="queryParams.modelId" placeholder="选择模型" clearable>
@@ -37,7 +37,7 @@
           <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+    </el-card> -->
 
     <el-card shadow="never" class="results-card">
       <el-tabs v-model="activeTab">
@@ -83,7 +83,7 @@
               <h3>{{ currentDataset.name }} - 问题列表</h3>
             </div>
             
-            <el-table v-loading="loading" :data="questionsList" style="width: 100%">
+            <el-table v-loading="loading" :data="paginatedQuestions" style="width: 100%">
               <el-table-column prop="questionId" label="ID" width="80" />
               <el-table-column prop="question" label="问题" show-overflow-tooltip />
               <el-table-column prop="category" label="分类" width="120" />
@@ -203,6 +203,7 @@ const currentQuestion = ref<any>({})
 // 列表数据
 const datasetsList = ref<any[]>([])
 const questionsList = ref<any[]>([])
+const allQuestionsList = ref<any[]>([]) // 存储所有问题数据
 const answersList = ref<any[]>([])
 
 // 查询参数
@@ -212,6 +213,13 @@ const queryParams = reactive({
   modelId: '',
   datasetId: '',
   evaluationType: ''
+})
+
+// 计算属性：根据当前页码和每页数量计算分页后的问题列表
+const paginatedQuestions = computed(() => {
+  const start = (queryParams.page - 1) * queryParams.size
+  const end = start + queryParams.size
+  return allQuestionsList.value.slice(start, end)
 })
 
 // 模型选项
@@ -372,9 +380,8 @@ const fetchDatasets = async () => {
 const fetchDatasetQuestions = async (datasetId: number) => {
   loading.value = true
   try {
+    // 不再使用分页参数，获取所有问题
     const params = {
-      page: queryParams.page - 1,
-      size: queryParams.size,
       datasetId: datasetId,
       modelId: queryParams.modelId || undefined
     }
@@ -386,7 +393,7 @@ const fetchDatasetQuestions = async (datasetId: number) => {
       // 处理返回的问题列表
       if (Array.isArray(res.data)) {
         // 直接返回数组
-        questionsList.value = res.data.map((item: any) => ({
+        allQuestionsList.value = res.data.map((item: any) => ({
           questionId: item.standardQuestionId,
           question: item.question,
           category: item.category ? item.category.categoryName : '未分类',
@@ -395,10 +402,10 @@ const fetchDatasetQuestions = async (datasetId: number) => {
           hasStandardAnswer: item.hasStandardAnswer,
           evaluationCount: item.evaluationCount || 0
         }))
-        total.value = res.data.length
+        total.value = allQuestionsList.value.length
       } else if (res.data.content) {
         // 分页格式返回
-        questionsList.value = res.data.content.map((item: any) => ({
+        allQuestionsList.value = res.data.content.map((item: any) => ({
           questionId: item.standardQuestionId,
           question: item.question,
           category: item.category ? item.category.categoryName : '未分类',
@@ -407,13 +414,17 @@ const fetchDatasetQuestions = async (datasetId: number) => {
           hasStandardAnswer: item.hasStandardAnswer,
           evaluationCount: item.evaluationCount || 0
         }))
-        total.value = res.data.totalElements || 0
+        total.value = res.data.totalElements || allQuestionsList.value.length
       } else {
-        questionsList.value = []
+        allQuestionsList.value = []
         total.value = 0
         ElMessage.warning('未获取到问题数据')
       }
+      
+      // 更新分页后的问题列表
+      questionsList.value = paginatedQuestions.value
     } else {
+      allQuestionsList.value = []
       questionsList.value = []
       total.value = 0
       ElMessage.warning('未获取到问题数据')
@@ -421,6 +432,7 @@ const fetchDatasetQuestions = async (datasetId: number) => {
   } catch (error: any) {
     console.error('获取数据集问题列表失败:', error)
     ElMessage.error('获取数据集问题列表失败: ' + error.message)
+    allQuestionsList.value = []
     questionsList.value = []
     total.value = 0
   } finally {
@@ -500,7 +512,7 @@ const fetchModelStatistics = async () => {
 const viewDatasetQuestions = (dataset: any) => {
   currentDataset.value = dataset
   currentView.value = 'questions'
-  queryParams.page = 1
+  queryParams.page = 1 // 重置页码
   fetchDatasetQuestions(dataset.datasetId)
 }
 
@@ -541,8 +553,9 @@ const backToDatasets = () => {
 // 返回问题列表
 const backToQuestions = () => {
   currentView.value = 'questions'
-  queryParams.page = 1
-  fetchDatasetQuestions(currentDataset.value.datasetId)
+  queryParams.page = 1 // 重置页码
+  // 不需要重新请求数据，直接更新分页
+  questionsList.value = paginatedQuestions.value
 }
 
 // 搜索
@@ -551,7 +564,8 @@ const handleSearch = () => {
   if (currentView.value === 'datasets') {
     fetchDatasets()
   } else if (currentView.value === 'questions') {
-    fetchDatasetQuestions(currentDataset.value.datasetId)
+    // 前端分页，只需要更新分页后的问题列表
+    questionsList.value = paginatedQuestions.value
   } else if (currentView.value === 'answers') {
     fetchQuestionAnswers(currentQuestion.value.questionId)
   }
@@ -563,19 +577,42 @@ const resetQuery = () => {
   queryParams.modelId = ''
   queryParams.datasetId = ''
   queryParams.evaluationType = ''
-  handleSearch()
+  if (currentView.value === 'datasets') {
+    fetchDatasets()
+  } else if (currentView.value === 'questions') {
+    fetchDatasetQuestions(currentDataset.value.datasetId)
+  } else if (currentView.value === 'answers') {
+    fetchQuestionAnswers(currentQuestion.value.questionId)
+  }
 }
 
 // 每页数量变化
 const handleSizeChange = (val: number) => {
   queryParams.size = val
-  handleSearch()
+  queryParams.page = 1 // 重置为第一页
+  
+  if (currentView.value === 'datasets') {
+    fetchDatasets()
+  } else if (currentView.value === 'questions') {
+    // 前端分页，不需要重新请求数据
+    questionsList.value = paginatedQuestions.value
+  } else if (currentView.value === 'answers') {
+    fetchQuestionAnswers(currentQuestion.value.questionId)
+  }
 }
 
 // 当前页变化
 const handleCurrentChange = (val: number) => {
   queryParams.page = val
-  handleSearch()
+  
+  if (currentView.value === 'datasets') {
+    fetchDatasets()
+  } else if (currentView.value === 'questions') {
+    // 前端分页，不需要重新请求数据
+    questionsList.value = paginatedQuestions.value
+  } else if (currentView.value === 'answers') {
+    fetchQuestionAnswers(currentQuestion.value.questionId)
+  }
 }
 
 // 查看模型评测详情
@@ -697,6 +734,17 @@ const handleEvaluate = async (answer: any, method: string) => {
     
     if (res && res.evaluationId) {
       ElMessage.success('评测完成')
+      
+      // 如果有关键点评估数据，打印日志
+      if (res.keyPointsEvaluation) {
+        try {
+          const keyPointsEval = JSON.parse(res.keyPointsEvaluation);
+          console.log('自动评测关键点评估结果:', keyPointsEval);
+        } catch (e) {
+          console.error('解析关键点评估数据失败:', e);
+        }
+      }
+      
       // 重新加载数据
       fetchQuestionAnswers(currentQuestion.value.questionId)
     } else {
