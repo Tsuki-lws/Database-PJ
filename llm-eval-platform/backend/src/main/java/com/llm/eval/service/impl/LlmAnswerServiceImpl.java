@@ -344,24 +344,27 @@ public class LlmAnswerServiceImpl implements LlmAnswerService {
                     .ifPresent(entity::setModel);
         }
         
+        // 处理标准问题
         if (dto.getStandardQuestion() != null && dto.getStandardQuestion().getStandardQuestionId() != null) {
-            standardQuestionRepository.findById(dto.getStandardQuestion().getStandardQuestionId())
-                    .ifPresent(entity::setStandardQuestion);
+            Integer questionId = dto.getStandardQuestion().getStandardQuestionId();
+            standardQuestionRepository.findById(questionId)
+                    .ifPresent(question -> {
+                        entity.setStandardQuestion(question);
+                        
+                        // 查找包含此问题的数据集版本
+                        List<DatasetVersion> datasetVersions = datasetVersionRepository.findByQuestionId(questionId);
+                        if (!datasetVersions.isEmpty()) {
+                            // 使用找到的第一个数据集版本
+                            entity.setDatasetVersion(datasetVersions.get(0));
+                        }
+                    });
         }
         
-        // 设置一个默认的数据集版本（如果需要）
-        // 尝试获取最新的数据集版本，如果没有则创建一个临时的
-        datasetVersionRepository.findAll().stream()
-                .findFirst()
-                .ifPresentOrElse(
-                        entity::setDatasetVersion,
-                        () -> {
-                            DatasetVersion defaultVersion = new DatasetVersion();
-                            defaultVersion.setVersionId(1);
-                            defaultVersion.setName("默认版本");
-                            defaultVersion.setIsPublished(true);
-                            entity.setDatasetVersion(defaultVersion);
-                        });
+        // 如果DTO中有数据集版本，则直接使用
+        if (dto.getDatasetVersion() != null && dto.getDatasetVersion().getVersionId() != null) {
+            datasetVersionRepository.findById(dto.getDatasetVersion().getVersionId())
+                    .ifPresent(entity::setDatasetVersion);
+        }
         
         if (dto.getBatchId() != null) {
             batchRepository.findById(dto.getBatchId())

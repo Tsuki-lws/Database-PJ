@@ -10,6 +10,7 @@ import com.llm.eval.dto.StandardAnswerDTO;
 import com.llm.eval.dto.StandardQALinkDTO;
 import com.llm.eval.dto.LlmAnswerDTO;
 import com.llm.eval.dto.LlmModelDTO;
+import com.llm.eval.dto.DatasetVersionDTO;
 import com.llm.eval.service.DataImportService;
 import com.llm.eval.service.LlmAnswerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -257,6 +258,7 @@ public class DataImportController {
             String answer = (String) requestData.get("answer");
             Integer responseTime = (Integer) requestData.get("responseTime");
             String status = (String) requestData.get("status");
+            Integer datasetId = (Integer) requestData.get("datasetId");
             
             if (questionId == null || modelId == null || answer == null) {
                 return ResponseEntity.badRequest().body(
@@ -275,6 +277,13 @@ public class DataImportController {
             LlmModelDTO modelDTO = new LlmModelDTO();
             modelDTO.setModelId(modelId);
             answerDTO.setModel(modelDTO);
+            
+            // 如果提供了数据集ID，则设置数据集信息
+            if (datasetId != null) {
+                DatasetVersionDTO datasetDTO = new DatasetVersionDTO();
+                datasetDTO.setVersionId(datasetId);
+                answerDTO.setDatasetVersion(datasetDTO);
+            }
             
             // 设置其他属性
             answerDTO.setContent(answer);

@@ -523,6 +523,7 @@ const submitImport = async () => {
         // 构建提交数据，修改为与后端匹配的格式
         const submitData = {
           questionId: importForm.questionId,
+          datasetId: importForm.datasetId,
           modelId: importForm.modelId,
           answer: importForm.answer,
           responseTime: importForm.responseTime,

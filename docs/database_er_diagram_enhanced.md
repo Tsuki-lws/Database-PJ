@@ -1,109 +1,103 @@
-# 数据库ER图 - 增强美观版本
-
-此版本专为更好的可视化效果设计，具有更大的字体、更清晰的布局和更美观的样式。
-
-## 核心设计说明
-
-- **字体大小**: 18px，确保清晰可读
-- **颜色主题**: 现代蓝灰色调，专业且美观
-- **实体分组**: 按功能模块分组，便于理解
-- **中文注释**: 所有字段都有中文说明
-
----
 
 ```mermaid
 %%{init: {
   'theme': 'base',
   'themeVariables': {
     'primaryColor': '#ffffff',
-    'primaryTextColor': '#1a202c',
-    'primaryBorderColor': '#2d3748',
-    'lineColor': '#4a5568',
+    'primaryTextColor': '#2d3748',
+    'primaryBorderColor': '#4299e1',
+    'lineColor': '#3182ce',
     'secondaryColor': '#f7fafc',
     'tertiaryColor': '#edf2f7',
-    'background': '#ffffff',
-    'mainBkg': '#f8fafc',
+    'background': '#f8fafc',
+    'mainBkg': '#ffffff',
     'secondBkg': '#e2e8f0',
-    'entityLabelColor': '#1a202c',
-    'relationLabelColor': '#2d3748'
-  },
-  'er': {
-    'fontSize': 18,
-    'entityPadding': 8,
-    'entitySpacing': 100,
-    'curve': 'basis',
-    'entityColor': '#2b6cb0',
+    'entityLabelColor': '#2d3748',
+    'relationLabelColor': '#3182ce'
+  },  'er': {
+    'fontSize': 24,
+    'entityPadding': 20,
+    'entitySpacing': 200,
+    'curve': 'cardinal',
+    'entityColor': '#3182ce',
     'entityBkg': '#ebf8ff',
-    'entityTextColor': '#1a202c',
-    'relationColor': '#4a5568',
-    'attributeColor': '#2d3748',
-    'attributeBackgroundColorOdd': '#f7fafc',
-    'attributeBackgroundColorEven': '#edf2f7'
+    'entityTextColor': '#2d3748',
+    'relationColor': '#4299e1',
+    'attributeColor': '#4a5568',
+    'attributeBackgroundColorOdd': '#ffffff',
+    'attributeBackgroundColorEven': '#f7fafc',
+    'fillType0': '#ebf8ff',
+    'fillType1': '#f0fff4',
+    'fillType2': '#fef5e7',
+    'fillType3': '#fef2f2',
+    'fillType4': '#f3e8ff',
+    'cScale0': '#3182ce',
+    'cScale1': '#38a169',
+    'cScale2': '#d69e2e',
+    'cScale3': '#e53e3e',
+    'cScale4': '#805ad5'
   }
 }}%%
 
-erDiagram
-    %% ===============================================
-    %% 🔐 核心用户和权限管理模块
+erDiagram    %% ===============================================
+    %% 核心用户和权限管理模块
     %% ===============================================
     USERS {
-        int user_id PK "🆔 用户唯一标识"
-        varchar username "👤 用户名"
-        varchar password "🔒 加密密码"
-        enum user_type "👥 用户类型(管理员/专家/普通用户)"
-        varchar email "📧 邮箱地址"
-        text profile "📝 个人简介"
-        text expertise_areas "🎯 专业领域"
-        timestamp created_at "⏰ 创建时间"
-        timestamp updated_at "🔄 更新时间"
-        datetime deleted_at "🗑️ 删除时间(软删除)"
-    }
-    
+        int user_id PK "用户唯一标识"
+        varchar username "用户名"
+        varchar password "加密密码"
+        enum user_type "用户类型(管理员/专家/普通用户)"
+        varchar email "邮箱地址"
+        text profile "个人简介"
+        text expertise_areas "专业领域"
+        timestamp created_at "创建时间"
+        timestamp updated_at "更新时间"
+        datetime deleted_at "删除时间(软删除)"
+    }    
     %% ===============================================
-    %% 📊 原始数据采集模块
+    %% 原始数据采集模块  
     %% ===============================================
     RAW_QUESTIONS {
-        int question_id PK "🆔 原始问题ID"
-        int source_question_id "🔗 源系统问题ID"
-        text question_title "📋 问题标题"
-        text question_body "📄 问题详细内容"
-        varchar source "🌐 数据来源(StackOverflow/GitHub等)"
-        int source_id "🔢 源系统内部ID"
-        varchar source_url "🌍 原始链接地址"
-        timestamp crawled_at "🕷️ 数据爬取时间"
-        timestamp created_at "⏰ 创建时间"
-        timestamp updated_at "🔄 更新时间"
-        datetime deleted_at "🗑️ 删除时间"
+        int question_id PK "原始问题ID"
+        int source_question_id "源系统问题ID"
+        text question_title "问题标题"
+        text question_body "问题详细内容"
+        varchar source "数据来源(StackOverflow/GitHub等)"
+        int source_id "源系统内部ID"
+        varchar source_url "原始链接地址"
+        timestamp crawled_at "数据爬取时间"
+        timestamp created_at "创建时间"
+        timestamp updated_at "更新时间"
+        datetime deleted_at "删除时间"
     }
     
     RAW_ANSWERS {
-        int answer_id PK "🆔 原始答案ID"
-        int source_answer_id "🔗 源系统答案ID"
-        int question_id FK "❓ 关联的原始问题"
-        text answer_body "📝 答案详细内容"
-        varchar author_info "👨‍💻 作者信息"
-        int upvotes "👍 点赞数量"
-        boolean is_accepted "✅ 是否被采纳为最佳答案"
-        timestamp created_at "⏰ 创建时间"
-        timestamp updated_at "🔄 更新时间"
-        datetime deleted_at "🗑️ 删除时间"
-    }
-    
+        int answer_id PK "原始答案ID"
+        int source_answer_id "源系统答案ID"
+        int question_id FK "关联的原始问题"
+        text answer_body "答案详细内容"
+        varchar author_info "作者信息"
+        int upvotes "点赞数量"
+        boolean is_accepted "是否被采纳为最佳答案"
+        timestamp created_at "创建时间"
+        timestamp updated_at "更新时间"
+        datetime deleted_at "删除时间"
+    }    
     %% ===============================================
-    %% 📚 分类和标签体系
+    %% 分类和标签体系
     %% ===============================================
     QUESTION_CATEGORIES {
-        int category_id PK "🆔 分类ID"
-        varchar name "🏷️ 分类名称"
-        text description "📖 分类详细描述"
-        int parent_id FK "🌳 父分类ID(支持多级分类)"
+        int category_id PK "分类ID"
+        varchar name "分类名称"
+        text description "分类详细描述"
+        int parent_id FK "父分类ID(支持多级分类)"
     }
     
     TAGS {
-        int tag_id PK "🆔 标签ID"
-        varchar tag_name "🏷️ 标签名称"
-        text description "📖 标签描述"
-        varchar color "🎨 标签显示颜色"
+        int tag_id PK "标签ID"
+        varchar tag_name "标签名称"
+        text description "标签描述"
+        varchar color "标签显示颜色"
     }
     
     %% ===============================================
@@ -398,108 +392,75 @@ erDiagram
         timestamp created_at "⏰ 创建时间"
         timestamp updated_at "🔄 更新时间"
         datetime deleted_at "🗑️ 删除时间"
-    }
-
-    %% ===============================================
-    %% 📊 实体关系定义
+    }    %% ===============================================
+    %% 📊 实体关系定义 - 数据流与依赖关系图
     %% ===============================================
     
-    %% 👤 用户相关关系
-    USERS ||--o{ STANDARD_QUESTION_VERSIONS : "问题版本修改者"
-    USERS ||--o{ STANDARD_ANSWER_VERSIONS : "答案版本修改者"
-    USERS ||--o{ KEY_POINT_VERSIONS : "关键点版本修改者"
-    USERS ||--o{ OPTION_VERSIONS : "选项版本修改者"
-    USERS ||--o{ STANDARD_ANSWERS : "标准答案选择者"
-    USERS ||--o{ CROWDSOURCING_TASKS : "众包任务创建者"
-    USERS ||--o{ CROWDSOURCED_ANSWERS : "众包答案贡献者"
-    USERS ||--o{ CROWDSOURCED_ANSWERS : "众包答案审核者"
-    USERS ||--o{ EXPERT_ANSWERS : "专家答案提供者"
-    USERS ||--o{ EXPERT_ANSWERS : "专家答案验证者"
+    %% 👤 核心用户管理关系
+    USERS ||--o{ STANDARD_QUESTION_VERSIONS : "创建问题版本"
+    USERS ||--o{ STANDARD_ANSWER_VERSIONS : "修订答案版本"
+    USERS ||--o{ KEY_POINT_VERSIONS : "维护关键点版本"
+    USERS ||--o{ OPTION_VERSIONS : "编辑选项版本"
+    USERS ||--o{ STANDARD_ANSWERS : "审核标准答案"
+    USERS ||--o{ CROWDSOURCING_TASKS : "发起众包任务"
+    USERS ||--o{ CROWDSOURCED_ANSWERS : "贡献众包答案"
+    USERS ||--o{ CROWDSOURCED_ANSWERS : "审核众包提交"
+    USERS ||--o{ EXPERT_ANSWERS : "提供专家答案"
+    USERS ||--o{ EXPERT_ANSWERS : "验证专家内容"
     
-    %% 📊 原始数据关系
-    RAW_QUESTIONS ||--o{ RAW_ANSWERS : "原始问题包含答案"
-    RAW_QUESTIONS ||--o{ STANDARD_QUESTIONS : "标准问题来源"
-    RAW_QUESTIONS ||--o{ STANDARD_QA_PAIRS : "QA对源问题"
-    RAW_ANSWERS ||--o{ STANDARD_ANSWERS : "标准答案来源"
-    RAW_ANSWERS ||--o{ STANDARD_QA_PAIRS : "QA对源答案"
+    %% 📊 原始数据处理流程
+    RAW_QUESTIONS ||--o{ RAW_ANSWERS : "问题对应答案"
+    RAW_QUESTIONS ||--o{ STANDARD_QUESTIONS : "转化为标准问题"
+    RAW_QUESTIONS ||--o{ STANDARD_QA_PAIRS : "形成问答对源"
+    RAW_ANSWERS ||--o{ STANDARD_ANSWERS : "生成标准答案"
+    RAW_ANSWERS ||--o{ STANDARD_QA_PAIRS : "构建答案源"
     
-    %% 📚 分类和标签关系
-    QUESTION_CATEGORIES ||--o{ STANDARD_QUESTIONS : "问题分类归属"
-    QUESTION_CATEGORIES ||--o{ QUESTION_CATEGORIES : "分类层级关系"
-    TAGS ||--o{ STANDARD_QUESTION_TAGS : "问题标签关联"
+    %% 📚 知识组织体系
+    QUESTION_CATEGORIES ||--o{ STANDARD_QUESTIONS : "分类管理问题"
+    QUESTION_CATEGORIES ||--o{ QUESTION_CATEGORIES : "构建分类树"
+    TAGS ||--o{ STANDARD_QUESTION_TAGS : "标签化问题"
     
-    %% ⭐ 标准问题核心关系
-    STANDARD_QUESTIONS ||--o{ STANDARD_QUESTION_VERSIONS : "问题版本历史"
-    STANDARD_QUESTIONS ||--o{ STANDARD_QUESTION_TAGS : "问题标签映射"
-    STANDARD_QUESTIONS ||--o{ STANDARD_ANSWERS : "问题答案关联"
-    STANDARD_QUESTIONS ||--o{ STANDARD_QA_PAIRS : "标准问答对"
-    STANDARD_QUESTIONS ||--o{ OBJECTIVE_QUESTION_OPTIONS : "选择题选项"
-    STANDARD_QUESTIONS ||--o{ DATASET_QUESTION_MAPPING : "数据集包含"
-    STANDARD_QUESTIONS ||--o{ LLM_ANSWERS : "LLM回答"
-    STANDARD_QUESTIONS ||--o{ CROWDSOURCED_ANSWERS : "众包回答"
-    STANDARD_QUESTIONS ||--o{ EXPERT_ANSWERS : "专家回答"
+    %% ⭐ 标准化内容管理核心
+    STANDARD_QUESTIONS ||--o{ STANDARD_QUESTION_VERSIONS : "版本历史追踪"
+    STANDARD_QUESTIONS ||--o{ STANDARD_QUESTION_TAGS : "多维度标签"
+    STANDARD_QUESTIONS ||--o{ STANDARD_ANSWERS : "配对标准答案"
+    STANDARD_QUESTIONS ||--o{ STANDARD_QA_PAIRS : "形成问答集"
+    STANDARD_QUESTIONS ||--o{ OBJECTIVE_QUESTION_OPTIONS : "配置选择项"
+    STANDARD_QUESTIONS ||--o{ DATASET_QUESTION_MAPPING : "纳入数据集"
+    STANDARD_QUESTIONS ||--o{ LLM_ANSWERS : "生成模型回答"
+    STANDARD_QUESTIONS ||--o{ CROWDSOURCED_ANSWERS : "收集群智答案"
+    STANDARD_QUESTIONS ||--o{ EXPERT_ANSWERS : "获取专家见解"    
+    %% 💯 答案质量保证体系
+    STANDARD_ANSWERS ||--o{ STANDARD_ANSWER_VERSIONS : "答案迭代优化"
+    STANDARD_ANSWERS ||--o{ ANSWER_KEY_POINTS : "关键点分解"
+    STANDARD_ANSWERS ||--o{ STANDARD_QA_PAIRS : "问答集构建"
+    STANDARD_ANSWERS ||--o{ EVALUATIONS : "评测基准设定"
     
-    %% 💯 标准答案关系
-    STANDARD_ANSWERS ||--o{ STANDARD_ANSWER_VERSIONS : "答案版本历史"
-    STANDARD_ANSWERS ||--o{ ANSWER_KEY_POINTS : "答案关键点"
-    STANDARD_ANSWERS ||--o{ STANDARD_QA_PAIRS : "标准问答对"
-    STANDARD_ANSWERS ||--o{ EVALUATIONS : "评测基准"
+    %% 🎯 细粒度评价机制
+    ANSWER_KEY_POINTS ||--o{ KEY_POINT_VERSIONS : "关键点演进"
+    ANSWER_KEY_POINTS ||--o{ EVALUATION_KEY_POINTS : "精准评测"
+    OBJECTIVE_QUESTION_OPTIONS ||--o{ OPTION_VERSIONS : "选项完善"
     
-    %% 🎯 关键点和选项关系
-    ANSWER_KEY_POINTS ||--o{ KEY_POINT_VERSIONS : "关键点版本"
-    ANSWER_KEY_POINTS ||--o{ EVALUATION_KEY_POINTS : "关键点评测"
-    OBJECTIVE_QUESTION_OPTIONS ||--o{ OPTION_VERSIONS : "选项版本"
+    %% 📦 数据集生命周期管理
+    DATASET_VERSIONS ||--o{ DATASET_QUESTION_MAPPING : "版本内容映射"
+    DATASET_VERSIONS ||--o{ EVALUATION_BATCHES : "评测基础数据"
+    DATASET_VERSIONS ||--o{ LLM_ANSWERS : "模型测试依据"
     
-    %% 📦 数据集关系
-    DATASET_VERSIONS ||--o{ DATASET_QUESTION_MAPPING : "版本问题映射"
-    DATASET_VERSIONS ||--o{ EVALUATION_BATCHES : "评测使用版本"
-    DATASET_VERSIONS ||--o{ LLM_ANSWERS : "答案所属版本"
+    %% 🤖 AI模型评测生态
+    LLM_MODELS ||--o{ EVALUATION_BATCHES : "模型性能测试"
+    LLM_MODELS ||--o{ EVALUATION_BATCHES : "智能评判系统"
+    LLM_MODELS ||--o{ LLM_ANSWERS : "自动化回答"
+    LLM_MODELS ||--o{ EVALUATIONS : "客观评价"
     
-    %% 🤖 LLM模型关系
-    LLM_MODELS ||--o{ EVALUATION_BATCHES : "模型评测批次"
-    LLM_MODELS ||--o{ EVALUATION_BATCHES : "裁判模型批次"
-    LLM_MODELS ||--o{ LLM_ANSWERS : "模型生成答案"
-    LLM_MODELS ||--o{ EVALUATIONS : "裁判模型评测"
+    %% 📊 评测数据分析链路
+    EVALUATION_BATCHES ||--o{ LLM_ANSWERS : "批量测试管理"
+    EVALUATION_BATCHES ||--o{ EVALUATIONS : "系统性评测"
+    LLM_ANSWERS ||--o{ LLM_ANSWERS : "答案优化迭代"
+    LLM_ANSWERS ||--o{ EVALUATIONS : "单答案评测"
+    EVALUATIONS ||--o{ EVALUATION_KEY_POINTS : "多维度分析"
     
-    %% 📊 评测关系
-    EVALUATION_BATCHES ||--o{ LLM_ANSWERS : "批次包含答案"
-    EVALUATION_BATCHES ||--o{ EVALUATIONS : "批次评测记录"
-    LLM_ANSWERS ||--o{ LLM_ANSWERS : "答案重试关系"
-    LLM_ANSWERS ||--o{ EVALUATIONS : "答案评测记录"
-    EVALUATIONS ||--o{ EVALUATION_KEY_POINTS : "评测关键点详情"
-    
-    %% 🎪 众包关系
-    CROWDSOURCING_TASKS ||--o{ CROWDSOURCED_ANSWERS : "任务收集答案"
-    CROWDSOURCED_ANSWERS ||--o{ CROWDSOURCED_ANSWERS : "答案对比关系"
+    %% 🎪 众包协作生态系统
+    CROWDSOURCING_TASKS ||--o{ CROWDSOURCED_ANSWERS : "任务执行"
+    CROWDSOURCED_ANSWERS ||--o{ CROWDSOURCED_ANSWERS : "答案对比优化"
 ```
 
----
-
-## 📋 模块说明
-
-### 🔐 用户权限模块
-- **USERS**: 系统用户管理，支持多种用户类型
-- 支持软删除和完整的操作记录
-
-### 📊 数据采集模块  
-- **RAW_QUESTIONS/RAW_ANSWERS**: 原始数据存储
-- 保留完整的数据来源信息，便于溯源
-
-### ⭐ 标准化模块
-- **STANDARD_QUESTIONS/STANDARD_ANSWERS**: 核心业务实体
-- 完整的版本控制机制，支持回滚和历史查看
-- 灵活的分类和标签体系
-
-### 🎯 评测系统模块
-- **LLM_MODELS/EVALUATION_BATCHES**: 模型管理和批量评测
-- **EVALUATIONS**: 详细的评测记录和关键点分析
-- 支持多种评测方法和自定义指标
-
-### 🎪 众包协作模块
-- **CROWDSOURCING_TASKS**: 众包任务管理
-- **EXPERT_ANSWERS**: 专家知识整合
-- 完整的质量控制和审核流程
-
-### 📦 数据集管理模块
-- **DATASET_VERSIONS**: 版本化的数据集发布
-- 支持增量更新和版本追踪
