@@ -96,7 +96,7 @@
           </el-table-column>
         </el-table>
         
-        <div v-if="resultData.keyPoints.length > 0" class="keypoints-summary">
+        <div class="keypoints-summary">
           <div class="summary-item">
             <span class="label">匹配率:</span>
             <span class="value">{{ calculateMatchRate() }}%</span>
@@ -120,7 +120,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getEvaluationResultDetailList } from '@/api/evaluations'
+import { getEvaluationResultDetailList, getStandardAnswersByQuestionId } from '@/api/evaluations'
 
 const route = useRoute()
 const router = useRouter()
@@ -168,13 +168,6 @@ const fetchEvaluationResult = async (evaluationId: number) => {
       const data = res.data;
       console.log('处理评测结果数据:', data);
       
-      // 调试：打印关键点数据结构
-      if (data.keyPoints) {
-        console.log('API返回的关键点数据结构:', JSON.stringify(data.keyPoints[0] || {}, null, 2));
-      } else {
-        console.log('API未返回关键点数据');
-      }
-      
       // 创建一个临时对象，避免直接修改reactive对象的属性
       const tempData = {
         id: data.evaluationId || data.id || evaluationId,
@@ -193,28 +186,53 @@ const fetchEvaluationResult = async (evaluationId: number) => {
         comments: data.comments || ''
       };
 
-      // 处理关键点数据，确保属性名一致
-      if (data.keyPoints && Array.isArray(data.keyPoints) && data.keyPoints.length > 0) {
-        console.log('处理关键点数据，数量:', data.keyPoints.length);
-        
-        tempData.keyPoints = data.keyPoints.map((point: any) => {
-          // 确保关键点数据结构与前端组件期望的一致
-          const processedPoint = {
-            pointId: point.pointId,
-            pointText: point.pointText || '',
-            pointWeight: point.pointWeight || 1,
-            // 确保matchStatus存在，默认为missed
-            matchStatus: point.matchStatus || 'missed'
-          };
+      // 根据问题ID单独请求标准答案
+      if (data.questionId) {
+        console.log(`根据问题ID: ${data.questionId} 获取标准答案`);
+        try {
+          // 调用API获取标准答案
+          const standardAnswerRes = await getStandardAnswersByQuestionId(data.questionId);
+          const standardAnswerData = standardAnswerRes.data || [];
+          console.log('获取到标准答案:', standardAnswerData);
           
-          console.log(`关键点 ${processedPoint.pointId}: ${processedPoint.pointText}, 匹配状态: ${processedPoint.matchStatus}`);
-          
-          return processedPoint;
-        });
-        
-        console.log('处理后的关键点数据:', tempData.keyPoints);
-      } else {
-        console.log('未找到关键点数据或为空数组');
+          if (standardAnswerData && standardAnswerData.length > 0) {
+            // 找到最终版本的标准答案，如果没有则使用最新的
+            let targetAnswer = standardAnswerData.find((answer: any) => answer.isFinal === true);
+            if (!targetAnswer) {
+              // 如果没有最终版本，按更新时间排序找最新的
+              standardAnswerData.sort((a: any, b: any) => {
+                return new Date(b.updatedAt || b.createdAt).getTime() - 
+                       new Date(a.updatedAt || a.createdAt).getTime();
+              });
+              targetAnswer = standardAnswerData[0];
+            }
+            
+            console.log('选择的标准答案:', targetAnswer);
+            
+            // 更新当前评测数据中的标准答案
+            tempData.standardAnswer = targetAnswer.answer || '';
+            
+            // 处理关键点数据，如果API返回的标准答案有关键点
+            if (targetAnswer.keyPoints && targetAnswer.keyPoints.length > 0) {
+              console.log('使用标准答案中的关键点:', targetAnswer.keyPoints.length);
+              tempData.keyPoints = targetAnswer.keyPoints.map((point: any) => {
+                return {
+                  pointId: point.keyPointId,
+                  pointText: point.pointText || '',
+                  pointWeight: point.pointWeight || 1,
+                  matchStatus: point.matchStatus || 'missed'
+                };
+              });
+              console.log('处理后的关键点数据:', tempData.keyPoints);
+            } else {
+              console.log('最新标准答案没有关键点，不显示关键点评估部分');
+              tempData.keyPoints = [];
+            }
+          }
+        } catch (error: any) {
+          console.error('获取标准答案失败:', error);
+          tempData.keyPoints = [];
+        }
       }
       
       // 将临时对象的属性赋值给reactive对象

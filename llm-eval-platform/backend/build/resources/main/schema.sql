@@ -516,6 +516,7 @@ CREATE INDEX idx_key_point_versions ON key_point_versions(key_point_id, version)
 CREATE INDEX idx_option_versions ON option_versions(option_id, version);
 CREATE INDEX idx_llm_models_deleted ON llm_models(deleted_at);
 
+
 -- 添加存储过程：更新标准问题并保存历史版本
 DELIMITER //
 CREATE PROCEDURE update_standard_question(
