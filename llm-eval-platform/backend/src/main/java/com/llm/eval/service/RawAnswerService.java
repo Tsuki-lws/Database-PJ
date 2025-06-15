@@ -3,6 +3,7 @@ package com.llm.eval.service;
 import com.llm.eval.model.RawAnswer;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -56,4 +57,14 @@ public interface RawAnswerService {
      * @return 回答数量
      */
     long countByQuestionId(Integer questionId);
+    
+    /**
+     * 将原始回答转换为标准答案
+     * @param rawAnswerId 原始回答ID
+     * @param standardQuestionId 标准问题ID
+     * @param answer 标准答案内容
+     * @param isFinal 是否为最终答案
+     * @return 转换结果
+     */
+    Map<String, Object> convertToStandardAnswer(Integer rawAnswerId, Integer standardQuestionId, String answer, Boolean isFinal);
 } 

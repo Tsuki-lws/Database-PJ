@@ -156,14 +156,14 @@
           :description="importResult.message"
           show-icon
         />
-        <div v-if="importResult.data" class="result-data">
+        <!-- <div v-if="importResult.data" class="result-data">
           <el-descriptions title="导入统计" :column="2" border>
             <el-descriptions-item label="成功导入数量">{{ importResult.data.successCount || 0 }}</el-descriptions-item>
             <el-descriptions-item label="失败导入数量">{{ importResult.data.failedCount || 0 }}</el-descriptions-item>
             <el-descriptions-item label="总处理数量">{{ importResult.data.totalCount || 0 }}</el-descriptions-item>
             <el-descriptions-item label="耗时(ms)">{{ importResult.data.timeElapsed || 0 }}</el-descriptions-item>
           </el-descriptions>
-        </div>
+        </div> -->
       </div>
     </el-card>
   </div>

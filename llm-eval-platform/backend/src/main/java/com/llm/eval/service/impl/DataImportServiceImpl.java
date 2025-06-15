@@ -221,14 +221,25 @@ public class DataImportServiceImpl implements DataImportService {
         
         try {
             // 查找原始问题和答案
-            Optional<RawQuestion> rawQuestionOpt = rawQuestionRepository.findBySourceQuestionId(qaDTO.getSourceQuestionId());
-            Optional<RawAnswer> rawAnswerOpt = rawAnswerRepository.findBySourceAnswerId(qaDTO.getSourceAnswerId());
+            Optional<RawQuestion> rawQuestionOpt = Optional.empty();
+            Optional<RawAnswer> rawAnswerOpt = Optional.empty();
+            
+            if (qaDTO.getSourceQuestionId() != null) {
+                rawQuestionOpt = rawQuestionRepository.findBySourceQuestionId(qaDTO.getSourceQuestionId());
+                log.info("原始问题查找结果: {}", rawQuestionOpt.isPresent() ? "找到" : "未找到");
+            }
+            
+            if (qaDTO.getSourceAnswerId() != null) {
+                rawAnswerOpt = rawAnswerRepository.findBySourceAnswerId(qaDTO.getSourceAnswerId());
+                log.info("原始答案查找结果: {}", rawAnswerOpt.isPresent() ? "找到" : "未找到");
+            }
             
             // 检查标准问题是否已存在
             Optional<StandardQuestion> existingQuestionOpt = standardQuestionRepository.findByQuestionAndSourceQuestionId(
                     qaDTO.getQuestion(), 
                     rawQuestionOpt.isPresent() ? rawQuestionOpt.get().getQuestionId() : null
             );
+            log.info("标准问题查找结果: {}", existingQuestionOpt.isPresent() ? "已存在" : "不存在，将创建新问题");
             
             StandardQuestion standardQuestion;
             if (existingQuestionOpt.isPresent()) {
@@ -236,6 +247,7 @@ public class DataImportServiceImpl implements DataImportService {
                 standardQuestion = existingQuestionOpt.get();
                 standardQuestion.setQuestion(qaDTO.getQuestion());
                 standardQuestion.setUpdatedAt(LocalDateTime.now());
+                log.info("更新已有标准问题，ID: {}", standardQuestion.getStandardQuestionId());
             } else {
                 // 创建新标准问题
                 standardQuestion = new StandardQuestion();
@@ -250,11 +262,14 @@ public class DataImportServiceImpl implements DataImportService {
                 // 设置源问题
                 if (rawQuestionOpt.isPresent()) {
                     standardQuestion.setSourceQuestion(rawQuestionOpt.get());
+                    log.info("设置源问题，ID: {}", rawQuestionOpt.get().getQuestionId());
                 }
+                log.info("创建新标准问题");
             }
             
             // 保存标准问题
             standardQuestion = standardQuestionRepository.save(standardQuestion);
+            log.info("标准问题保存成功，ID: {}", standardQuestion.getStandardQuestionId());
             
             // 创建标准答案
             StandardAnswer standardAnswer = new StandardAnswer();
@@ -265,8 +280,10 @@ public class DataImportServiceImpl implements DataImportService {
             if (rawAnswerOpt.isPresent()) {
                 standardAnswer.setSourceAnswer(rawAnswerOpt.get());
                 standardAnswer.setSourceType(StandardAnswer.SourceType.raw);
+                log.info("设置源答案，ID: {}", rawAnswerOpt.get().getAnswerId());
             } else {
                 standardAnswer.setSourceType(StandardAnswer.SourceType.manual);
+                log.info("设置答案类型为手动创建");
             }
             
             standardAnswer.setIsFinal(true);
@@ -276,13 +293,16 @@ public class DataImportServiceImpl implements DataImportService {
             
             // 保存标准答案
             standardAnswer = standardAnswerRepository.save(standardAnswer);
+            log.info("标准答案保存成功，ID: {}", standardAnswer.getStandardAnswerId());
             
             // 创建关键点
             if (qaDTO.getKeyPoints() != null && !qaDTO.getKeyPoints().isEmpty()) {
+                log.info("开始处理关键点，数量: {}", qaDTO.getKeyPoints().size());
                 List<AnswerKeyPoint> keyPoints = new ArrayList<>();
                 
                 for (int i = 0; i < qaDTO.getKeyPoints().size(); i++) {
                     String keyPointText = qaDTO.getKeyPoints().get(i);
+                    log.info("处理第{}个关键点: {}", i+1, keyPointText);
                     
                     AnswerKeyPoint keyPoint = new AnswerKeyPoint();
                     keyPoint.setStandardAnswer(standardAnswer);
@@ -298,7 +318,16 @@ public class DataImportServiceImpl implements DataImportService {
                 }
                 
                 // 批量保存关键点
-                keyPointRepository.saveAll(keyPoints);
+                List<AnswerKeyPoint> savedKeyPoints = keyPointRepository.saveAll(keyPoints);
+                log.info("关键点保存成功，数量: {}", savedKeyPoints.size());
+                for (int i = 0; i < savedKeyPoints.size(); i++) {
+                    log.info("关键点 #{} ID: {}, 内容: {}", 
+                             i+1, 
+                             savedKeyPoints.get(i).getKeyPointId(), 
+                             savedKeyPoints.get(i).getPointText());
+                }
+            } else {
+                log.info("没有关键点需要处理");
             }
             
             return new DataImportResultDTO(true, "导入成功", 1, 0, 1);

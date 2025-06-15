@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ArrayList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/answers")
@@ -23,6 +25,7 @@ import java.util.ArrayList;
 public class StandardAnswerController {
 
     private final StandardAnswerService answerService;
+    private static final Logger log = LoggerFactory.getLogger(StandardAnswerController.class);
 
     @Autowired
     public StandardAnswerController(StandardAnswerService answerService) {
@@ -121,12 +124,12 @@ public class StandardAnswerController {
     public ResponseEntity<List<Map<String, Object>>> getAnswersByQuestionId(
             @PathVariable("questionId") Integer questionId) {
         try {
-            System.out.println("获取问题的所有标准答案，问题ID: " + questionId);
+            log.info("获取问题的所有标准答案，问题ID: {}", questionId);
             List<StandardAnswer> answers = answerService.getStandardAnswersByQuestionId(questionId);
             
             // 打印每个答案的isFinal状态
             for (StandardAnswer answer : answers) {
-                System.out.println("答案ID: " + answer.getStandardAnswerId() + ", isFinal: " + answer.getIsFinal());
+                log.info("答案ID: {}, isFinal: {}", answer.getStandardAnswerId(), answer.getIsFinal());
             }
             
             // 将实体对象转换为Map，避免循环引用问题
@@ -146,6 +149,8 @@ public class StandardAnswerController {
                 
                 // 获取并处理关键点
                 List<AnswerKeyPoint> keyPoints = answerService.getKeyPointsByAnswerId(answer.getStandardAnswerId());
+                log.info("答案ID: {}, 关键点数量: {}", answer.getStandardAnswerId(), keyPoints.size());
+                
                 if (keyPoints != null && !keyPoints.isEmpty()) {
                     List<Map<String, Object>> keyPointsList = keyPoints.stream().map(kp -> {
                         Map<String, Object> keyPointMap = new HashMap<>();
@@ -155,21 +160,24 @@ public class StandardAnswerController {
                         keyPointMap.put("pointWeight", kp.getPointWeight());
                         keyPointMap.put("pointType", kp.getPointType());
                         keyPointMap.put("exampleText", kp.getExampleText());
+                        log.debug("关键点ID: {}, 内容: {}, 顺序: {}", 
+                                 kp.getKeyPointId(), kp.getPointText(), kp.getPointOrder());
                         return keyPointMap;
                     }).collect(Collectors.toList());
                     answerMap.put("keyPoints", keyPointsList);
+                    log.info("处理关键点完成，数量: {}", keyPointsList.size());
                 } else {
                     answerMap.put("keyPoints", new ArrayList<>());
+                    log.info("该答案没有关键点");
                 }
                 
                 return answerMap;
             }).collect(Collectors.toList());
             
-            System.out.println("获取到标准答案数量: " + result.size());
+            log.info("获取到标准答案数量: {}", result.size());
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            System.err.println("获取问题的所有标准答案失败，问题ID: " + questionId + ", 错误: " + e.getMessage());
-            e.printStackTrace();
+            log.error("获取问题的所有标准答案失败，问题ID: {}, 错误: {}", questionId, e.getMessage(), e);
             return ResponseEntity.ok(new ArrayList<>());
         }
     }

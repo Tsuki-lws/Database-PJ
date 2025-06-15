@@ -72,10 +72,35 @@ public class RawAnswerController {
     @PostMapping("/{id}/convert")
     @Operation(summary = "将原始回答转换为标准答案")
     public ResponseEntity<Map<String, Object>> convertToStandardAnswer(@PathVariable Integer id, @RequestBody Map<String, Object> params) {
-        // 这里实现转换逻辑
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("message", "转换成功");
-        return ResponseEntity.ok(result);
+        try {
+            // 获取参数
+            String answer = (String) params.get("answer");
+            Integer standardQuestionId = null;
+            if (params.get("standardQuestionId") instanceof Number) {
+                standardQuestionId = ((Number) params.get("standardQuestionId")).intValue();
+            }
+            Boolean isFinal = (Boolean) params.get("isFinal");
+            
+            if (answer == null || standardQuestionId == null) {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                errorResult.put("message", "参数不完整，需要answer和standardQuestionId");
+                return ResponseEntity.badRequest().body(errorResult);
+            }
+            
+            // 查找原始回答
+            RawAnswer rawAnswer = rawAnswerService.findRawAnswerById(id)
+                    .orElseThrow(() -> new RuntimeException("原始回答不存在: " + id));
+            
+            // 调用服务执行转换
+            Map<String, Object> result = rawAnswerService.convertToStandardAnswer(id, standardQuestionId, answer, isFinal);
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("message", "转换失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(errorResult);
+        }
     }
 } 
