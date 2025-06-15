@@ -303,7 +303,8 @@ const fetchDatasets = async () => {
       page: queryParams.page - 1,
       size: queryParams.size,
       modelId: queryParams.modelId || undefined,
-      evaluationType: queryParams.evaluationType || undefined
+      evaluationType: queryParams.evaluationType || undefined,
+      isPublished: true // 只获取已发布的数据集
     }
     
     console.log('发送GET请求: /api/datasets', params)
@@ -342,6 +343,9 @@ const fetchDatasets = async () => {
         total.value = res.data.totalElements || 0
       }
       
+      // 如果后端API不支持isPublished参数，在前端进行过滤
+      datasets = datasets.filter((item: any) => item.isPublished === true);
+      
       // 获取每个数据集的评测统计信息
       const statsPromises = datasets.map(async (dataset: any) => {
         try {
@@ -361,6 +365,7 @@ const fetchDatasets = async () => {
       
       // 等待所有统计信息获取完成
       datasetsList.value = await Promise.all(statsPromises);
+      total.value = datasetsList.value.length; // 更新过滤后的总数
     } else {
       datasetsList.value = []
       total.value = 0

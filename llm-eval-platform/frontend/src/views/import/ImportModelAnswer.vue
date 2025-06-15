@@ -21,12 +21,6 @@
           <el-form-item label="数据集名称">
             <el-input v-model="datasetQueryParams.name" placeholder="数据集名称关键词" clearable />
           </el-form-item>
-          <el-form-item label="状态">
-            <el-select v-model="datasetQueryParams.isPublished" placeholder="发布状态" clearable>
-              <el-option label="已发布" :value="true" />
-              <el-option label="未发布" :value="false" />
-            </el-select>
-          </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="handleDatasetSearch">搜索</el-button>
             <el-button @click="resetDatasetQuery">重置</el-button>
@@ -217,6 +211,7 @@ import { getModelList } from '@/api/evaluation'
 import { importModelAnswer, getDatasetVersionsWithAnswers } from '@/api/import'
 import { getAllCategories } from '@/api/category'
 import type { FormInstance, FormRules } from 'element-plus'
+import request from '@/utils/request'
 
 const router = useRouter()
 const loading = ref(false)
@@ -240,7 +235,6 @@ const datasetQueryParams = reactive({
   page: 1,
   size: 10,
   name: '',
-  isPublished: undefined as boolean | undefined,
 })
 
 // 问题查询参数
@@ -296,18 +290,13 @@ const fetchDatasets = async () => {
     const responseData = res.data || res
     
     if (Array.isArray(responseData)) {
-      // 过滤数据
-      let filteredData = [...responseData]
+      // 过滤数据 - 只保留已发布的数据集
+      let filteredData = [...responseData].filter(item => item.isPublished === true)
       
       if (datasetQueryParams.name) {
         const keyword = datasetQueryParams.name.toLowerCase()
         filteredData = filteredData.filter(item => 
           item.name && item.name.toLowerCase().includes(keyword))
-      }
-      
-      if (datasetQueryParams.isPublished !== undefined) {
-        filteredData = filteredData.filter(item => 
-          item.isPublished === datasetQueryParams.isPublished)
       }
       
       // 手动分页
@@ -339,20 +328,38 @@ const getQuestionList = async () => {
   
   loading.value = true
   try {
-    // 从数据集中获取问题
-    const params = {
-      ...queryParams,
-      datasetId: selectedDataset.value.datasetId
-    }
+    // 从数据集中获取问题 - 使用数据集版本API获取特定数据集的问题
+    const res = await request({
+      url: `/api/datasets/${selectedDataset.value.datasetId}/questions`,
+      method: 'get'
+    })
     
-    const res = await getStandardQuestions(params)
-    
-    if (res && res.data && res.data.content) {
-      questionList.value = res.data.content
-      total.value = res.data.total
-    } else if (Array.isArray(res)) {
-      questionList.value = res
-      total.value = res.length
+    if (res && Array.isArray(res.data)) {
+      // 应用过滤条件
+      let filteredQuestions = [...res.data]
+      
+      if (queryParams.keyword) {
+        const keyword = queryParams.keyword.toLowerCase()
+        filteredQuestions = filteredQuestions.filter(q => 
+          q.question && q.question.toLowerCase().includes(keyword))
+      }
+      
+      if (queryParams.categoryId) {
+        filteredQuestions = filteredQuestions.filter(q => 
+          q.category && q.category.categoryId === queryParams.categoryId)
+      }
+      
+      if (queryParams.questionType) {
+        filteredQuestions = filteredQuestions.filter(q => 
+          q.questionType === queryParams.questionType)
+      }
+      
+      // 手动分页
+      const start = (queryParams.page - 1) * queryParams.size
+      const end = start + queryParams.size
+      
+      questionList.value = filteredQuestions.slice(start, end)
+      total.value = filteredQuestions.length
     } else {
       questionList.value = []
       total.value = 0
@@ -443,7 +450,6 @@ const handleDatasetSearch = () => {
 // 重置数据集查询
 const resetDatasetQuery = () => {
   datasetQueryParams.name = ''
-  datasetQueryParams.isPublished = undefined
   datasetQueryParams.page = 1
   fetchDatasets()
 }

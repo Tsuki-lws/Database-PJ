@@ -109,18 +109,13 @@ const fetchData = async () => {
     const responseData = res.data || res
     
     if (Array.isArray(responseData)) {
-      // 过滤数据
-      let filteredData = [...responseData]
+      // 过滤数据 - 只保留已发布的数据集
+      let filteredData = [...responseData].filter(item => item.isPublished === true)
       
       if (queryParams.name) {
         const keyword = queryParams.name.toLowerCase()
         filteredData = filteredData.filter(item => 
           item.name && item.name.toLowerCase().includes(keyword))
-      }
-      
-      if (queryParams.isPublished !== undefined) {
-        filteredData = filteredData.filter(item => 
-          item.isPublished === queryParams.isPublished)
       }
       
       // 手动分页
