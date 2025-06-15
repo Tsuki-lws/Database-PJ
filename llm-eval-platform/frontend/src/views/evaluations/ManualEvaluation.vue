@@ -248,7 +248,8 @@ const startEvaluation = async (row: any) => {
               currentEvaluation.value.keyPoints = sortedKeyPoints
               
               // 初始化关键点评估状态
-              evaluationForm.keyPointsStatus = sortedKeyPoints.map(() => 'missed')
+              evaluationForm.keyPointsStatus = Array.from({ length: sortedKeyPoints.length }, () => 'missed')
+              console.log('初始化的关键点状态数组:', evaluationForm.keyPointsStatus)
             } else {
               console.log('标准答案没有关键点')
               currentEvaluation.value.keyPoints = []
@@ -298,7 +299,7 @@ const submitEvaluation = async () => {
   submitting.value = true
   try {
     // 构建提交参数
-    const params = {
+    const params: any = {
       answerId: currentEvaluation.value.answerId,
       score: evaluationForm.score,
       isCorrect: evaluationForm.isCorrect,
@@ -309,15 +310,16 @@ const submitEvaluation = async () => {
     if (currentEvaluation.value.keyPoints && 
         currentEvaluation.value.keyPoints.length > 0 && 
         evaluationForm.keyPointsStatus.length > 0) {
-      (params as any).keyPointsStatus = evaluationForm.keyPointsStatus
+      console.log('提交关键点状态:', evaluationForm.keyPointsStatus)
+      params.keyPointsStatus = evaluationForm.keyPointsStatus
     }
     
     // 如果有标准答案ID，添加到参数中
     if (currentEvaluation.value.standardAnswerId) {
-      (params as any).standardAnswerId = currentEvaluation.value.standardAnswerId
+      params.standardAnswerId = currentEvaluation.value.standardAnswerId
     }
     
-    console.log('提交评测数据:', params)
+    console.log('提交评测数据:', JSON.stringify(params))
     
     const res = await submitManualEvaluation(params)
     ElMessage.success('评测提交成功')

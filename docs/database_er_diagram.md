@@ -1,4 +1,25 @@
 ```mermaid
+%%{init: {
+  "theme": "default",
+  "themeVariables": {
+    "primaryColor": "#ffffff",
+    "primaryTextColor": "#000000",
+    "primaryBorderColor": "#000000",
+    "lineColor": "#000000",
+    "tertiaryColor": "#f9f9f9"
+  },
+  "er": {
+    "fontSize": 28,
+    "stroke": "#000000",
+    "fill": "#ffffff",
+    "entityPadding": 2,
+    "attributeFontSize": 26,
+    "relationshipFontSize": 24,
+    "layoutDirection": "TB",
+    "diagramPadding": 2
+  }
+}}%%
+
 erDiagram
     users {
         int user_id PK

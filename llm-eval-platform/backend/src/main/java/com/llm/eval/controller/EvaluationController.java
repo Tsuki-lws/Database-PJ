@@ -207,7 +207,35 @@ public class EvaluationController {
                 // 添加评分要点
                 List<AnswerKeyPoint> keyPoints = evaluationService.getKeyPointsByAnswerId(standardAnswer.getStandardAnswerId());
                 if (!keyPoints.isEmpty()) {
-                    List<Map<String, Object>> keyPointsList = keyPoints.stream().map(kp -> {
+                    List<Map<String, Object>> keyPointsList = new ArrayList<>();
+                    
+                    // 解析评估中的关键点状态数据
+                    Map<Integer, String> keyPointStatusMap = new HashMap<>();
+                    if (evaluation.getKeyPointsEvaluation() != null && !evaluation.getKeyPointsEvaluation().isEmpty()) {
+                        try {
+                            ObjectMapper mapper = new ObjectMapper();
+                            List<EvaluationKeyPointDTO> keyPointEvals = mapper.readValue(
+                                evaluation.getKeyPointsEvaluation(),
+                                mapper.getTypeFactory().constructCollectionType(List.class, EvaluationKeyPointDTO.class)
+                            );
+                            
+                            // 创建关键点ID到状态的映射
+                            for (EvaluationKeyPointDTO kpEval : keyPointEvals) {
+                                if (kpEval.getKeyPointId() != null && kpEval.getStatus() != null) {
+                                    // 存储小写的状态值
+                                    keyPointStatusMap.put(kpEval.getKeyPointId(), 
+                                                        kpEval.getStatus().toString().toLowerCase());
+                                }
+                            }
+                            
+                            System.out.println("关键点状态映射: " + keyPointStatusMap);
+                        } catch (Exception e) {
+                            System.err.println("解析关键点评估数据失败: " + e.getMessage());
+                        }
+                    }
+                    
+                    // 处理每个关键点
+                    for (AnswerKeyPoint kp : keyPoints) {
                         Map<String, Object> keyPoint = new HashMap<>();
                         keyPoint.put("pointId", kp.getKeyPointId());
                         keyPoint.put("pointText", kp.getPointText());
@@ -215,30 +243,14 @@ public class EvaluationController {
                         keyPoint.put("pointWeight", kp.getPointWeight());
                         keyPoint.put("pointOrder", kp.getPointOrder());
                         
-                        // 添加匹配状态（如果有）
-                        String matchStatus = "missed"; // 默认为未匹配
-                        if (evaluation.getKeyPointsEvaluation() != null && !evaluation.getKeyPointsEvaluation().isEmpty()) {
-                            try {
-                                ObjectMapper mapper = new ObjectMapper();
-                                List<EvaluationKeyPointDTO> keyPointEvals = mapper.readValue(
-                                    evaluation.getKeyPointsEvaluation(),
-                                    mapper.getTypeFactory().constructCollectionType(List.class, EvaluationKeyPointDTO.class)
-                                );
-                                
-                                for (EvaluationKeyPointDTO kpEval : keyPointEvals) {
-                                    if (kpEval.getKeyPointId().equals(kp.getKeyPointId())) {
-                                        matchStatus = kpEval.getStatus().toString().toLowerCase();
-                                        break;
-                                    }
-                                }
-                            } catch (Exception e) {
-                                System.err.println("解析关键点评估数据失败: " + e.getMessage());
-                            }
-                        }
+                        // 使用映射中的状态值，如果不存在则使用默认值
+                        String matchStatus = keyPointStatusMap.getOrDefault(kp.getKeyPointId(), "missed");
                         keyPoint.put("matchStatus", matchStatus);
+                        System.out.println("关键点 " + kp.getKeyPointId() + " 最终状态: " + matchStatus);
                         
-                        return keyPoint;
-                    }).collect(Collectors.toList());
+                        keyPointsList.add(keyPoint);
+                    }
+                    
                     result.put("keyPoints", keyPointsList);
                 } else {
                     result.put("keyPoints", new ArrayList<>());
@@ -405,39 +417,67 @@ public class EvaluationController {
             
             // 处理关键点评估
             if (evaluationData.containsKey("keyPointsStatus")) {
-                @SuppressWarnings("unchecked")
-                List<String> keyPointsStatus = (List<String>) evaluationData.get("keyPointsStatus");
+                // 检查并处理不同类型的keyPointsStatus
+                Object keyPointsStatusObj = evaluationData.get("keyPointsStatus");
+                List<String> keyPointsStatus = new ArrayList<>();
                 
-                // 获取关键点列表
-                List<AnswerKeyPoint> keyPoints = evaluationService.getKeyPointsByAnswerId(
-                        standardAnswerOpt.get().getStandardAnswerId());
-                
-                if (keyPoints.size() == keyPointsStatus.size()) {
-                    List<EvaluationKeyPointDTO> keyPointEvals = new ArrayList<>();
+                if (keyPointsStatusObj instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<?> keyPointsList = (List<?>) keyPointsStatusObj;
                     
-                    for (int i = 0; i < keyPoints.size(); i++) {
-                        EvaluationKeyPointDTO keyPointEval = new EvaluationKeyPointDTO();
-                        keyPointEval.setKeyPointId(keyPoints.get(i).getKeyPointId());
-                        // 将字符串状态转换为枚举
-                        String status = keyPointsStatus.get(i);
-                        if ("matched".equalsIgnoreCase(status)) {
-                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MATCHED);
-                        } else if ("partial".equalsIgnoreCase(status)) {
-                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.PARTIAL);
-                        } else {
-                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MISSED);
+                    // 遍历列表，确保每个元素都转换为字符串
+                    for (Object item : keyPointsList) {
+                        keyPointsStatus.add(item.toString());
+                    }
+                    
+                    System.out.println("处理关键点状态数量: " + keyPointsStatus.size() + 
+                                      ", 内容: " + keyPointsStatus);
+                    
+                    // 获取关键点列表
+                    List<AnswerKeyPoint> keyPoints = evaluationService.getKeyPointsByAnswerId(
+                            standardAnswerOpt.get().getStandardAnswerId());
+                    
+                    if (keyPoints.size() == keyPointsStatus.size()) {
+                        List<EvaluationKeyPointDTO> keyPointEvals = new ArrayList<>();
+                        
+                        for (int i = 0; i < keyPoints.size(); i++) {
+                            EvaluationKeyPointDTO keyPointEval = new EvaluationKeyPointDTO();
+                            keyPointEval.setKeyPointId(keyPoints.get(i).getKeyPointId());
+                            // 将字符串状态转换为枚举
+                            String status = keyPointsStatus.get(i);
+                            System.out.println("关键点 " + i + " 状态: " + status);
+                            
+                            if ("matched".equalsIgnoreCase(status)) {
+                                keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MATCHED);
+                            } else if ("partial".equalsIgnoreCase(status)) {
+                                keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.PARTIAL);
+                            } else {
+                                keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MISSED);
+                            }
+                            keyPointEvals.add(keyPointEval);
                         }
-                        keyPointEvals.add(keyPointEval);
+                        
+                        // 将关键点评估结果转换为JSON字符串
+                        ObjectMapper objectMapper = new ObjectMapper();
+                        try {
+                            String jsonKeyPoints = objectMapper.writeValueAsString(keyPointEvals);
+                            evaluationDTO.setKeyPointsEvaluation(jsonKeyPoints);
+                            System.out.println("关键点评估JSON: " + jsonKeyPoints);
+                        } catch (Exception e) {
+                            System.err.println("关键点评估JSON序列化失败: " + e.getMessage());
+                            evaluationDTO.setKeyPointsEvaluation("[]");
+                        }
+                    } else {
+                        System.err.println("关键点数量不匹配: 标准答案关键点 " + 
+                                         keyPoints.size() + " vs 提交评估关键点 " + 
+                                         keyPointsStatus.size());
                     }
-                    
-                    // 将关键点评估结果转换为JSON字符串
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    try {
-                        evaluationDTO.setKeyPointsEvaluation(objectMapper.writeValueAsString(keyPointEvals));
-                    } catch (Exception e) {
-                        evaluationDTO.setKeyPointsEvaluation("[]");
-                    }
+                } else {
+                    System.err.println("无效的关键点状态格式，类型: " + 
+                                     (keyPointsStatusObj != null ? keyPointsStatusObj.getClass().getName() : "null"));
                 }
+            } else {
+                System.err.println("未提供关键点评估数据");
             }
             
             // 保存评测结果
@@ -470,6 +510,24 @@ public class EvaluationController {
             
             System.out.println("找到模型回答，问题ID: " + question.getStandardQuestionId() + ", 问题: " + question.getQuestion());
             
+            // 获取该回答的评测结果（如果有）
+            List<EvaluationDTO> evaluations = evaluationService.getEvaluationsByAnswerId(answerId);
+            EvaluationDTO latestEvaluation = null;
+            // 选择最新的评测结果
+            if (!evaluations.isEmpty()) {
+                evaluations.sort((a, b) -> {
+                    if (a.getCreatedAt() == null) return 1;
+                    if (b.getCreatedAt() == null) return -1;
+                    return b.getCreatedAt().compareTo(a.getCreatedAt());
+                });
+                latestEvaluation = evaluations.get(0);
+                System.out.println("找到评测结果，ID: " + latestEvaluation.getEvaluationId() + 
+                                  ", 分数: " + latestEvaluation.getScore() +
+                                  ", 创建时间: " + latestEvaluation.getCreatedAt());
+            } else {
+                System.out.println("该回答没有评测结果");
+            }
+            
             // 获取标准答案 - 确保获取最新的标准答案
             Optional<StandardAnswer> standardAnswerOpt = evaluationService.getLatestStandardAnswerByQuestionId(
                     question.getStandardQuestionId());
@@ -482,6 +540,16 @@ public class EvaluationController {
             result.put("modelId", answer.getModel().getModelId());
             result.put("modelName", answer.getModel().getName() + " " + (answer.getModel().getVersion() != null ? answer.getModel().getVersion() : ""));
             result.put("modelAnswer", answer.getContent());
+            
+            // 添加评测结果信息（如果有）
+            if (latestEvaluation != null) {
+                result.put("evaluationId", latestEvaluation.getEvaluationId());
+                result.put("score", latestEvaluation.getScore());
+                result.put("method", latestEvaluation.getMethod());
+                result.put("comments", latestEvaluation.getComments());
+                result.put("createdAt", latestEvaluation.getCreatedAt());
+                result.put("evaluatedAt", latestEvaluation.getCreatedAt());
+            }
             
             // 添加标准答案信息
             if (standardAnswerOpt.isPresent()) {
@@ -501,15 +569,52 @@ public class EvaluationController {
                 List<AnswerKeyPoint> keyPoints = evaluationService.getKeyPointsByAnswerId(standardAnswer.getStandardAnswerId());
                 if (!keyPoints.isEmpty()) {
                     System.out.println("找到关键点数量: " + keyPoints.size());
+                    
+                    // 解析评测中的关键点状态数据（如果有评测结果）
+                    Map<Integer, String> keyPointStatusMap = new HashMap<>();
+                    if (latestEvaluation != null && latestEvaluation.getKeyPointsEvaluation() != null && 
+                        !latestEvaluation.getKeyPointsEvaluation().isEmpty()) {
+                        try {
+                            System.out.println("解析评测结果的关键点状态数据: " + latestEvaluation.getKeyPointsEvaluation());
+                            ObjectMapper mapper = new ObjectMapper();
+                            List<EvaluationKeyPointDTO> keyPointEvals = mapper.readValue(
+                                latestEvaluation.getKeyPointsEvaluation(),
+                                mapper.getTypeFactory().constructCollectionType(List.class, EvaluationKeyPointDTO.class)
+                            );
+                            
+                            // 创建关键点ID到状态的映射
+                            for (EvaluationKeyPointDTO kpEval : keyPointEvals) {
+                                if (kpEval.getKeyPointId() != null && kpEval.getStatus() != null) {
+                                    // 存储小写的状态值
+                                    String status = kpEval.getStatus().toString().toLowerCase();
+                                    keyPointStatusMap.put(kpEval.getKeyPointId(), status);
+                                    System.out.println("关键点ID " + kpEval.getKeyPointId() + " 状态映射: " + status);
+                                }
+                            }
+                        } catch (Exception e) {
+                            System.err.println("解析关键点评估数据失败: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    } else {
+                        System.out.println("没有找到关键点评估数据或评测结果");
+                    }
+                    
                     List<Map<String, Object>> keyPointsList = keyPoints.stream().map(kp -> {
                         Map<String, Object> keyPoint = new HashMap<>();
-                        keyPoint.put("pointId", kp.getKeyPointId());
+                        keyPoint.put("keyPointId", kp.getKeyPointId());
                         keyPoint.put("pointText", kp.getPointText());
                         keyPoint.put("pointType", kp.getPointType() != null ? kp.getPointType().toString() : "UNKNOWN");
                         keyPoint.put("pointWeight", kp.getPointWeight());
                         keyPoint.put("pointOrder", kp.getPointOrder());
+                        
+                        // 使用映射中的状态值，如果不存在则使用默认值
+                        String matchStatus = keyPointStatusMap.getOrDefault(kp.getKeyPointId(), "missed");
+                        keyPoint.put("matchStatus", matchStatus);
+                        System.out.println("关键点 " + kp.getKeyPointId() + " 最终状态: " + matchStatus);
+                        
                         return keyPoint;
                     }).collect(Collectors.toList());
+                    
                     result.put("keyPoints", keyPointsList);
                 } else {
                     System.out.println("未找到关键点，创建空列表");
@@ -530,7 +635,7 @@ public class EvaluationController {
                 System.out.println("问题没有分类信息");
             }
             
-            System.out.println("评测详情获取成功，返回数据");
+            System.out.println("评测详情获取成功，返回数据: " + result);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             System.err.println("获取评测详情失败: " + e.getMessage());

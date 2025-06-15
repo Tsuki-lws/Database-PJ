@@ -186,52 +186,77 @@ const fetchEvaluationResult = async (evaluationId: number) => {
         comments: data.comments || ''
       };
 
-      // 根据问题ID单独请求标准答案
-      if (data.questionId) {
-        console.log(`根据问题ID: ${data.questionId} 获取标准答案`);
-        try {
-          // 调用API获取标准答案
-          const standardAnswerRes = await getStandardAnswersByQuestionId(data.questionId);
-          const standardAnswerData = standardAnswerRes.data || [];
-          console.log('获取到标准答案:', standardAnswerData);
-          
-          if (standardAnswerData && standardAnswerData.length > 0) {
-            // 找到最终版本的标准答案，如果没有则使用最新的
-            let targetAnswer = standardAnswerData.find((answer: any) => answer.isFinal === true);
-            if (!targetAnswer) {
-              // 如果没有最终版本，按更新时间排序找最新的
-              standardAnswerData.sort((a: any, b: any) => {
-                return new Date(b.updatedAt || b.createdAt).getTime() - 
-                       new Date(a.updatedAt || a.createdAt).getTime();
-              });
-              targetAnswer = standardAnswerData[0];
-            }
-            
-            console.log('选择的标准答案:', targetAnswer);
-            
-            // 更新当前评测数据中的标准答案
-            tempData.standardAnswer = targetAnswer.answer || '';
-            
-            // 处理关键点数据，如果API返回的标准答案有关键点
-            if (targetAnswer.keyPoints && targetAnswer.keyPoints.length > 0) {
-              console.log('使用标准答案中的关键点:', targetAnswer.keyPoints.length);
-              tempData.keyPoints = targetAnswer.keyPoints.map((point: any) => {
-                return {
-                  pointId: point.keyPointId,
-                  pointText: point.pointText || '',
-                  pointWeight: point.pointWeight || 1,
-                  matchStatus: point.matchStatus || 'missed'
-                };
-              });
-              console.log('处理后的关键点数据:', tempData.keyPoints);
-            } else {
-              console.log('最新标准答案没有关键点，不显示关键点评估部分');
-              tempData.keyPoints = [];
-            }
+      // 处理后端直接返回的关键点数据
+      if (data.keyPoints && Array.isArray(data.keyPoints)) {
+        console.log('后端返回的关键点数据:', data.keyPoints);
+        tempData.keyPoints = data.keyPoints.map((point: any) => {
+          // 确保matchStatus是小写
+          let matchStatus = point.matchStatus || 'missed';
+          if (matchStatus) {
+            matchStatus = matchStatus.toLowerCase();
           }
-        } catch (error: any) {
-          console.error('获取标准答案失败:', error);
-          tempData.keyPoints = [];
+          
+          return {
+            pointId: point.keyPointId || point.pointId,
+            pointText: point.pointText || '',
+            pointWeight: point.pointWeight || 1,
+            matchStatus: matchStatus
+          };
+        });
+        console.log('处理后的关键点数据:', tempData.keyPoints);
+      } else {
+        console.log('未找到关键点数据，尝试从标准答案获取');
+        
+        // 如果后端没有直接返回关键点数据，才从标准答案获取
+        if (data.questionId) {
+          console.log(`根据问题ID: ${data.questionId} 获取标准答案`);
+          try {
+            // 调用API获取标准答案
+            const standardAnswerRes = await getStandardAnswersByQuestionId(data.questionId);
+            const standardAnswerData = standardAnswerRes.data || [];
+            console.log('获取到标准答案:', standardAnswerData);
+            
+            if (standardAnswerData && standardAnswerData.length > 0) {
+              // 找到最终版本的标准答案，如果没有则使用最新的
+              let targetAnswer = standardAnswerData.find((answer: any) => answer.isFinal === true);
+              if (!targetAnswer) {
+                // 如果没有最终版本，按更新时间排序找最新的
+                standardAnswerData.sort((a: any, b: any) => {
+                  return new Date(b.updatedAt || b.createdAt).getTime() - 
+                         new Date(a.updatedAt || a.createdAt).getTime();
+                });
+                targetAnswer = standardAnswerData[0];
+              }
+              
+              console.log('选择的标准答案:', targetAnswer);
+              
+              // 更新当前评测数据中的标准答案
+              tempData.standardAnswer = targetAnswer.answer || '';
+              
+              // 处理关键点数据，如果API返回的标准答案有关键点
+              if (targetAnswer.keyPoints && targetAnswer.keyPoints.length > 0) {
+                console.log('使用标准答案中的关键点:', targetAnswer.keyPoints.length);
+                tempData.keyPoints = targetAnswer.keyPoints.map((point: any) => {
+                  // 检查并确保matchStatus值为小写，以便前端组件能够正确显示
+                  let matchStatus = point.matchStatus || 'missed';
+                  if (matchStatus) {
+                    matchStatus = matchStatus.toLowerCase();
+                  }
+                  console.log(`关键点ID=${point.keyPointId}, 原始状态=${point.matchStatus}, 处理后=${matchStatus}`);
+                  
+                  return {
+                    pointId: point.keyPointId,
+                    pointText: point.pointText || '',
+                    pointWeight: point.pointWeight || 1,
+                    matchStatus: matchStatus
+                  };
+                });
+              }
+            }
+          } catch (error: any) {
+            console.error('获取标准答案失败:', error);
+            tempData.keyPoints = [];
+          }
         }
       }
       
