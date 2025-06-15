@@ -1,0 +1,382 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "LLM评估平台 - 标准问题分类功能API",
+    "description": "标准问题分类功能的API接口文档",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support",
+      "email": "support@example.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "本地开发环境"
+    }
+  ],
+  "tags": [
+    {
+      "name": "标准问题管理",
+      "description": "标准问题的CRUD操作和分类管理"
+    },
+    {
+      "name": "分类管理",
+      "description": "问题分类的管理功能"
+    }
+  ],
+  "paths": {
+    "/api/questions/{id}/category": {
+      "put": {
+        "tags": ["标准问题管理"],
+        "summary": "更新问题的分类",
+        "description": "为指定的标准问题设置或移除分类",
+        "operationId": "updateQuestionCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "标准问题的ID",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "example": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryUpdateRequest"
+              },
+              "examples": {
+                "设置分类": {
+                  "summary": "为问题设置分类",
+                  "value": {
+                    "categoryId": 2
+                  }
+                },
+                "移除分类": {
+                  "summary": "移除问题的分类",
+                  "value": {
+                    "categoryId": null
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "分类更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardQuestion"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "问题或分类不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求格式错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/questions/{id}": {
+      "get": {
+        "tags": ["标准问题管理"],
+        "summary": "根据ID获取标准问题",
+        "description": "获取指定ID的标准问题详细信息",
+        "operationId": "getQuestionById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "标准问题的ID",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardQuestion"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "问题不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/questions/category/{categoryId}": {
+      "get": {
+        "tags": ["标准问题管理"],
+        "summary": "获取特定分类下的问题",
+        "description": "获取指定分类下的所有标准问题",
+        "operationId": "getQuestionsByCategory",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "description": "分类ID",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "example": 2
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StandardQuestion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "tags": ["分类管理"],
+        "summary": "获取所有分类",
+        "description": "获取系统中所有的问题分类",
+        "operationId": "getAllCategories",
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuestionCategory"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CategoryUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "description": "分类ID，可以为null表示移除分类",
+            "example": 2
+          }
+        }
+      },
+      "StandardQuestion": {
+        "type": "object",
+        "properties": {
+          "standardQuestionId": {
+            "type": "integer",
+            "format": "int32",
+            "description": "标准问题ID",
+            "example": 1
+          },
+          "question": {
+            "type": "string",
+            "description": "问题内容",
+            "example": "什么是Java中的多态性？"
+          },
+          "category": {
+            "$ref": "#/components/schemas/QuestionCategory",
+            "nullable": true,
+            "description": "问题分类"
+          },
+          "questionType": {
+            "type": "string",
+            "enum": ["MULTIPLE_CHOICE", "SINGLE_CHOICE", "SHORT_ANSWER", "ESSAY", "TRUE_FALSE", "FILL_BLANK", "CODING"],
+            "description": "问题类型",
+            "example": "MULTIPLE_CHOICE"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": ["EASY", "MEDIUM", "HARD"],
+            "description": "难度级别",
+            "example": "MEDIUM"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["DRAFT", "ACTIVE", "INACTIVE", "ARCHIVED"],
+            "description": "问题状态",
+            "example": "ACTIVE"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间",
+            "example": "2024-01-15T10:00:00"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "更新时间",
+            "example": "2024-01-15T14:30:00"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "删除时间",
+            "example": null
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "版本号",
+            "example": 2
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            },
+            "description": "问题标签"
+          }
+        }
+      },
+      "QuestionCategory": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "integer",
+            "format": "int32",
+            "description": "分类ID",
+            "example": 2
+          },
+          "name": {
+            "type": "string",
+            "description": "分类名称",
+            "example": "Java编程"
+          },
+          "description": {
+            "type": "string",
+            "description": "分类描述",
+            "example": "Java相关的编程问题"
+          },
+          "parent": {
+            "$ref": "#/components/schemas/QuestionCategory",
+            "nullable": true,
+            "description": "父分类"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionCategory"
+            },
+            "description": "子分类列表"
+          }
+        }
+      },
+      "Tag": {
+        "type": "object",
+        "properties": {
+          "tagId": {
+            "type": "integer",
+            "format": "int32",
+            "description": "标签ID",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "标签名称",
+            "example": "面向对象"
+          },
+          "color": {
+            "type": "string",
+            "description": "标签颜色",
+            "example": "#FF5722"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "错误发生时间",
+            "example": "2024-01-15T14:30:00.000+00:00"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "HTTP状态码",
+            "example": 404
+          },
+          "error": {
+            "type": "string",
+            "description": "错误类型",
+            "example": "Not Found"
+          },
+          "path": {
+            "type": "string",
+            "description": "请求路径",
+            "example": "/api/questions/999/category"
+          },
+          "message": {
+            "type": "string",
+            "description": "错误消息",
+            "example": "Standard question not found with id: 999"
+          }
+        }
+      }
+    }
+  }
+}

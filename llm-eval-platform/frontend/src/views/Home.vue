@@ -2,91 +2,11 @@
   <div class="home-container">
     <div class="welcome-section">
       <h1>欢迎使用 LLM 评测平台</h1>
-      <p>本平台提供大语言模型评测、对比和分析功能，帮助您更好地了解和评估模型性能。</p>
+      <!-- <p>本平台提供大语言模型评测、对比和分析功能，帮助您更好地了解和评估模型性能。</p> -->
     </div>
 
-    <el-row :gutter="20">
-      <el-col :span="16">
-        <!-- 评测概览 -->
-        <el-card shadow="hover" class="overview-card">
-          <template #header>
-            <div class="card-header">
-              <span>评测概览</span>
-              <el-button text @click="navigateTo('/evaluations')">查看全部</el-button>
-            </div>
-          </template>
-          <el-row :gutter="20">
-            <el-col :span="6">
-              <div class="stat-item">
-                <div class="stat-value">{{ stats.totalModels }}</div>
-                <div class="stat-label">评测模型</div>
-              </div>
-            </el-col>
-            <el-col :span="6">
-              <div class="stat-item">
-                <div class="stat-value">{{ stats.totalDatasets }}</div>
-                <div class="stat-label">数据集</div>
-              </div>
-            </el-col>
-            <el-col :span="6">
-              <div class="stat-item">
-                <div class="stat-value">{{ stats.totalQuestions }}</div>
-                <div class="stat-label">评测问题</div>
-              </div>
-            </el-col>
-            <el-col :span="6">
-              <div class="stat-item">
-                <div class="stat-value">{{ stats.completedEvaluations }}</div>
-                <div class="stat-label">已完成评测</div>
-              </div>
-            </el-col>
-          </el-row>
-          
-          <div class="chart-container">
-            <h3>模型评分对比</h3>
-            <div class="chart-placeholder">
-              <div class="chart-content">
-                <div class="model-score" v-for="(score, index) in modelScores" :key="index">
-                  <div class="model-name">{{ score.name }}</div>
-                  <div class="score-bar-container">
-                    <div class="score-bar" :style="{ width: score.score * 10 + '%', backgroundColor: score.color }">
-                      {{ score.score.toFixed(2) }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </el-card>
-        
-        <!-- 最近评测 -->
-        <el-card shadow="hover" class="recent-card">
-          <template #header>
-            <div class="card-header">
-              <span>最近评测</span>
-              <el-button text @click="navigateTo('/evaluations/results')">查看全部结果</el-button>
-            </div>
-          </template>
-          <el-table :data="recentEvaluations" style="width: 100%">
-            <el-table-column prop="batchName" label="评测批次" />
-            <el-table-column prop="modelName" label="模型" width="120" />
-            <el-table-column prop="datasetName" label="数据集" width="150" />
-            <el-table-column prop="score" label="得分" width="80">
-              <template #default="scope">
-                {{ scope.row.score.toFixed(2) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="completedAt" label="完成时间" width="180" />
-            <el-table-column fixed="right" label="操作" width="120">
-              <template #default="scope">
-                <el-button link type="primary" @click="viewResult(scope.row)">查看结果</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
-      
-      <el-col :span="8">
+    <el-row :gutter="20" justify="center">
+      <el-col :span="12">
         <!-- 快速操作 -->
         <el-card shadow="hover" class="quick-actions-card">
           <template #header>
@@ -95,58 +15,65 @@
             </div>
           </template>
           <div class="quick-actions">
-            <el-button type="primary" @click="navigateTo('/evaluations/create')">创建评测</el-button>
-            <el-button type="primary" @click="navigateTo('/evaluations/manual')">人工评测</el-button>
-            <el-button type="primary" @click="navigateTo('/import/model-answer')">导入模型回答</el-button>
-            <el-button type="primary" @click="navigateTo('/import/model-evaluation')">导入评测结果</el-button>
+            <el-button type="primary" @click="navigateTo('/models')">模型管理</el-button>
+            <el-button type="primary" @click="navigateTo('/datasets')">数据集管理</el-button>
           </div>
         </el-card>
         
         <!-- 系统状态 -->
-        <el-card shadow="hover" class="system-status-card">
+        <el-card shadow="hover" class="system-status-card" v-loading="loading.systemStatus">
           <template #header>
             <div class="card-header">
               <span>系统状态</span>
-              <el-tag type="success">正常运行</el-tag>
+              <el-tag :type="systemStatus.overall === 'normal' ? 'success' : 'danger'">
+                {{ systemStatus.overall === 'normal' ? '正常运行' : '异常' }}
+              </el-tag>
             </div>
           </template>
           <div class="system-status">
             <div class="status-item">
               <span class="status-label">API 服务：</span>
-              <el-tag size="small" type="success">在线</el-tag>
+              <el-tag size="small" :type="systemStatus.api === 'online' ? 'success' : 'danger'">
+                {{ systemStatus.api === 'online' ? '在线' : '离线' }}
+              </el-tag>
             </div>
             <div class="status-item">
               <span class="status-label">数据库：</span>
-              <el-tag size="small" type="success">连接正常</el-tag>
+              <el-tag size="small" :type="systemStatus.database === 'connected' ? 'success' : 'danger'">
+                {{ systemStatus.database === 'connected' ? '连接正常' : '连接异常' }}
+              </el-tag>
             </div>
             <div class="status-item">
               <span class="status-label">评测引擎：</span>
-              <el-tag size="small" type="success">运行中</el-tag>
+              <el-tag size="small" :type="systemStatus.engine === 'running' ? 'success' : 'danger'">
+                {{ systemStatus.engine === 'running' ? '运行中' : '已停止' }}
+              </el-tag>
             </div>
             <div class="status-item">
               <span class="status-label">当前运行任务：</span>
-              <span>2</span>
+              <span>{{ systemStatus.runningTasks }}</span>
             </div>
             <div class="status-item">
               <span class="status-label">等待中任务：</span>
-              <span>5</span>
+              <span>{{ systemStatus.waitingTasks }}</span>
             </div>
           </div>
         </el-card>
         
         <!-- 最新动态 -->
-        <el-card shadow="hover" class="news-card">
+        <el-card shadow="hover" class="news-card" v-loading="loading.news">
           <template #header>
             <div class="card-header">
               <span>最新动态</span>
             </div>
           </template>
-          <div class="news-list">
+          <div class="news-list" v-if="news.length > 0">
             <div class="news-item" v-for="(item, index) in news" :key="index">
               <div class="news-time">{{ item.time }}</div>
               <div class="news-content">{{ item.content }}</div>
             </div>
           </div>
+          <el-empty v-else description="暂无动态"></el-empty>
         </el-card>
       </el-col>
     </el-row>
@@ -156,76 +83,72 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { fetchSystemStatus, fetchNews } from '@/api/home'
+import type { SystemStatus, NewsItem } from '@/types/home'
 
 const router = useRouter()
 
-// 统计数据
-const stats = reactive({
-  totalModels: 15,
-  totalDatasets: 8,
-  totalQuestions: 2500,
-  completedEvaluations: 56
+// 加载状态
+const loading = reactive({
+  systemStatus: false,
+  news: false
 })
 
-// 模型评分数据
-const modelScores = [
-  { name: 'GPT-4', score: 8.75, color: '#409EFF' },
-  { name: 'Claude 2', score: 8.42, color: '#67C23A' },
-  { name: 'LLaMA 2 70B', score: 7.89, color: '#E6A23C' },
-  { name: 'Mistral 7B', score: 7.65, color: '#F56C6C' },
-  { name: 'Baichuan 2 13B', score: 7.32, color: '#909399' }
-]
-
-// 最近评测数据
-const recentEvaluations = ref([
-  {
-    id: 1,
-    batchName: 'GPT-4 基准测试',
-    modelName: 'GPT-4',
-    datasetName: '通用能力评测集 v1.0',
-    score: 8.75,
-    completedAt: '2023-05-15 12:45:18'
-  },
-  {
-    id: 2,
-    batchName: 'Claude 2 评测',
-    modelName: 'Claude 2',
-    datasetName: '通用能力评测集 v1.0',
-    score: 8.42,
-    completedAt: '2023-05-14 18:30:45'
-  },
-  {
-    id: 3,
-    batchName: 'LLaMA 2 测试',
-    modelName: 'LLaMA 2 70B',
-    datasetName: '通用能力评测集 v1.0',
-    score: 7.89,
-    completedAt: '2023-05-13 15:20:33'
-  }
-])
+// 系统状态
+const systemStatus = reactive<SystemStatus>({
+  overall: 'normal',
+  api: 'online',
+  database: 'connected',
+  engine: 'running',
+  runningTasks: 0,
+  waitingTasks: 0
+})
 
 // 最新动态
-const news = [
-  { time: '2023-05-16', content: '系统更新：新增模型评测结果导入功能' },
-  { time: '2023-05-15', content: '新增模型：Baichuan 2 13B 已添加到评测库' },
-  { time: '2023-05-14', content: '数据集更新：通用能力评测集 v1.0 新增 200 道问题' },
-  { time: '2023-05-12', content: '功能更新：新增模型回答导入功能' },
-  { time: '2023-05-10', content: '系统维护：数据库优化完成，性能提升 30%' }
-]
+const news = ref<NewsItem[]>([])
+
+// 初始化数据
+const initData = async () => {
+  await Promise.all([
+    loadSystemStatus(),
+    loadNews()
+  ])
+}
+
+// 加载系统状态
+const loadSystemStatus = async () => {
+  try {
+    loading.systemStatus = true
+    const response = await fetchSystemStatus()
+    Object.assign(systemStatus, response)
+  } catch (error) {
+    console.error('获取系统状态失败:', error)
+  } finally {
+    loading.systemStatus = false
+  }
+}
+
+// 加载最新动态
+const loadNews = async () => {
+  try {
+    loading.news = true
+    const response = await fetchNews()
+    news.value = response
+  } catch (error) {
+    console.error('获取最新动态失败:', error)
+  } finally {
+    loading.news = false
+  }
+}
 
 // 初始化
 onMounted(() => {
-  // 可以在这里加载一些初始数据
+  initData()
 })
 
 // 导航到指定路由
 const navigateTo = (path: string) => {
   router.push(path)
-}
-
-// 查看评测结果
-const viewResult = (row: any) => {
-  router.push(`/evaluations/results/${row.id}`)
 }
 </script>
 
@@ -256,76 +179,10 @@ const viewResult = (row: any) => {
   align-items: center;
 }
 
-.overview-card,
-.recent-card,
 .quick-actions-card,
 .system-status-card,
 .news-card {
   margin-bottom: 20px;
-}
-
-.stat-item {
-  text-align: center;
-  padding: 15px 0;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: bold;
-  color: #409EFF;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #606266;
-}
-
-.chart-container {
-  margin-top: 20px;
-}
-
-.chart-container h3 {
-  margin-bottom: 15px;
-  font-size: 16px;
-  color: #303133;
-}
-
-.chart-placeholder {
-  background-color: #f5f7fa;
-  border-radius: 4px;
-  padding: 20px;
-  min-height: 300px;
-}
-
-.chart-content {
-  width: 100%;
-}
-
-.model-score {
-  margin-bottom: 15px;
-}
-
-.model-name {
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.score-bar-container {
-  background-color: #e4e7ed;
-  border-radius: 4px;
-  height: 30px;
-  width: 100%;
-}
-
-.score-bar {
-  height: 30px;
-  border-radius: 4px;
-  color: white;
-  display: flex;
-  align-items: center;
-  padding-left: 10px;
-  font-weight: bold;
 }
 
 .quick-actions {
