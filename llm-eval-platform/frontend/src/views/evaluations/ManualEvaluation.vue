@@ -107,29 +107,6 @@
                 </div>
               </el-form-item>
             </template>
-            
-            <el-form-item label="评测维度">
-              <el-row :gutter="20">
-                <el-col :span="8">
-                  <div class="dimension-item">
-                    <span>准确性</span>
-                    <el-rate v-model="evaluationForm.dimensions.accuracy" :max="5" />
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="dimension-item">
-                    <span>完整性</span>
-                    <el-rate v-model="evaluationForm.dimensions.completeness" :max="5" />
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="dimension-item">
-                    <span>清晰度</span>
-                    <el-rate v-model="evaluationForm.dimensions.clarity" :max="5" />
-                  </div>
-                </el-col>
-              </el-row>
-            </el-form-item>
           </template>
           
           <el-form-item label="评测意见">
@@ -172,11 +149,6 @@ const evaluationForm = reactive({
   score: 0,
   isCorrect: false,
   keyPointsStatus: [] as string[],
-  dimensions: {
-    accuracy: 0,
-    completeness: 0,
-    clarity: 0
-  },
   comments: ''
 })
 
@@ -313,9 +285,6 @@ const resetEvaluationForm = () => {
   evaluationForm.score = 0
   evaluationForm.isCorrect = false
   evaluationForm.keyPointsStatus = []
-  evaluationForm.dimensions.accuracy = 0
-  evaluationForm.dimensions.completeness = 0
-  evaluationForm.dimensions.clarity = 0
   evaluationForm.comments = ''
 }
 
@@ -333,7 +302,6 @@ const submitEvaluation = async () => {
       answerId: currentEvaluation.value.answerId,
       score: evaluationForm.score,
       isCorrect: evaluationForm.isCorrect,
-      dimensions: evaluationForm.dimensions,
       comments: evaluationForm.comments
     }
     
@@ -393,14 +361,6 @@ const validateForm = () => {
         return false
       }
     }
-    
-    // 检查评测维度
-    if (evaluationForm.dimensions.accuracy === 0 || 
-        evaluationForm.dimensions.completeness === 0 || 
-        evaluationForm.dimensions.clarity === 0) {
-      ElMessage.warning('请完成所有评测维度')
-      return false
-    }
   }
   
   return true
@@ -408,7 +368,17 @@ const validateForm = () => {
 
 // 返回上一页
 const goBack = () => {
-  router.back()
+  // 获取来源页面信息（如果有）
+  const fromQuestion = route.query.fromQuestion
+  const questionId = route.query.questionId
+  
+  if (fromQuestion && questionId) {
+    // 如果是从问题回答列表页面过来的，则返回到该页面
+    router.push(`/evaluations/model?view=answers&questionId=${questionId}`)
+  } else {
+    // 否则使用常规的返回上一页
+    router.back()
+  }
 }
 
 // 获取关键点类型（用于标签颜色）
@@ -506,17 +476,6 @@ const getPointTypeText = (type: string) => {
   padding: 10px;
   border-radius: 4px;
   background-color: #f5f7fa;
-}
-
-.dimension-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.dimension-item span {
-  margin-bottom: 5px;
 }
 
 .card-header {

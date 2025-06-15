@@ -16,25 +16,21 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="问题">
-          <el-input v-model="queryParams.question" placeholder="问题关键词" clearable />
+        <el-form-item label="数据集">
+          <el-select v-model="queryParams.datasetId" placeholder="选择数据集" clearable>
+            <el-option
+              v-for="dataset in datasets"
+              :key="dataset.datasetId"
+              :label="dataset.name"
+              :value="dataset.datasetId"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="评测类型">
           <el-select v-model="queryParams.evaluationType" placeholder="选择评测类型" clearable>
-            <el-option label="人工评测" value="human" />
+            <el-option label="人工评测" value="manual" />
             <el-option label="自动评测" value="auto" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="分数范围">
-          <el-slider
-            v-model="queryParams.scoreRange"
-            range
-            :min="0"
-            :max="10"
-            :step="0.5"
-            :marks="{0: '0', 5: '5', 10: '10'}"
-            style="width: 200px;"
-          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">搜索</el-button>
@@ -45,33 +41,107 @@
 
     <el-card shadow="never" class="results-card">
       <el-tabs v-model="activeTab">
-        <el-tab-pane label="单个评测结果" name="individual">
-          <el-table v-loading="loading" :data="evaluationsList" style="width: 100%">
-            <el-table-column prop="evaluationId" label="ID" width="80" />
-            <el-table-column prop="question" label="问题" show-overflow-tooltip />
-            <el-table-column prop="modelName" label="模型" width="120" />
-            <el-table-column prop="score" label="评分" width="80">
-              <template #default="scope">
-                <span :class="getScoreClass(scope.row.score)">
-                  {{ scope.row.score !== null ? scope.row.score.toFixed(1) : '未评分' }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="evaluationType" label="评测类型" width="100">
-              <template #default="scope">
-                <el-tag :type="getEvaluationTypeTag(scope.row.evaluationType)">
-                  {{ getEvaluationTypeText(scope.row.evaluationType) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="evaluator" label="评测人" width="100" />
-            <el-table-column prop="evaluatedAt" label="评测时间" width="180" />
-            <el-table-column fixed="right" label="操作" width="150">
-              <template #default="scope">
-                <el-button link type="primary" @click="viewDetail(scope.row)">查看详情</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+        <el-tab-pane label="数据集评测" name="datasets">
+          <!-- 数据集列表 -->
+          <div v-if="currentView === 'datasets'">
+            <el-table v-loading="loading" :data="datasetsList" style="width: 100%">
+              <el-table-column prop="datasetId" label="ID" width="80" />
+              <el-table-column prop="name" label="数据集名称" />
+              <el-table-column prop="description" label="描述" show-overflow-tooltip />
+              <el-table-column prop="questionCount" label="问题数量" width="100" />
+              <el-table-column prop="evaluationProgress" label="评测进度" width="180">
+                <template #default="scope">
+                  <el-progress 
+                    :percentage="calculateProgress(scope.row.evaluatedCount, scope.row.questionCount)" 
+                    :format="(percentage: number) => `${scope.row.evaluatedCount}/${scope.row.questionCount} (${percentage}%)`"
+                    :status="scope.row.isFullyEvaluated ? 'success' : ''"
+                  />
+                </template>
+              </el-table-column>
+              <el-table-column prop="avgScore" label="平均分数" width="100">
+                <template #default="scope">
+                  <span v-if="scope.row.isFullyEvaluated" :class="getScoreClass(scope.row.avgScore)">
+                    {{ scope.row.avgScore !== null ? scope.row.avgScore.toFixed(1) : '0.0' }}
+                  </span>
+                  <span v-else class="evaluation-incomplete">
+                    未评测完
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column fixed="right" label="操作" width="150">
+                <template #default="scope">
+                  <el-button link type="primary" @click="viewDatasetQuestions(scope.row)">查看问题</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <!-- 数据集问题列表 -->
+          <div v-else-if="currentView === 'questions'">
+            <div class="back-navigation">
+              <el-button icon="el-icon-back" link @click="backToDatasets">返回数据集列表</el-button>
+              <h3>{{ currentDataset.name }} - 问题列表</h3>
+            </div>
+            
+            <el-table v-loading="loading" :data="questionsList" style="width: 100%">
+              <el-table-column prop="questionId" label="ID" width="80" />
+              <el-table-column prop="question" label="问题" show-overflow-tooltip />
+              <el-table-column prop="category" label="分类" width="120" />
+              <el-table-column prop="answerCount" label="回答数量" width="100" />
+              <el-table-column prop="evaluationCount" label="评测数量" width="100" />
+              <el-table-column prop="avgScore" label="平均分数" width="100">
+                <template #default="scope">
+                  <span :class="getScoreClass(scope.row.avgScore)">
+                    {{ scope.row.avgScore !== null ? Number(scope.row.avgScore).toFixed(1) : '未评分' }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column fixed="right" label="操作" width="180">
+                <template #default="scope">
+                  <el-button link type="primary" @click="viewQuestionAnswers(scope.row)">查看回答</el-button>
+                  <el-button link type="primary" @click="viewQuestionEvaluations(scope.row)" v-if="scope.row.evaluationCount > 0">查看评测</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <!-- 问题回答列表 -->
+          <div v-else-if="currentView === 'answers'">
+            <div class="back-navigation">
+              <el-button icon="el-icon-back" link @click="backToQuestions">返回问题列表</el-button>
+              <h3>{{ currentQuestion.question }} - 模型回答</h3>
+            </div>
+            
+            <el-table v-loading="loading" :data="answersList" style="width: 100%">
+              <el-table-column prop="answerId" label="ID" width="80" />
+              <el-table-column prop="modelName" label="模型" width="120" />
+              <el-table-column prop="content" label="回答内容" show-overflow-tooltip />
+              <el-table-column prop="score" label="评分" width="80">
+                <template #default="scope">
+                  <span :class="getScoreClass(scope.row.score)">
+                    {{ scope.row.score !== null ? scope.row.score.toFixed(1) : '未评分' }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="evaluationType" label="评测类型" width="100">
+                <template #default="scope">
+                  <el-tag v-if="scope.row.evaluationType" :type="getEvaluationTypeTag(scope.row.evaluationType)">
+                    {{ getEvaluationTypeText(scope.row.evaluationType) }}
+                  </el-tag>
+                  <span v-else>未评测</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="evaluatedAt" label="评测时间" width="180" />
+              <el-table-column fixed="right" label="操作" width="280">
+                <template #default="scope">
+                  <el-button v-if="scope.row.evaluationId" link type="primary" @click="viewEvaluationDetail(scope.row)">查看评测</el-button>
+                  <el-button v-if="scope.row.evaluationId" link type="danger" @click="handleDelete(scope.row)">删除评测</el-button>
+                  <el-button v-if="!scope.row.evaluationId" link type="success" @click="handleEvaluate(scope.row, 'auto')">自动评测</el-button>
+                  <el-button v-if="!scope.row.evaluationId" link type="warning" @click="handleEvaluate(scope.row, 'manual')">人工评测</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
 
           <!-- 分页 -->
           <div class="pagination-container">
@@ -87,7 +157,7 @@
           </div>
         </el-tab-pane>
         
-        <el-tab-pane label="模型评测统计" name="statistics">
+        <!-- <el-tab-pane label="模型评测统计" name="statistics">
           <div class="statistics-container">
             <el-row :gutter="20">
               <el-col :span="8" v-for="stat in modelStatistics" :key="stat.modelId">
@@ -100,21 +170,6 @@
                     <span class="score-value" :class="getScoreClass(stat.avgScore)">{{ stat.avgScore.toFixed(1) }}</span>
                     <span class="score-label">平均分</span>
                   </div>
-                  <el-divider />
-                  <div class="stat-details">
-                    <div class="stat-item">
-                      <span>准确性</span>
-                      <el-progress :percentage="stat.dimensions.accuracy * 20" :stroke-width="10" :format="format5" />
-                    </div>
-                    <div class="stat-item">
-                      <span>完整性</span>
-                      <el-progress :percentage="stat.dimensions.completeness * 20" :stroke-width="10" :format="format5" />
-                    </div>
-                    <div class="stat-item">
-                      <span>清晰度</span>
-                      <el-progress :percentage="stat.dimensions.clarity * 20" :stroke-width="10" :format="format5" />
-                    </div>
-                  </div>
                   <div class="stat-actions">
                     <el-button type="primary" link @click="viewModelEvaluations(stat.modelId)">查看详情</el-button>
                   </div>
@@ -122,7 +177,7 @@
               </el-col>
             </el-row>
           </div>
-        </el-tab-pane>
+        </el-tab-pane> -->
       </el-tabs>
     </el-card>
   </div>
@@ -131,27 +186,38 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { getModelList, getModelEvaluations, getModelEvaluationStatistics } from '@/api/evaluations'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getModelList, getModelEvaluations, getModelEvaluationStatistics, deleteEvaluation, evaluateAnswer } from '@/api/evaluations'
+import { getDatasetList, getDatasetQuestions, getQuestionAnswers, getDatasetEvaluationStats } from '@/api/datasets'
 
 const router = useRouter()
 const loading = ref(false)
-const evaluationsList = ref<any[]>([])
 const total = ref(0)
-const activeTab = ref('individual')
+const activeTab = ref('datasets')
+
+// 当前视图状态
+const currentView = ref('datasets') // 'datasets', 'questions', 'answers'
+const currentDataset = ref<any>({})
+const currentQuestion = ref<any>({})
+
+// 列表数据
+const datasetsList = ref<any[]>([])
+const questionsList = ref<any[]>([])
+const answersList = ref<any[]>([])
 
 // 查询参数
 const queryParams = reactive({
   page: 1,
   size: 10,
   modelId: '',
-  question: '',
-  evaluationType: '',
-  scoreRange: [0, 10]
+  datasetId: '',
+  evaluationType: ''
 })
 
 // 模型选项
 const models = ref<any[]>([])
+// 数据集选项
+const datasets = ref<any[]>([])
 
 // 模型统计数据
 const modelStatistics = ref<any[]>([])
@@ -159,8 +225,56 @@ const modelStatistics = ref<any[]>([])
 // 初始化
 onMounted(() => {
   fetchModels()
-  fetchEvaluations()
+  fetchDatasets()
   fetchModelStatistics()
+  
+  // 检查是否有保存的状态信息
+  const savedStateStr = sessionStorage.getItem('evaluationReturnState')
+  if (savedStateStr) {
+    try {
+      const savedState = JSON.parse(savedStateStr)
+      
+      // 如果有保存的状态，并且是从问题列表查看评测后返回
+      if (savedState.view === 'questions' && savedState.datasetId) {
+        // 恢复到问题列表视图
+        currentView.value = 'questions'
+        currentDataset.value = {
+          datasetId: savedState.datasetId,
+          name: savedState.datasetName || `数据集 #${savedState.datasetId}`
+        }
+        // 加载问题列表
+        fetchDatasetQuestions(savedState.datasetId)
+        
+        // 使用后清除保存的状态
+        sessionStorage.removeItem('evaluationReturnState')
+        return
+      }
+    } catch (e) {
+      console.error('解析保存的状态信息失败:', e)
+    }
+  }
+  
+  // 处理URL参数
+  const route = useRouter().currentRoute.value
+  if (route.query.view === 'answers' && route.query.questionId) {
+    // 如果URL中包含view=answers和questionId参数，则直接打开问题回答列表
+    const questionId = Number(route.query.questionId)
+    // 先获取问题信息
+    fetchQuestionById(questionId).then(questionData => {
+      if (questionData) {
+        currentQuestion.value = questionData
+        currentView.value = 'answers'
+        // 获取问题所属的数据集
+        fetchDatasetById(questionData.datasetId).then(datasetData => {
+          if (datasetData) {
+            currentDataset.value = datasetData
+          }
+          // 加载回答列表
+          fetchQuestionAnswers(questionId)
+        })
+      }
+    })
+  }
 })
 
 // 获取模型列表
@@ -173,92 +287,189 @@ const fetchModels = async () => {
   }
 }
 
-// 获取评测结果列表
-const fetchEvaluations = async () => {
-  loading.value = true;
+// 获取数据集列表
+const fetchDatasets = async () => {
+  loading.value = true
   try {
-    // 构建查询参数
     const params = {
-      page: queryParams.page - 1, // 后端页码从0开始
+      page: queryParams.page - 1,
       size: queryParams.size,
       modelId: queryParams.modelId || undefined,
-      question: queryParams.question || undefined,
-      evaluationType: queryParams.evaluationType || undefined,
-      minScore: queryParams.scoreRange[0],
-      maxScore: queryParams.scoreRange[1]
-    };
+      evaluationType: queryParams.evaluationType || undefined
+    }
     
-    console.log('请求参数:', params);
+    console.log('发送GET请求: /api/datasets', params)
+    const res = await getDatasetList(params)
     
-    // 尝试使用模拟数据，确保前端显示正常
-    const mockData = [
-      {
-        evaluationId: 1,
-        question: '请解释量子计算的基本原理',
-        modelName: 'GPT-4',
-        score: 9.2,
-        evaluationType: 'human',
-        evaluator: '张三',
-        evaluatedAt: '2023-05-20 15:30:45'
-      },
-      {
-        evaluationId: 2,
-        question: '用Python实现快速排序算法',
-        modelName: 'Claude 2',
-        score: 8.5,
-        evaluationType: 'human',
-        evaluator: '李四',
-        evaluatedAt: '2023-05-19 14:25:36'
+    if (res.data) {
+      // 处理返回的数据集列表
+      let datasets = [];
+      if (Array.isArray(res.data)) {
+        // 直接返回数组
+        datasets = res.data.map((item: any) => ({
+          datasetId: item.versionId,
+          name: item.name,
+          description: item.description || '无描述',
+          questionCount: item.questionCount || 0,
+          evaluationCount: item.evaluationCount || 0,
+          evaluatedCount: 0, // 默认为0，后续会更新
+          avgScore: 0, // 默认为0，后续会更新
+          isPublished: item.isPublished,
+          isFullyEvaluated: false // 默认为未完全评测
+        }))
+        total.value = res.data.length
+      } else if (res.data.content) {
+        // 分页格式返回
+        datasets = res.data.content.map((item: any) => ({
+          datasetId: item.versionId,
+          name: item.name,
+          description: item.description || '无描述',
+          questionCount: item.questionCount || 0,
+          evaluationCount: item.evaluationCount || 0,
+          evaluatedCount: 0, // 默认为0，后续会更新
+          avgScore: 0, // 默认为0，后续会更新
+          isPublished: item.isPublished,
+          isFullyEvaluated: false // 默认为未完全评测
+        }))
+        total.value = res.data.totalElements || 0
       }
-    ];
-    
-    try {
-      const res = await getModelEvaluations(params);
-      console.log('API响应数据:', res);
       
-      if (res.data && res.data.content) {
-        // 标准分页格式响应
-        evaluationsList.value = res.data.content.map((item: any) => ({
-          evaluationId: item.evaluationId,
-          question: item.question || '未知问题',
-          modelName: item.modelName || '未知模型',
-          score: item.score,
-          evaluationType: item.evaluationType || 'auto',
-          evaluator: item.evaluator || '系统',
-          evaluatedAt: item.evaluatedAt || item.createdAt || '未知时间'
-        }));
-        total.value = res.data.totalElements || 0;
-      } else if (Array.isArray(res.data)) {
-        // 数组格式响应
-        evaluationsList.value = res.data.map((item: any) => ({
-          evaluationId: item.evaluationId,
-          question: item.question || '未知问题',
-          modelName: item.modelName || '未知模型',
-          score: item.score,
-          evaluationType: item.evaluationType || 'auto',
-          evaluator: item.evaluator || '系统',
-          evaluatedAt: item.evaluatedAt || item.createdAt || '未知时间'
-        }));
-        total.value = res.data.length;
-      } else {
-        console.error('未能识别的API响应格式:', res);
-        // 使用模拟数据，确保界面有内容显示
-        evaluationsList.value = mockData;
-        total.value = mockData.length;
-      }
-    } catch (apiError: any) {
-      console.error('API调用失败:', apiError);
-      // 使用模拟数据，确保界面有内容显示
-      evaluationsList.value = mockData;
-      total.value = mockData.length;
+      // 获取每个数据集的评测统计信息
+      const statsPromises = datasets.map(async (dataset: any) => {
+        try {
+          // 调用API获取数据集评测统计信息
+          const statsRes = await getDatasetEvaluationStats(dataset.datasetId);
+          if (statsRes.data) {
+            // 更新数据集的评测信息
+            dataset.evaluatedCount = statsRes.data.evaluatedCount || 0;
+            dataset.avgScore = statsRes.data.avgScore || 0;
+            dataset.isFullyEvaluated = statsRes.data.isFullyEvaluated || false;
+          }
+        } catch (error) {
+          console.error(`获取数据集${dataset.datasetId}评测统计信息失败:`, error);
+        }
+        return dataset;
+      });
+      
+      // 等待所有统计信息获取完成
+      datasetsList.value = await Promise.all(statsPromises);
+    } else {
+      datasetsList.value = []
+      total.value = 0
+      ElMessage.warning('未获取到数据集数据')
     }
   } catch (error: any) {
-    console.error('获取评测结果列表失败:', error);
-    ElMessage.error('获取评测结果列表失败: ' + error.message);
-    evaluationsList.value = [];
-    total.value = 0;
+    console.error('获取数据集列表失败:', error)
+    ElMessage.error('获取数据集列表失败: ' + error.message)
+    datasetsList.value = []
+    total.value = 0
   } finally {
-    loading.value = false;
+    loading.value = false
+  }
+}
+
+// 获取数据集问题列表
+const fetchDatasetQuestions = async (datasetId: number) => {
+  loading.value = true
+  try {
+    const params = {
+      page: queryParams.page - 1,
+      size: queryParams.size,
+      datasetId: datasetId,
+      modelId: queryParams.modelId || undefined
+    }
+    
+    console.log('发送GET请求: /api/datasets/' + datasetId + '/questions', params)
+    const res = await getDatasetQuestions(params)
+    
+    if (res.data) {
+      // 处理返回的问题列表
+      if (Array.isArray(res.data)) {
+        // 直接返回数组
+        questionsList.value = res.data.map((item: any) => ({
+          questionId: item.standardQuestionId,
+          question: item.question,
+          category: item.category ? item.category.categoryName : '未分类',
+          answerCount: item.answerCount || 0,
+          avgScore: item.avgScore || 0,
+          hasStandardAnswer: item.hasStandardAnswer,
+          evaluationCount: item.evaluationCount || 0
+        }))
+        total.value = res.data.length
+      } else if (res.data.content) {
+        // 分页格式返回
+        questionsList.value = res.data.content.map((item: any) => ({
+          questionId: item.standardQuestionId,
+          question: item.question,
+          category: item.category ? item.category.categoryName : '未分类',
+          answerCount: item.answerCount || 0,
+          avgScore: item.avgScore || 0,
+          hasStandardAnswer: item.hasStandardAnswer,
+          evaluationCount: item.evaluationCount || 0
+        }))
+        total.value = res.data.totalElements || 0
+      } else {
+        questionsList.value = []
+        total.value = 0
+        ElMessage.warning('未获取到问题数据')
+      }
+    } else {
+      questionsList.value = []
+      total.value = 0
+      ElMessage.warning('未获取到问题数据')
+    }
+  } catch (error: any) {
+    console.error('获取数据集问题列表失败:', error)
+    ElMessage.error('获取数据集问题列表失败: ' + error.message)
+    questionsList.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+// 获取问题回答列表
+const fetchQuestionAnswers = async (questionId: number) => {
+  loading.value = true
+  try {
+    const params = {
+      page: queryParams.page - 1,
+      size: queryParams.size,
+      questionId: questionId,
+      modelId: queryParams.modelId || undefined,
+      evaluationType: queryParams.evaluationType || undefined
+    }
+    
+    console.log('发送GET请求: /api/questions/answers', params)
+    const res = await getQuestionAnswers(params)
+    
+    if (res.data) {
+      // 处理返回的回答列表
+      if (Array.isArray(res.data)) {
+        // 直接返回数组
+        answersList.value = res.data
+        total.value = res.data.length
+      } else if (res.data.content) {
+        // 分页格式返回
+        answersList.value = res.data.content
+        total.value = res.data.totalElements || 0
+      } else {
+        answersList.value = []
+        total.value = 0
+        ElMessage.warning('未获取到回答数据')
+      }
+    } else {
+      answersList.value = []
+      total.value = 0
+      ElMessage.warning('未获取到回答数据')
+    }
+  } catch (error: any) {
+    console.error('获取问题回答列表失败:', error)
+    ElMessage.error('获取问题回答列表失败: ' + error.message)
+    answersList.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
   }
 }
 
@@ -272,59 +483,106 @@ const fetchModelStatistics = async () => {
         modelId: item.modelId,
         modelName: item.modelName || '未知模型',
         evaluationCount: item.evaluationCount || 0,
-        avgScore: item.avgScore || 0,
-        dimensions: {
-          accuracy: item.dimensions?.accuracy || 0,
-          completeness: item.dimensions?.completeness || 0,
-          clarity: item.dimensions?.clarity || 0
-        }
+        avgScore: item.avgScore || 0
       }))
     } else {
       modelStatistics.value = []
+      ElMessage.warning('未获取到模型统计数据')
     }
   } catch (error: any) {
+    console.error('获取模型统计数据失败:', error)
     ElMessage.error('获取模型统计数据失败: ' + error.message)
     modelStatistics.value = []
   }
 }
 
+// 查看数据集问题
+const viewDatasetQuestions = (dataset: any) => {
+  currentDataset.value = dataset
+  currentView.value = 'questions'
+  queryParams.page = 1
+  fetchDatasetQuestions(dataset.datasetId)
+}
+
+// 查看问题回答
+const viewQuestionAnswers = (question: any) => {
+  currentQuestion.value = question
+  currentView.value = 'answers'
+  queryParams.page = 1
+  fetchQuestionAnswers(question.questionId)
+}
+
+// 查看评测详情
+const viewEvaluationDetail = (answer: any) => {
+  const query: any = {
+    from: 'modelEvaluations',
+    questionId: currentQuestion.value.questionId
+  }
+  
+  // 如果当前视图是从问题列表进入的回答列表，则添加返回到问题列表的标记
+  if (currentView.value === 'answers' && currentDataset.value.datasetId) {
+    query.datasetId = currentDataset.value.datasetId
+    query.returnToQuestions = 'true'
+  }
+  
+  router.push({
+    path: `/evaluations/result/${answer.answerId}`,
+    query
+  })
+}
+
+// 返回数据集列表
+const backToDatasets = () => {
+  currentView.value = 'datasets'
+  queryParams.page = 1
+  fetchDatasets()
+}
+
+// 返回问题列表
+const backToQuestions = () => {
+  currentView.value = 'questions'
+  queryParams.page = 1
+  fetchDatasetQuestions(currentDataset.value.datasetId)
+}
+
 // 搜索
 const handleSearch = () => {
   queryParams.page = 1
-  fetchEvaluations()
+  if (currentView.value === 'datasets') {
+    fetchDatasets()
+  } else if (currentView.value === 'questions') {
+    fetchDatasetQuestions(currentDataset.value.datasetId)
+  } else if (currentView.value === 'answers') {
+    fetchQuestionAnswers(currentQuestion.value.questionId)
+  }
 }
 
 // 重置查询条件
 const resetQuery = () => {
   queryParams.page = 1
   queryParams.modelId = ''
-  queryParams.question = ''
+  queryParams.datasetId = ''
   queryParams.evaluationType = ''
-  queryParams.scoreRange = [0, 10]
-  fetchEvaluations()
+  handleSearch()
 }
 
 // 每页数量变化
 const handleSizeChange = (val: number) => {
   queryParams.size = val
-  fetchEvaluations()
+  handleSearch()
 }
 
 // 当前页变化
 const handleCurrentChange = (val: number) => {
   queryParams.page = val
-  fetchEvaluations()
-}
-
-// 查看详情
-const viewDetail = (row: any) => {
-  router.push(`/evaluations/result/${row.evaluationId}`)
+  handleSearch()
 }
 
 // 查看模型评测详情
 const viewModelEvaluations = (modelId: number) => {
   queryParams.modelId = modelId.toString()
-  activeTab.value = 'individual'
+  activeTab.value = 'datasets'
+  currentView.value = 'datasets'
   handleSearch()
 }
 
@@ -338,7 +596,7 @@ const getScoreClass = (score: number) => {
 // 获取评测类型标签类型
 const getEvaluationTypeTag = (type: string) => {
   switch (type) {
-    case 'human': return 'primary'
+    case 'manual': return 'primary'
     case 'auto': return 'success'
     default: return 'info'
   }
@@ -347,15 +605,139 @@ const getEvaluationTypeTag = (type: string) => {
 // 获取评测类型文本
 const getEvaluationTypeText = (type: string) => {
   switch (type) {
-    case 'human': return '人工评测'
+    case 'manual': return '人工评测'
     case 'auto': return '自动评测'
     default: return '未知'
   }
 }
 
-// 格式化5分制进度条
-const format5 = (percentage: number) => {
-  return (percentage / 20).toFixed(1)
+// 查看问题评测
+const viewQuestionEvaluations = (question: any) => {
+  // 如果问题有评测，则跳转到评测结果页面
+  if (question.evaluationCount > 0) {
+    // 保存当前状态信息，以便返回时能够恢复
+    const currentState = {
+      view: 'questions',
+      datasetId: currentDataset.value.datasetId,
+      datasetName: currentDataset.value.name,
+      questionId: question.questionId,
+      questionText: question.question,
+      from: 'modelEvaluations',
+      returnToQuestions: 'true'
+    }
+    
+    // 将状态信息存储到sessionStorage，以便在返回时恢复
+    sessionStorage.setItem('evaluationReturnState', JSON.stringify(currentState))
+    
+    router.push({
+      path: `/evaluations/results`,
+      query: currentState
+    })
+  } else {
+    ElMessage.warning('该问题暂无评测结果')
+  }
+}
+
+// 删除评测
+const handleDelete = async (answer: any) => {
+  try {
+    await ElMessageBox.confirm('确定要删除该评测结果吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    // 如果有评测ID，则调用删除API
+    if (answer.evaluationId) {
+      const res: any = await deleteEvaluation(answer.evaluationId)
+      // 204 No Content响应会被转换为 {success: true}
+      if (res && (res.success || res.data)) {
+        ElMessage.success('评测结果删除成功')
+        // 重新加载数据
+        fetchQuestionAnswers(currentQuestion.value.questionId)
+      } else {
+        ElMessage.error('评测结果删除失败')
+      }
+    } else {
+      ElMessage.error('无法删除，未找到评测ID')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除评测结果失败: ' + (error.message || '未知错误'))
+    }
+  }
+}
+
+// 处理评测
+const handleEvaluate = async (answer: any, method: string) => {
+  try {
+    loading.value = true
+    
+    if (method === 'manual') {
+      // 对于人工评测，跳转到人工评测页面
+      router.push({
+        path: `/evaluations/manual`,
+        query: {
+          answerId: answer.answerId,
+          fromQuestion: 'true',
+          questionId: currentQuestion.value.questionId
+        }
+      })
+      return
+    }
+    
+    // 对于自动评测，调用API
+    const res: any = await evaluateAnswer(answer.answerId, method)
+    
+    if (res && res.evaluationId) {
+      ElMessage.success('评测完成')
+      // 重新加载数据
+      fetchQuestionAnswers(currentQuestion.value.questionId)
+    } else {
+      ElMessage.warning('评测未完成，请稍后再试')
+    }
+  } catch (error: any) {
+    ElMessage.error('评测失败: ' + (error.message || '未知错误'))
+  } finally {
+    loading.value = false
+  }
+}
+
+// 根据ID获取问题信息
+const fetchQuestionById = async (questionId: number) => {
+  try {
+    // 这里可以调用API获取问题详情
+    // 简化处理：返回一个包含必要信息的对象
+    return {
+      questionId,
+      question: `问题 #${questionId}`,
+      datasetId: 1 // 假设属于数据集1
+    }
+  } catch (error) {
+    console.error('获取问题信息失败:', error)
+    return null
+  }
+}
+
+// 根据ID获取数据集信息
+const fetchDatasetById = async (datasetId: number) => {
+  try {
+    // 这里可以调用API获取数据集详情
+    // 简化处理：返回一个包含必要信息的对象
+    return {
+      datasetId,
+      name: `数据集 #${datasetId}`
+    }
+  } catch (error) {
+    console.error('获取数据集信息失败:', error)
+    return null
+  }
+}
+
+// 计算评测进度百分比
+const calculateProgress = (evaluatedCount: number, totalCount: number) => {
+  if (totalCount === 0) return 0;
+  return Math.round((evaluatedCount / totalCount) * 100);
 }
 </script>
 
@@ -379,6 +761,16 @@ const format5 = (percentage: number) => {
   margin-bottom: 20px;
 }
 
+.back-navigation {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.back-navigation h3 {
+  margin: 0 0 0 10px;
+}
+
 .pagination-container {
   display: flex;
   justify-content: flex-end;
@@ -397,6 +789,11 @@ const format5 = (percentage: number) => {
 
 .score-low {
   color: #f56c6c;
+  font-weight: bold;
+}
+
+.evaluation-incomplete {
+  color: #909399;
   font-weight: bold;
 }
 
@@ -434,21 +831,6 @@ const format5 = (percentage: number) => {
 .score-label {
   font-size: 14px;
   color: #909399;
-}
-
-.stat-details {
-  margin-top: 15px;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.stat-item span {
-  width: 60px;
 }
 
 .stat-actions {

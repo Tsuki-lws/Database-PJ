@@ -283,4 +283,46 @@ export function getModelEvaluationStatistics() {
     url: '/api/evaluations/model/statistics',
     method: 'get'
   })
+}
+
+/**
+ * 获取所有评测结果
+ * @param params 查询参数
+ * @returns 所有评测结果
+ */
+export function getAllEvaluations(params: any) {
+  return request({
+    url: '/api/evaluations',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 删除评测结果
+ * @param id 评测结果ID
+ * @returns 删除结果
+ */
+export function deleteEvaluation(id: number) {
+  return request({
+    url: `/api/evaluations/${id}`,
+    method: 'delete'
+  })
+}
+
+/**
+ * 对单个回答进行评测
+ * @param answerId 回答ID
+ * @param method 评测方法 (manual, auto)
+ * @returns 评测结果
+ */
+export function evaluateAnswer(answerId: number, method: string = 'auto') {
+  return request({
+    url: `/api/evaluations/evaluate`,
+    method: 'post',
+    data: {
+      answerId,
+      method
+    }
+  })
 } 

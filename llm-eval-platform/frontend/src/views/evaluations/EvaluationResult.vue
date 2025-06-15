@@ -26,34 +26,12 @@
       </el-card>
 
       <el-row :gutter="20" class="score-row">
-        <el-col :span="8">
+        <el-col :span="24">
           <el-card shadow="hover" class="score-card">
             <div class="score-value" :class="getScoreClass(resultData.score)">
               {{ resultData.score !== null ? resultData.score.toFixed(1) : '未评分' }}
             </div>
             <div class="score-label">总分</div>
-          </el-card>
-        </el-col>
-        <el-col :span="16">
-          <el-card shadow="hover" class="dimensions-card">
-            <div class="dimensions-title">评测维度</div>
-            <div class="dimensions-content">
-              <div class="dimension-item">
-                <span>准确性</span>
-                <el-rate v-model="resultData.dimensions.accuracy" disabled />
-                <span class="dimension-score">{{ resultData.dimensions.accuracy }}</span>
-              </div>
-              <div class="dimension-item">
-                <span>完整性</span>
-                <el-rate v-model="resultData.dimensions.completeness" disabled />
-                <span class="dimension-score">{{ resultData.dimensions.completeness }}</span>
-              </div>
-              <div class="dimension-item">
-                <span>清晰度</span>
-                <el-rate v-model="resultData.dimensions.clarity" disabled />
-                <span class="dimension-score">{{ resultData.dimensions.clarity }}</span>
-              </div>
-            </div>
           </el-card>
         </el-col>
       </el-row>
@@ -156,11 +134,6 @@ const resultData = reactive({
   category: '',
   options: [] as Array<{optionCode: string, optionText: string}>,
   keyPoints: [] as Array<{pointText: string, pointWeight: number, matchStatus: string}>,
-  dimensions: {
-    accuracy: 0,
-    completeness: 0,
-    clarity: 0
-  },
   comments: ''
 })
 
@@ -206,11 +179,6 @@ const fetchEvaluationResult = async (evaluationId: number) => {
           ...point,
           matchStatus: point.matchStatus || 'missed'
         })),
-        dimensions: {
-          accuracy: data.dimensions?.accuracy || 0,
-          completeness: data.dimensions?.completeness || 0,
-          clarity: data.dimensions?.clarity || 0
-        },
         comments: data.comments || ''
       };
       
@@ -240,11 +208,6 @@ const fetchEvaluationResult = async (evaluationId: number) => {
           { pointText: '解释量子纠缠', pointWeight: 2, matchStatus: 'partial' },
           { pointText: '讨论量子比特', pointWeight: 1, matchStatus: 'matched' }
         ],
-        dimensions: {
-          accuracy: 4.5,
-          completeness: 4.2,
-          clarity: 4.8
-        },
         comments: '回答准确且全面，清晰地解释了量子计算的基本概念。'
       });
     }
@@ -271,11 +234,6 @@ const fetchEvaluationResult = async (evaluationId: number) => {
         { pointText: '解释量子纠缠', pointWeight: 2, matchStatus: 'partial' },
         { pointText: '讨论量子比特', pointWeight: 1, matchStatus: 'matched' }
       ],
-      dimensions: {
-        accuracy: 4.5,
-        completeness: 4.2,
-        clarity: 4.8
-      },
       comments: '回答准确且全面，清晰地解释了量子计算的基本概念。'
     });
   } finally {
@@ -285,7 +243,58 @@ const fetchEvaluationResult = async (evaluationId: number) => {
 
 // 返回上一页
 const goBack = () => {
-  router.back()
+  // 尝试从sessionStorage获取保存的返回状态
+  const savedStateStr = sessionStorage.getItem('evaluationReturnState')
+  
+  if (savedStateStr) {
+    try {
+      const savedState = JSON.parse(savedStateStr)
+      
+      // 如果有保存的状态，并且是从modelEvaluations页面来的
+      if (savedState.from === 'modelEvaluations') {
+        if (savedState.returnToQuestions === 'true' && savedState.datasetId) {
+          // 返回到问题列表页面
+          router.push({
+            path: '/evaluations/model',
+            query: {
+              view: 'questions',
+              datasetId: savedState.datasetId
+            }
+          })
+          return
+        }
+      }
+    } catch (e) {
+      console.error('解析保存的状态信息失败:', e)
+    }
+  }
+  
+  // 如果没有保存的状态或解析失败，则使用URL参数
+  if (route.query.from === 'modelEvaluations') {
+    if (route.query.returnToQuestions === 'true' && route.query.datasetId) {
+      // 返回到问题列表页面
+      router.push({
+        path: '/evaluations/model',
+        query: {
+          view: 'questions',
+          datasetId: route.query.datasetId
+        }
+      })
+    } else if (route.query.questionId) {
+      // 返回到问题回答列表页面
+      router.push({
+        path: '/evaluations/model',
+        query: {
+          view: 'answers',
+          questionId: route.query.questionId
+        }
+      })
+    } else {
+      router.push('/evaluations/model')
+    }
+  } else {
+    router.back()
+  }
 }
 
 // 获取问题类型文本
@@ -382,34 +391,6 @@ const getMatchStatusText = (status: string) => {
 .score-label {
   font-size: 16px;
   color: #909399;
-}
-
-.dimensions-card {
-  height: 100%;
-  padding: 10px 0;
-}
-
-.dimensions-title {
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 15px;
-  text-align: center;
-}
-
-.dimensions-content {
-  display: flex;
-  justify-content: space-around;
-}
-
-.dimension-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.dimension-score {
-  margin-top: 5px;
-  font-weight: bold;
 }
 
 .question-card {

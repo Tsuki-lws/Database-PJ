@@ -301,42 +301,43 @@ const currentDetail = reactive({
   evaluationMethod: '',
   dimensions: null as Record<string, number> | null,
   keyPoints: [] as Array<{ text: string, status: string }>,
-  feedback: ''
+  feedback: '',
+  routeParams: {}
 })
 
-// // 得分分布
-// const scoreDistribution = reactive({
-//   '0-1': 0,
-//   '1-2': 2,
-//   '2-3': 5,
-//   '3-4': 8,
-//   '4-5': 15,
-//   '5-6': 25,
-//   '6-7': 42,
-//   '7-8': 95,
-//   '8-9': 198,
-//   '9-10': 110
-// })
+// 得分分布
+const scoreDistribution = reactive({
+  '0-1': 0,
+  '1-2': 2,
+  '2-3': 5,
+  '3-4': 8,
+  '4-5': 15,
+  '5-6': 25,
+  '6-7': 42,
+  '7-8': 95,
+  '8-9': 198,
+  '9-10': 110
+})
 
-// // 分类得分
-// const categoryScores = ref([
-//   { category: '编程', score: 8.9, count: 80 },
-//   { category: '数学', score: 9.2, count: 70 },
-//   { category: '物理', score: 8.5, count: 60 },
-//   { category: '化学', score: 8.3, count: 50 },
-//   { category: '生物', score: 7.8, count: 40 },
-//   { category: '历史', score: 8.1, count: 30 },
-//   { category: '地理', score: 8.6, count: 25 },
-//   { category: '文学', score: 9.0, count: 45 },
-//   { category: '常识', score: 9.5, count: 100 }
-// ])
+// 分类得分
+const categoryScores = ref([
+  { category: '编程', score: 8.9, count: 80 },
+  { category: '数学', score: 9.2, count: 70 },
+  { category: '物理', score: 8.5, count: 60 },
+  { category: '化学', score: 8.3, count: 50 },
+  { category: '生物', score: 7.8, count: 40 },
+  { category: '历史', score: 8.1, count: 30 },
+  { category: '地理', score: 8.6, count: 25 },
+  { category: '文学', score: 9.0, count: 45 },
+  { category: '常识', score: 9.5, count: 100 }
+])
 
-// // 难度得分
-// const difficultyScores = ref([
-//   { difficulty: 'easy', score: 9.3, count: 200 },
-//   { difficulty: 'medium', score: 8.5, count: 200 },
-//   { difficulty: 'hard', score: 7.2, count: 100 }
-// ])
+// 难度得分
+const difficultyScores = ref([
+  { difficulty: 'easy', score: 9.3, count: 200 },
+  { difficulty: 'medium', score: 8.5, count: 200 },
+  { difficulty: 'hard', score: 7.2, count: 100 }
+])
 
 // 分类列表
 const categories = computed(() => {
@@ -403,6 +404,15 @@ const viewDetail = async (row: any) => {
   detailDialogVisible.value = true
   detailLoading.value = true
   
+  // 保存当前查询参数和路由信息，以便在详情对话框中使用
+  currentDetail.routeParams = {
+    from: route.query.from,
+    returnToQuestions: route.query.returnToQuestions,
+    datasetId: route.query.datasetId,
+    questionId: route.query.questionId,
+    view: route.query.view
+  }
+  
   try {
     // 实际项目中应该调用API获取数据
     // const res = await getEvaluationResultDetail(batchId, row.questionId)
@@ -446,7 +456,60 @@ const exportResults = () => {
 
 // 返回上一页
 const goBack = () => {
-  router.back()
+  // 尝试从sessionStorage获取保存的返回状态
+  const savedStateStr = sessionStorage.getItem('evaluationReturnState')
+  
+  if (savedStateStr) {
+    try {
+      const savedState = JSON.parse(savedStateStr)
+      
+      // 如果有保存的状态，并且是从modelEvaluations页面来的
+      if (savedState.from === 'modelEvaluations') {
+        if (savedState.returnToQuestions === 'true' && savedState.datasetId) {
+          // 返回到问题列表页面
+          router.push({
+            path: '/evaluations/model',
+            query: {
+              view: 'questions',
+              datasetId: savedState.datasetId
+            }
+          })
+          return
+        }
+      }
+    } catch (e) {
+      console.error('解析保存的状态信息失败:', e)
+    }
+  }
+  
+  // 如果没有保存的状态或解析失败，则使用URL参数
+  if (route.query.from === 'modelEvaluations') {
+    if (route.query.returnToQuestions === 'true' && route.query.datasetId) {
+      // 返回到问题列表页面
+      router.push({
+        path: '/evaluations/model',
+        query: {
+          view: 'questions',
+          datasetId: route.query.datasetId
+        }
+      })
+    } else if (route.query.questionId) {
+      // 返回到问题回答列表页面
+      router.push({
+        path: '/evaluations/model',
+        query: {
+          view: 'answers',
+          questionId: route.query.questionId
+        }
+      })
+    } else {
+      router.push('/evaluations/model')
+    }
+  } else if (route.query.from === 'allResults') {
+    router.push('/evaluations/all')
+  } else {
+    router.back()
+  }
 }
 
 // 处理搜索

@@ -2,6 +2,7 @@
   <div class="all-results-container">
     <div class="page-header">
       <h2>所有评测结果</h2>
+      <el-button v-if="fromPrevious" icon="el-icon-back" link @click="goBack">返回上一页</el-button>
     </div>
 
     <el-card shadow="never" class="filter-container">
@@ -60,10 +61,11 @@
         </el-table-column>
         <el-table-column prop="questionCount" label="问题数量" width="100" />
         <el-table-column prop="completedAt" label="完成时间" width="180" />
-        <el-table-column fixed="right" label="操作" width="150">
+        <el-table-column fixed="right" label="操作" width="220">
           <template #default="scope">
             <el-button link type="primary" @click="viewDetail(scope.row)">详情</el-button>
-            <el-button link type="primary" @click="compareResults(scope.row)">对比</el-button>
+            <!-- <el-button link type="primary" @click="compareResults(scope.row)">对比</el-button> -->
+            <el-button link type="danger" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -82,12 +84,12 @@
       </div>
     </el-card>
 
-    <!-- 模型对比卡片 -->
+    <!-- 模型对比卡片
     <el-card shadow="never" class="comparison-card">
       <template #header>
         <div class="card-header">
           <span>模型对比</span>
-          <el-button type="primary" @click="startComparison" :disabled="selectedModels.length < 2">开始对比</el-button>
+          <el-button type="primary" @click="startComparison" :disabled="isComparisonDisabled">开始对比</el-button>
         </div>
       </template>
       
@@ -101,20 +103,48 @@
           {{ option.label }}
         </template>
       </el-transfer>
-    </el-card>
-  </div>
+    </el-card>-->
+  </div> 
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { getEvaluationResults } from '@/api/evaluations'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getEvaluationResults, getAllEvaluations, deleteEvaluation, getModelList } from '@/api/evaluations'
+import { getDatasetList } from '@/api/datasets'
 
 const router = useRouter()
+const route = useRoute()
 const loading = ref(false)
 const resultsList = ref<any[]>([])
 const total = ref(0)
+
+// 判断是否从其他页面跳转而来
+const fromPrevious = computed(() => {
+  return route.query.from !== undefined
+})
+
+// 返回上一页
+const goBack = () => {
+  if (route.query.from === 'modelEvaluations') {
+    // 如果是从ModelEvaluations页面跳转而来
+    if (route.query.questionId) {
+      router.push({
+        path: '/evaluations/model',
+        query: {
+          view: 'answers',
+          questionId: route.query.questionId
+        }
+      })
+    } else {
+      router.push('/evaluations/model')
+    }
+  } else {
+    // 默认返回历史记录的上一页
+    router.back()
+  }
+}
 
 // 查询参数
 const queryParams = reactive({
@@ -133,6 +163,9 @@ const datasets = ref<any[]>([])
 const allModelResults = ref<any[]>([])
 const selectedModels = ref<number[]>([])
 
+// 计算属性
+const isComparisonDisabled = computed(() => selectedModels.value.length < 2)
+
 // 初始化
 onMounted(() => {
   fetchData()
@@ -144,114 +177,78 @@ onMounted(() => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // 实际项目中应该调用API获取数据
-    // const res = await getEvaluationResults(queryParams)
-    // resultsList.value = res.data.content || []
-    // total.value = res.data.totalElements || 0
+    const params = {
+      page: queryParams.page - 1, // 前端页码从1开始，后端从0开始
+      size: queryParams.size,
+      modelId: queryParams.modelId || undefined,
+      datasetId: queryParams.datasetId || undefined,
+      method: queryParams.method || undefined
+    }
     
-    // 模拟数据
-    setTimeout(() => {
-      resultsList.value = [
-        {
-          batchId: 1,
-          batchName: 'GPT-4 基准测试',
-          modelName: 'GPT-4',
-          datasetName: '通用能力评测集 v1.0',
-          method: 'auto',
-          score: 8.75,
-          questionCount: 500,
-          completedAt: '2023-05-15 12:45:18'
-        },
-        {
-          batchId: 2,
-          batchName: 'Claude 2 评测',
-          modelName: 'Claude 2',
-          datasetName: '通用能力评测集 v1.0',
-          method: 'auto',
-          score: 8.42,
-          questionCount: 500,
-          completedAt: '2023-05-14 18:30:45'
-        },
-        {
-          batchId: 3,
-          batchName: 'LLaMA 2 测试',
-          modelName: 'LLaMA 2 70B',
-          datasetName: '通用能力评测集 v1.0',
-          method: 'auto',
-          score: 7.89,
-          questionCount: 500,
-          completedAt: '2023-05-13 15:20:33'
-        },
-        {
-          batchId: 4,
-          batchName: 'Mistral 7B 评测',
-          modelName: 'Mistral 7B',
-          datasetName: '通用能力评测集 v1.0',
-          method: 'judge_model',
-          score: 7.65,
-          questionCount: 500,
-          completedAt: '2023-05-12 20:10:15'
-        },
-        {
-          batchId: 5,
-          batchName: 'Baichuan 2 评测',
-          modelName: 'Baichuan 2 13B',
-          datasetName: '编程能力评测集 v1.0',
-          method: 'human',
-          score: 7.32,
-          questionCount: 300,
-          completedAt: '2023-05-11 14:55:40'
-        }
-      ]
-      total.value = 5
-      loading.value = false
-      
-      // 更新对比数据
-      updateComparisonData()
-    }, 500)
+    const res = await getAllEvaluations(params)
+    
+    if (res.data) {
+      if (Array.isArray(res.data)) {
+        // 直接返回数组
+        resultsList.value = res.data.map(formatEvaluationResult)
+        total.value = res.data.length
+      } else if (res.data.content) {
+        // 分页格式返回
+        resultsList.value = res.data.content.map(formatEvaluationResult)
+        total.value = res.data.totalElements || 0
+      } else {
+        resultsList.value = []
+        total.value = 0
+      }
+    } else {
+      resultsList.value = []
+      total.value = 0
+    }
+    
+    // 更新对比数据
+    updateComparisonData()
   } catch (error: any) {
     ElMessage.error('获取评测结果列表失败: ' + error.message)
+    resultsList.value = []
+    total.value = 0
+  } finally {
     loading.value = false
+  }
+}
+
+// 格式化评测结果数据
+const formatEvaluationResult = (item: any) => {
+  return {
+    batchId: item.evaluationId || 0,
+    batchName: `${item.llmAnswer?.model?.name || '未知模型'} 评测`,
+    modelName: item.llmAnswer?.model?.name + ' ' + (item.llmAnswer?.model?.version || ''),
+    datasetName: item.llmAnswer?.standardQuestion?.dataset?.name || '未知数据集',
+    method: item.method || 'unknown',
+    score: item.score || 0,
+    questionCount: 1, // 每个评测结果对应一个问题
+    completedAt: item.createdAt || ''
   }
 }
 
 // 获取模型列表
 const fetchModels = async () => {
   try {
-    // 实际项目中应该调用API获取数据
-    // const res = await getModelList()
-    // models.value = res.data
-    
-    // 模拟数据
-    models.value = [
-      { modelId: 1, name: 'GPT-4', version: '0613' },
-      { modelId: 2, name: 'Claude 2', version: '' },
-      { modelId: 3, name: 'LLaMA 2', version: '70B' },
-      { modelId: 4, name: 'Mistral', version: '7B' },
-      { modelId: 5, name: 'Baichuan 2', version: '13B' }
-    ]
+    const res = await getModelList()
+    models.value = res.data || []
   } catch (error: any) {
     ElMessage.error('获取模型列表失败: ' + error.message)
+    models.value = []
   }
 }
 
 // 获取数据集列表
 const fetchDatasets = async () => {
   try {
-    // 实际项目中应该调用API获取数据
-    // const res = await getDatasets()
-    // datasets.value = res.data
-    
-    // 模拟数据
-    datasets.value = [
-      { datasetId: 1, name: '通用能力评测集 v1.0' },
-      { datasetId: 2, name: '编程能力评测集 v1.0' },
-      { datasetId: 3, name: '数学能力评测集 v1.0' },
-      { datasetId: 4, name: '推理能力评测集 v1.0' },
-      { datasetId: 5, name: '知识能力评测集 v1.0' }
-    ]
+    const res = await getDatasetList({})
+    datasets.value = res.data || []
   } catch (error: any) {
     ElMessage.error('获取数据集列表失败: ' + error.message)
+    datasets.value = []
   }
 }
 
@@ -294,7 +291,12 @@ const handleCurrentChange = (val: number) => {
 
 // 查看详情
 const viewDetail = (row: any) => {
-  router.push(`/evaluations/detail/${row.batchId}`)
+  router.push({
+    path: `/evaluations/detail/${row.batchId}`,
+    query: {
+      from: 'allResults'
+    }
+  })
 }
 
 // 查看对比
@@ -304,17 +306,18 @@ const compareResults = (row: any) => {
 
 // 开始对比
 const startComparison = () => {
-  if (selectedModels.length < 2) {
+  const selected = selectedModels.value
+  if (selected.length < 2) {
     ElMessage.warning('请至少选择两个模型进行对比')
     return
   }
   
   // 获取第一个模型的批次ID作为基准
-  const baseBatchId = selectedModels[0]
+  const baseBatchId = selected[0]
   router.push({
     path: `/evaluations/results/${baseBatchId}`,
     query: {
-      compareIds: selectedModels.join(',')
+      compareIds: selected.join(',')
     }
   })
 }
@@ -338,6 +341,32 @@ const getMethodText = (method: string) => {
     default: return '未知'
   }
 }
+
+// 删除评测结果
+const handleDelete = async (row: any) => {
+  try {
+    await ElMessageBox.confirm('确定要删除该评测结果吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    const res: any = await deleteEvaluation(row.batchId)
+    
+    // 204 No Content响应会被转换为 {success: true}
+    if (res && (res.success || res.data)) {
+      ElMessage.success('评测结果删除成功')
+      queryParams.page = 1
+      fetchData()
+    } else {
+      ElMessage.error('评测结果删除失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除评测结果失败: ' + (error.message || '未知错误'))
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -347,6 +376,9 @@ const getMethodText = (method: string) => {
 
 .page-header {
   margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .filter-container {

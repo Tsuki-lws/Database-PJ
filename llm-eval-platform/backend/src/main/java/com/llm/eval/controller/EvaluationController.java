@@ -47,10 +47,118 @@ public class EvaluationController {
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取评测结果")
-    public ResponseEntity<EvaluationDTO> getEvaluationById(@PathVariable("id") Integer id) {
-        return evaluationService.getEvaluationById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> getEvaluationById(@PathVariable("id") Integer id) {
+        try {
+            System.out.println("获取评测结果详情，ID: " + id);
+            
+            Optional<EvaluationDTO> evaluationOpt = evaluationService.getEvaluationById(id);
+            if (evaluationOpt.isEmpty()) {
+                System.err.println("未找到评测结果，ID: " + id);
+                return ResponseEntity.notFound().build();
+            }
+            
+            EvaluationDTO evaluation = evaluationOpt.get();
+            
+            // 获取模型回答
+            Optional<LlmAnswer> answerOpt = evaluationService.getLlmAnswerById(evaluation.getLlmAnswerId());
+            if (answerOpt.isEmpty()) {
+                System.err.println("未找到模型回答，ID: " + evaluation.getLlmAnswerId());
+                return ResponseEntity.notFound().build();
+            }
+            
+            LlmAnswer answer = answerOpt.get();
+            StandardQuestion question = answer.getStandardQuestion();
+            
+            // 获取标准答案
+            Optional<StandardAnswer> standardAnswerOpt = evaluationService.getStandardAnswerByQuestionId(question.getStandardQuestionId());
+            
+            // 构建完整的响应数据
+            Map<String, Object> result = new HashMap<>();
+            // 评测基本信息
+            result.put("evaluationId", evaluation.getEvaluationId());
+            result.put("score", evaluation.getScore());
+            result.put("method", evaluation.getMethod());
+            result.put("comments", evaluation.getComments());
+            result.put("createdAt", evaluation.getCreatedAt());
+            result.put("evaluatedAt", evaluation.getCreatedAt());
+            
+            // 问题信息
+            result.put("questionId", question.getStandardQuestionId());
+            result.put("question", question.getQuestion());
+            result.put("questionType", question.getQuestionType() != null ? question.getQuestionType().toString() : "UNKNOWN");
+            
+            // 分类信息
+            if (question.getCategory() != null) {
+                result.put("category", question.getCategory().getName());
+                result.put("categoryId", question.getCategory().getCategoryId());
+            } else {
+                result.put("category", "未分类");
+            }
+            
+            // 模型信息
+            result.put("modelId", answer.getModel().getModelId());
+            result.put("modelName", answer.getModel().getName() + " " + (answer.getModel().getVersion() != null ? answer.getModel().getVersion() : ""));
+            result.put("modelAnswer", answer.getContent());
+            
+            // 标准答案信息
+            if (standardAnswerOpt.isPresent()) {
+                StandardAnswer standardAnswer = standardAnswerOpt.get();
+                result.put("standardAnswer", standardAnswer.getAnswer());
+                result.put("standardAnswerId", standardAnswer.getStandardAnswerId());
+                
+                // 添加评分要点
+                List<AnswerKeyPoint> keyPoints = evaluationService.getKeyPointsByAnswerId(standardAnswer.getStandardAnswerId());
+                if (!keyPoints.isEmpty()) {
+                    List<Map<String, Object>> keyPointsList = keyPoints.stream().map(kp -> {
+                        Map<String, Object> keyPoint = new HashMap<>();
+                        keyPoint.put("pointId", kp.getKeyPointId());
+                        keyPoint.put("pointText", kp.getPointText());
+                        keyPoint.put("pointType", kp.getPointType() != null ? kp.getPointType().toString() : "UNKNOWN");
+                        keyPoint.put("pointWeight", kp.getPointWeight());
+                        keyPoint.put("pointOrder", kp.getPointOrder());
+                        
+                        // 添加匹配状态（如果有）
+                        String matchStatus = "missed"; // 默认为未匹配
+                        if (evaluation.getKeyPointsEvaluation() != null && !evaluation.getKeyPointsEvaluation().isEmpty()) {
+                            try {
+                                ObjectMapper mapper = new ObjectMapper();
+                                List<EvaluationKeyPointDTO> keyPointEvals = mapper.readValue(
+                                    evaluation.getKeyPointsEvaluation(),
+                                    mapper.getTypeFactory().constructCollectionType(List.class, EvaluationKeyPointDTO.class)
+                                );
+                                
+                                for (EvaluationKeyPointDTO kpEval : keyPointEvals) {
+                                    if (kpEval.getKeyPointId().equals(kp.getKeyPointId())) {
+                                        matchStatus = kpEval.getStatus().toString().toLowerCase();
+                                        break;
+                                    }
+                                }
+                            } catch (Exception e) {
+                                System.err.println("解析关键点评估数据失败: " + e.getMessage());
+                            }
+                        }
+                        keyPoint.put("matchStatus", matchStatus);
+                        
+                        return keyPoint;
+                    }).collect(Collectors.toList());
+                    result.put("keyPoints", keyPointsList);
+                } else {
+                    result.put("keyPoints", new ArrayList<>());
+                }
+            } else {
+                result.put("standardAnswer", "");
+                result.put("keyPoints", new ArrayList<>());
+            }
+            
+            System.out.println("评测结果详情获取成功，返回数据");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("获取评测结果详情失败: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取评测结果详情失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     @GetMapping("/answer/{answerId}")
@@ -166,6 +274,86 @@ public class EvaluationController {
         }
     }
     
+    @PostMapping("/manual")
+    @Operation(summary = "提交人工评测结果")
+    public ResponseEntity<?> submitManualEvaluation(@RequestBody Map<String, Object> evaluationData) {
+        try {
+            Integer answerId = (Integer) evaluationData.get("answerId");
+            BigDecimal score = new BigDecimal(evaluationData.get("score").toString());
+            String comments = (String) evaluationData.get("comments");
+            
+            // 创建评测DTO
+            EvaluationDTO evaluationDTO = new EvaluationDTO();
+            evaluationDTO.setLlmAnswerId(answerId);
+            evaluationDTO.setScore(score);
+            evaluationDTO.setComments(comments);
+            evaluationDTO.setMethod("manual");
+            
+            // 获取标准答案ID
+            Optional<LlmAnswer> answerOpt = evaluationService.getLlmAnswerById(answerId);
+            if (answerOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "模型回答不存在"));
+            }
+            
+            LlmAnswer answer = answerOpt.get();
+            Optional<StandardAnswer> standardAnswerOpt = evaluationService.getStandardAnswerByQuestionId(
+                    answer.getStandardQuestion().getStandardQuestionId());
+            
+            if (standardAnswerOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "标准答案不存在"));
+            }
+            
+            evaluationDTO.setStandardAnswerId(standardAnswerOpt.get().getStandardAnswerId());
+            
+            // 处理关键点评估
+            if (evaluationData.containsKey("keyPointsStatus")) {
+                @SuppressWarnings("unchecked")
+                List<String> keyPointsStatus = (List<String>) evaluationData.get("keyPointsStatus");
+                
+                // 获取关键点列表
+                List<AnswerKeyPoint> keyPoints = evaluationService.getKeyPointsByAnswerId(
+                        standardAnswerOpt.get().getStandardAnswerId());
+                
+                if (keyPoints.size() == keyPointsStatus.size()) {
+                    List<EvaluationKeyPointDTO> keyPointEvals = new ArrayList<>();
+                    
+                    for (int i = 0; i < keyPoints.size(); i++) {
+                        EvaluationKeyPointDTO keyPointEval = new EvaluationKeyPointDTO();
+                        keyPointEval.setKeyPointId(keyPoints.get(i).getKeyPointId());
+                        // 将字符串状态转换为枚举
+                        String status = keyPointsStatus.get(i);
+                        if ("matched".equalsIgnoreCase(status)) {
+                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MATCHED);
+                        } else if ("partial".equalsIgnoreCase(status)) {
+                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.PARTIAL);
+                        } else {
+                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MISSED);
+                        }
+                        keyPointEvals.add(keyPointEval);
+                    }
+                    
+                    // 将关键点评估结果转换为JSON字符串
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    try {
+                        evaluationDTO.setKeyPointsEvaluation(objectMapper.writeValueAsString(keyPointEvals));
+                    } catch (Exception e) {
+                        evaluationDTO.setKeyPointsEvaluation("[]");
+                    }
+                }
+            }
+            
+            // 保存评测结果
+            EvaluationDTO savedEvaluation = evaluationService.createEvaluation(evaluationDTO);
+            
+            return ResponseEntity.ok(savedEvaluation);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "提交评测结果失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+    
     @GetMapping("/detail/{answerId}")
     @Operation(summary = "获取评测详情")
     public ResponseEntity<?> getEvaluationDetail(@PathVariable("answerId") Integer answerId) {
@@ -255,86 +443,6 @@ public class EvaluationController {
         }
     }
     
-    @PostMapping("/manual")
-    @Operation(summary = "提交人工评测结果")
-    public ResponseEntity<?> submitManualEvaluation(@RequestBody Map<String, Object> evaluationData) {
-        try {
-            Integer answerId = (Integer) evaluationData.get("answerId");
-            BigDecimal score = new BigDecimal(evaluationData.get("score").toString());
-            String comments = (String) evaluationData.get("comments");
-            
-            // 创建评测DTO
-            EvaluationDTO evaluationDTO = new EvaluationDTO();
-            evaluationDTO.setLlmAnswerId(answerId);
-            evaluationDTO.setScore(score);
-            evaluationDTO.setComments(comments);
-            evaluationDTO.setMethod("manual");
-            
-            // 获取标准答案ID
-            Optional<LlmAnswer> answerOpt = evaluationService.getLlmAnswerById(answerId);
-            if (answerOpt.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "模型回答不存在"));
-            }
-            
-            LlmAnswer answer = answerOpt.get();
-            Optional<StandardAnswer> standardAnswerOpt = evaluationService.getStandardAnswerByQuestionId(
-                    answer.getStandardQuestion().getStandardQuestionId());
-            
-            if (standardAnswerOpt.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "标准答案不存在"));
-            }
-            
-            evaluationDTO.setStandardAnswerId(standardAnswerOpt.get().getStandardAnswerId());
-            
-            // 处理关键点评估
-            if (evaluationData.containsKey("keyPointsStatus")) {
-                @SuppressWarnings("unchecked")
-                List<String> keyPointsStatus = (List<String>) evaluationData.get("keyPointsStatus");
-                
-                // 获取关键点列表
-                List<AnswerKeyPoint> keyPoints = evaluationService.getKeyPointsByAnswerId(
-                        standardAnswerOpt.get().getStandardAnswerId());
-                
-                if (keyPoints.size() == keyPointsStatus.size()) {
-                    List<EvaluationKeyPointDTO> keyPointEvals = new ArrayList<>();
-                    
-                    for (int i = 0; i < keyPoints.size(); i++) {
-                        EvaluationKeyPointDTO keyPointEval = new EvaluationKeyPointDTO();
-                        keyPointEval.setKeyPointId(keyPoints.get(i).getKeyPointId());
-                        // 将字符串状态转换为枚举
-                        String status = keyPointsStatus.get(i);
-                        if ("matched".equalsIgnoreCase(status)) {
-                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MATCHED);
-                        } else if ("partial".equalsIgnoreCase(status)) {
-                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.PARTIAL);
-                        } else {
-                            keyPointEval.setStatus(com.llm.eval.model.EvaluationKeyPoint.KeyPointStatus.MISSED);
-                        }
-                        keyPointEvals.add(keyPointEval);
-                    }
-                    
-                    // 将关键点评估结果转换为JSON字符串
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    try {
-                        evaluationDTO.setKeyPointsEvaluation(objectMapper.writeValueAsString(keyPointEvals));
-                    } catch (Exception e) {
-                        evaluationDTO.setKeyPointsEvaluation("[]");
-                    }
-                }
-            }
-            
-            // 保存评测结果
-            EvaluationDTO savedEvaluation = evaluationService.createEvaluation(evaluationDTO);
-            
-            return ResponseEntity.ok(savedEvaluation);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", "提交评测结果失败: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
-    }
-    
     @GetMapping("/model")
     @Operation(summary = "获取模型评测结果列表")
     public ResponseEntity<?> getModelEvaluations(
@@ -358,8 +466,13 @@ public class EvaluationController {
             
             // 应用筛选条件
             List<EvaluationDTO> filteredEvaluations = evaluations.stream()
-                .filter(eval -> modelId == null || (eval.getModelId() != null && eval.getModelId().equals(modelId)))
-                .filter(eval -> question == null || (eval.getQuestion() != null && eval.getQuestion().contains(question)))
+                .filter(eval -> modelId == null || (eval.getLlmAnswer() != null && 
+                    eval.getLlmAnswer().getModel() != null && 
+                    eval.getLlmAnswer().getModel().getModelId().equals(modelId)))
+                .filter(eval -> question == null || (eval.getLlmAnswer() != null && 
+                    eval.getLlmAnswer().getStandardQuestion() != null && 
+                    eval.getLlmAnswer().getStandardQuestion().getQuestion() != null && 
+                    eval.getLlmAnswer().getStandardQuestion().getQuestion().contains(question)))
                 .filter(eval -> evaluationType == null || (eval.getMethod() != null && eval.getMethod().equals(evaluationType)))
                 .filter(eval -> minScore == null || (eval.getScore() != null && eval.getScore().compareTo(minScore) >= 0))
                 .filter(eval -> maxScore == null || (eval.getScore() != null && eval.getScore().compareTo(maxScore) <= 0))
@@ -399,8 +512,9 @@ public class EvaluationController {
             
             // 按模型分组
             Map<Integer, List<EvaluationDTO>> evaluationsByModel = evaluations.stream()
-                .filter(eval -> eval.getModelId() != null)
-                .collect(Collectors.groupingBy(EvaluationDTO::getModelId));
+                .filter(eval -> eval.getLlmAnswer() != null && 
+                    eval.getLlmAnswer().getModel() != null)
+                .collect(Collectors.groupingBy(eval -> eval.getLlmAnswer().getModel().getModelId()));
             
             // 计算每个模型的统计数据
             List<Map<String, Object>> statistics = new ArrayList<>();
@@ -411,7 +525,17 @@ public class EvaluationController {
                 
                 // 获取模型名称
                 String modelName = modelEvaluations.stream()
-                    .map(EvaluationDTO::getModelName)
+                    .map(eval -> {
+                        if (eval.getLlmAnswer() != null && eval.getLlmAnswer().getModel() != null) {
+                            String name = eval.getLlmAnswer().getModel().getName();
+                            String version = eval.getLlmAnswer().getModel().getVersion();
+                            if (version != null && !version.isEmpty()) {
+                                return name + " " + version;
+                            }
+                            return name;
+                        }
+                        return null;
+                    })
                     .filter(name -> name != null && !name.isEmpty())
                     .findFirst()
                     .orElse("未知模型");
@@ -447,6 +571,65 @@ public class EvaluationController {
             e.printStackTrace();
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "获取模型评测统计数据失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PostMapping("/evaluate")
+    @Operation(summary = "对单个回答进行评测")
+    public ResponseEntity<?> evaluateAnswer(@RequestBody Map<String, Object> evaluationRequest) {
+        try {
+            Integer answerId = (Integer) evaluationRequest.get("answerId");
+            String method = (String) evaluationRequest.get("method");
+            
+            if (answerId == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "回答ID不能为空"));
+            }
+            
+            // 获取模型回答
+            Optional<LlmAnswer> answerOpt = evaluationService.getLlmAnswerById(answerId);
+            if (answerOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "模型回答不存在"));
+            }
+            
+            LlmAnswer answer = answerOpt.get();
+            
+            // 获取标准答案
+            Optional<StandardAnswer> standardAnswerOpt = evaluationService.getStandardAnswerByQuestionId(
+                    answer.getStandardQuestion().getStandardQuestionId());
+            
+            if (standardAnswerOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "标准答案不存在"));
+            }
+            
+            // 创建评测DTO
+            EvaluationDTO evaluationDTO = new EvaluationDTO();
+            evaluationDTO.setLlmAnswerId(answerId);
+            evaluationDTO.setMethod(method != null ? method : "auto");
+            evaluationDTO.setStandardAnswerId(standardAnswerOpt.get().getStandardAnswerId());
+            
+            // 如果是自动评测，计算评分
+            if ("auto".equals(evaluationDTO.getMethod())) {
+                // 简单示例：随机评分，实际中应该使用文本相似度、关键点匹配等复杂算法
+                evaluationDTO.setScore(new BigDecimal(Math.random() * 10).setScale(2, BigDecimal.ROUND_HALF_UP));
+                evaluationDTO.setComments("自动评测生成的评分");
+            } else {
+                // 如果是人工评测，返回需要人工评测的信息
+                return ResponseEntity.ok(Map.of(
+                    "message", "请进行人工评测",
+                    "answerId", answerId,
+                    "standardAnswerId", standardAnswerOpt.get().getStandardAnswerId()
+                ));
+            }
+            
+            // 保存评测结果
+            EvaluationDTO savedEvaluation = evaluationService.createEvaluation(evaluationDTO);
+            
+            return ResponseEntity.ok(savedEvaluation);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "评测失败: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }

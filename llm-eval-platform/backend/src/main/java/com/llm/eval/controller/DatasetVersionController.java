@@ -3,6 +3,7 @@ package com.llm.eval.controller;
 import com.llm.eval.model.DatasetVersion;
 import com.llm.eval.model.StandardQuestion;
 import com.llm.eval.service.DatasetVersionService;
+import com.llm.eval.dto.DatasetVersionDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,12 +12,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/datasets")
@@ -24,16 +28,27 @@ import java.util.ArrayList;
 public class DatasetVersionController {
 
     private final DatasetVersionService datasetVersionService;
+    private final com.llm.eval.service.LlmAnswerService llmAnswerService;
+    private final com.llm.eval.service.EvaluationService evaluationService;
 
     @Autowired
-    public DatasetVersionController(DatasetVersionService datasetVersionService) {
+    public DatasetVersionController(DatasetVersionService datasetVersionService,
+                                   com.llm.eval.service.LlmAnswerService llmAnswerService,
+                                   com.llm.eval.service.EvaluationService evaluationService) {
         this.datasetVersionService = datasetVersionService;
+        this.llmAnswerService = llmAnswerService;
+        this.evaluationService = evaluationService;
     }
 
     @GetMapping
     @Operation(summary = "获取所有数据集版本")
-    public ResponseEntity<List<com.llm.eval.model.DatasetVersion>> getAllDatasetVersions() {
-        return ResponseEntity.ok(datasetVersionService.getAllDatasetVersions());
+    public ResponseEntity<List<DatasetVersionDTO>> getAllDatasetVersions() {
+        List<DatasetVersion> versions = datasetVersionService.getAllDatasetVersions();
+        List<DatasetVersionDTO> versionDTOs = versions.stream()
+            .map(version -> DatasetVersionDTO.fromEntity(version, false))
+            .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(versionDTOs);
     }
 
     @GetMapping("/{id}")
@@ -78,6 +93,49 @@ public class DatasetVersionController {
                     questionMap.put("category", categoryMap);
                 }
                 
+                // 获取该问题的评测数量和平均分
+                try {
+                    // 获取问题的所有答案
+                    List<com.llm.eval.dto.LlmAnswerDTO> answers = llmAnswerService.getAnswersByQuestionId(question.getStandardQuestionId());
+                    
+                    // 统计评测数量
+                    int evaluationCount = 0;
+                    BigDecimal totalScore = BigDecimal.ZERO;
+                    int scoredAnswers = 0;
+                    
+                    for (com.llm.eval.dto.LlmAnswerDTO answer : answers) {
+                        // 获取答案的评测结果
+                        List<com.llm.eval.dto.EvaluationDTO> evaluations = evaluationService.getEvaluationsByAnswerId(answer.getLlmAnswerId());
+                        if (evaluations != null && !evaluations.isEmpty()) {
+                            evaluationCount += evaluations.size();
+                            
+                            // 计算平均分
+                            for (com.llm.eval.dto.EvaluationDTO eval : evaluations) {
+                                if (eval.getScore() != null) {
+                                    totalScore = totalScore.add(eval.getScore());
+                                    scoredAnswers++;
+                                }
+                            }
+                        }
+                    }
+                    
+                    questionMap.put("answerCount", answers.size());
+                    questionMap.put("evaluationCount", evaluationCount);
+                    
+                    // 计算平均分
+                    if (scoredAnswers > 0) {
+                        BigDecimal avgScore = totalScore.divide(BigDecimal.valueOf(scoredAnswers), 2, RoundingMode.HALF_UP);
+                        questionMap.put("avgScore", avgScore);
+                    } else {
+                        questionMap.put("avgScore", 0);
+                    }
+                } catch (Exception e) {
+                    System.err.println("获取问题评测数据失败: " + e.getMessage());
+                    questionMap.put("answerCount", 0);
+                    questionMap.put("evaluationCount", 0);
+                    questionMap.put("avgScore", 0);
+                }
+                
                 result.add(questionMap);
             }
             
@@ -86,6 +144,74 @@ public class DatasetVersionController {
             System.err.println("获取数据集问题失败: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/evaluation-stats")
+    @Operation(summary = "获取数据集评测统计信息")
+    public ResponseEntity<Map<String, Object>> getDatasetEvaluationStats(@PathVariable("id") Integer id) {
+        try {
+            // 获取数据集中的所有问题
+            Set<com.llm.eval.model.StandardQuestion> questions = datasetVersionService.getQuestionsInDatasetVersion(id);
+            
+            // 统计数据
+            int totalQuestions = questions.size();
+            int evaluatedQuestions = 0;
+            BigDecimal totalScore = BigDecimal.ZERO;
+            int scoredQuestions = 0;
+            
+            // 遍历所有问题，统计已评测的问题数量和总分
+            for (com.llm.eval.model.StandardQuestion question : questions) {
+                try {
+                    // 获取问题的所有答案
+                    List<com.llm.eval.dto.LlmAnswerDTO> answers = llmAnswerService.getAnswersByQuestionId(question.getStandardQuestionId());
+                    
+                    boolean hasEvaluation = false;
+                    for (com.llm.eval.dto.LlmAnswerDTO answer : answers) {
+                        // 获取答案的评测结果
+                        List<com.llm.eval.dto.EvaluationDTO> evaluations = evaluationService.getEvaluationsByAnswerId(answer.getLlmAnswerId());
+                        if (evaluations != null && !evaluations.isEmpty()) {
+                            hasEvaluation = true;
+                            
+                            // 计算总分
+                            for (com.llm.eval.dto.EvaluationDTO eval : evaluations) {
+                                if (eval.getScore() != null) {
+                                    totalScore = totalScore.add(eval.getScore());
+                                    scoredQuestions++;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 如果问题有评测，计数加1
+                    if (hasEvaluation) {
+                        evaluatedQuestions++;
+                    }
+                } catch (Exception e) {
+                    System.err.println("获取问题评测数据失败: " + e.getMessage());
+                }
+            }
+            
+            // 计算平均分
+            BigDecimal avgScore = BigDecimal.ZERO;
+            if (scoredQuestions > 0) {
+                avgScore = totalScore.divide(BigDecimal.valueOf(scoredQuestions), 2, RoundingMode.HALF_UP);
+            }
+            
+            // 构建响应
+            Map<String, Object> result = new HashMap<>();
+            result.put("totalQuestions", totalQuestions);
+            result.put("evaluatedCount", evaluatedQuestions);
+            result.put("avgScore", avgScore);
+            result.put("isFullyEvaluated", totalQuestions > 0 && evaluatedQuestions >= totalQuestions);
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("获取数据集评测统计信息失败: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                Map.of("error", "获取数据集评测统计信息失败: " + e.getMessage())
+            );
         }
     }
 

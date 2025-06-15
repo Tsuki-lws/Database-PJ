@@ -271,7 +271,60 @@ const handleCurrentChange = (val: number) => {
 
 // 返回上一页
 const goBack = () => {
-  router.back()
+  // 尝试从sessionStorage获取保存的返回状态
+  const savedStateStr = sessionStorage.getItem('evaluationReturnState')
+  
+  if (savedStateStr) {
+    try {
+      const savedState = JSON.parse(savedStateStr)
+      
+      // 如果有保存的状态，并且是从modelEvaluations页面来的
+      if (savedState.from === 'modelEvaluations') {
+        if (savedState.returnToQuestions === 'true' && savedState.datasetId) {
+          // 返回到问题列表页面
+          router.push({
+            path: '/evaluations/model',
+            query: {
+              view: 'questions',
+              datasetId: savedState.datasetId
+            }
+          })
+          return
+        }
+      }
+    } catch (e) {
+      console.error('解析保存的状态信息失败:', e)
+    }
+  }
+  
+  // 如果没有保存的状态或解析失败，则使用URL参数
+  if (route.query.from === 'allResults') {
+    router.push('/evaluations/all')
+  } else if (route.query.from === 'modelEvaluations') {
+    if (route.query.returnToQuestions === 'true' && route.query.datasetId) {
+      // 返回到问题列表页面
+      router.push({
+        path: '/evaluations/model',
+        query: {
+          view: 'questions',
+          datasetId: route.query.datasetId
+        }
+      })
+    } else if (route.query.questionId) {
+      // 返回到问题回答列表页面
+      router.push({
+        path: '/evaluations/model',
+        query: {
+          view: 'answers',
+          questionId: route.query.questionId
+        }
+      })
+    } else {
+      router.push('/evaluations/model')
+    }
+  } else {
+    router.back()
+  }
 }
 
 // 查看结果

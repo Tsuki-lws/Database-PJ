@@ -44,6 +44,12 @@ service.interceptors.response.use(
     const responseSize = JSON.stringify(response.data).length;
     console.log(`收到响应: ${response.config.url}, 状态: ${response.status}, 数据大小: ${responseSize} 字节`);
     
+    // 对于204 No Content状态码，直接返回true表示操作成功
+    if (response.status === 204) {
+      console.log('收到204 No Content响应，操作成功');
+      return { success: true };
+    }
+    
     try {
       // 检查响应数据结构
       if (responseSize > 10 * 1024 * 1024) {
