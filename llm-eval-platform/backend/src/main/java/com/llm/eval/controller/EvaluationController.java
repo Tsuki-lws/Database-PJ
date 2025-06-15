@@ -2,6 +2,7 @@ package com.llm.eval.controller;
 
 import com.llm.eval.dto.EvaluationDTO;
 import com.llm.eval.dto.EvaluationKeyPointDTO;
+import com.llm.eval.dto.LlmAnswerDTO;
 import com.llm.eval.model.LlmAnswer;
 import com.llm.eval.model.StandardQuestion;
 import com.llm.eval.model.StandardAnswer;
@@ -43,6 +44,103 @@ public class EvaluationController {
     @Operation(summary = "获取所有评测结果")
     public ResponseEntity<List<EvaluationDTO>> getAllEvaluations() {
         return ResponseEntity.ok(evaluationService.getAllEvaluations());
+    }
+
+    @GetMapping("/all")
+    @Operation(summary = "获取所有评测结果（带分页和筛选）")
+    public ResponseEntity<?> getAllEvaluationsWithFilters(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "modelId", required = false) Integer modelId,
+            @RequestParam(value = "datasetId", required = false) Integer datasetId,
+            @RequestParam(value = "method", required = false) String method) {
+        
+        try {
+            // 获取所有评测结果
+            List<EvaluationDTO> evaluations = evaluationService.getAllEvaluations();
+            
+            // 应用筛选条件
+            List<EvaluationDTO> filteredEvaluations = evaluations.stream()
+                .filter(eval -> modelId == null || (eval.getLlmAnswer() != null && 
+                    eval.getLlmAnswer().getModel() != null && 
+                    eval.getLlmAnswer().getModel().getModelId().equals(modelId)))
+                .filter(eval -> method == null || (eval.getMethod() != null && eval.getMethod().equals(method)))
+                .collect(Collectors.toList());
+            
+            // 手动分页
+            int fromIndex = page * size;
+            int toIndex = Math.min(fromIndex + size, filteredEvaluations.size());
+            
+            List<EvaluationDTO> pagedEvaluations = fromIndex < filteredEvaluations.size() ? 
+                    filteredEvaluations.subList(fromIndex, toIndex) : 
+                    List.of();
+            
+            // 转换为前端需要的格式，确保包含所有必要信息
+            List<Map<String, Object>> resultList = new ArrayList<>();
+            for (EvaluationDTO eval : pagedEvaluations) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("evaluationId", eval.getEvaluationId());
+                item.put("score", eval.getScore());
+                item.put("method", eval.getMethod());
+                item.put("comments", eval.getComments());
+                item.put("createdAt", eval.getCreatedAt());
+                
+                // 添加模型信息
+                if (eval.getLlmAnswer() != null && eval.getLlmAnswer().getModel() != null) {
+                    item.put("modelId", eval.getLlmAnswer().getModel().getModelId());
+                    item.put("modelName", eval.getLlmAnswer().getModel().getName());
+                    item.put("modelVersion", eval.getLlmAnswer().getModel().getVersion());
+                } else {
+                    item.put("modelId", null);
+                    item.put("modelName", "未知模型");
+                    item.put("modelVersion", "");
+                }
+                
+                // 添加问题和数据集信息
+                if (eval.getLlmAnswer() != null && eval.getLlmAnswer().getStandardQuestion() != null) {
+                    item.put("questionId", eval.getLlmAnswer().getStandardQuestion().getStandardQuestionId());
+                    item.put("question", eval.getLlmAnswer().getStandardQuestion().getQuestion());
+                    
+                    // 数据集信息 - 由于DTO中没有直接的dataset字段，这里使用一个占位符
+                    // 实际项目中应该通过服务层获取数据集信息
+                    item.put("datasetId", null);
+                    item.put("datasetName", "未知数据集");
+                    
+                    // 分类信息
+                    if (eval.getLlmAnswer().getStandardQuestion().getCategoryId() != null) {
+                        item.put("categoryId", eval.getLlmAnswer().getStandardQuestion().getCategoryId());
+                        item.put("categoryName", ""); // 分类名称需要另外获取
+                    } else {
+                        item.put("categoryId", null);
+                        item.put("categoryName", "未分类");
+                    }
+                } else {
+                    item.put("questionId", null);
+                    item.put("question", "");
+                    item.put("datasetId", null);
+                    item.put("datasetName", "未知数据集");
+                    item.put("categoryId", null);
+                    item.put("categoryName", "未分类");
+                }
+                
+                resultList.add(item);
+            }
+            
+            // 构建响应
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", resultList);
+            response.put("totalElements", filteredEvaluations.size());
+            response.put("totalPages", (int) Math.ceil((double) filteredEvaluations.size() / size));
+            response.put("size", size);
+            response.put("number", page);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取评测结果列表失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     @GetMapping("/{id}")
@@ -630,6 +728,121 @@ public class EvaluationController {
             e.printStackTrace();
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "评测失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/question/{questionId}")
+    @Operation(summary = "获取特定问题的所有评测结果")
+    public ResponseEntity<?> getEvaluationsByQuestionId(
+            @PathVariable("questionId") Integer questionId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "modelId", required = false) Integer modelId,
+            @RequestParam(value = "method", required = false) String method) {
+        
+        try {
+            System.out.println("获取问题ID为 " + questionId + " 的所有评测结果");
+            
+            // 先获取问题的所有回答
+            List<LlmAnswerDTO> questionAnswerDTOs = llmAnswerService.getAnswersByQuestionId(questionId);
+            System.out.println("问题ID " + questionId + " 有 " + questionAnswerDTOs.size() + " 个回答");
+            
+            if (questionAnswerDTOs.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("content", List.of());
+                response.put("totalElements", 0);
+                response.put("totalPages", 0);
+                response.put("size", size);
+                response.put("number", page);
+                return ResponseEntity.ok(response);
+            }
+            
+            // 获取这些回答的所有评测结果
+            List<Map<String, Object>> resultList = new ArrayList<>();
+            
+            for (LlmAnswerDTO answerDTO : questionAnswerDTOs) {
+                List<EvaluationDTO> answerEvaluations = evaluationService.getEvaluationsByAnswerId(answerDTO.getLlmAnswerId());
+                
+                // 筛选评测方法
+                if (method != null && !method.isEmpty()) {
+                    answerEvaluations = answerEvaluations.stream()
+                        .filter(eval -> eval.getMethod() != null && eval.getMethod().equals(method))
+                        .collect(Collectors.toList());
+                }
+                
+                // 如果没有符合条件的评测结果，跳过这个回答
+                if (answerEvaluations.isEmpty()) {
+                    continue;
+                }
+                
+                // 筛选模型ID
+                if (modelId != null && (answerDTO.getModel() == null || !answerDTO.getModel().getModelId().equals(modelId))) {
+                    continue;
+                }
+                
+                // 为每个评测结果创建一个详细的响应项
+                for (EvaluationDTO eval : answerEvaluations) {
+                    Map<String, Object> item = new HashMap<>();
+                    
+                    // 评测基本信息
+                    item.put("evaluationId", eval.getEvaluationId());
+                    item.put("score", eval.getScore());
+                    item.put("method", eval.getMethod());
+                    item.put("comments", eval.getComments());
+                    item.put("createdAt", eval.getCreatedAt());
+                    
+                    // 添加回答信息
+                    item.put("answerId", answerDTO.getLlmAnswerId());
+                    item.put("answerContent", answerDTO.getContent());
+                    
+                    // 添加模型信息
+                    if (answerDTO.getModel() != null) {
+                        item.put("modelId", answerDTO.getModel().getModelId());
+                        item.put("modelName", answerDTO.getModel().getName());
+                        item.put("modelVersion", answerDTO.getModel().getVersion());
+                    } else {
+                        item.put("modelId", null);
+                        item.put("modelName", "未知模型");
+                        item.put("modelVersion", "");
+                    }
+                    
+                    // 添加问题信息
+                    if (answerDTO.getStandardQuestion() != null) {
+                        item.put("questionId", answerDTO.getStandardQuestion().getStandardQuestionId());
+                        item.put("question", answerDTO.getStandardQuestion().getQuestion());
+                    } else {
+                        item.put("questionId", questionId);
+                        item.put("question", "未知问题");
+                    }
+                    
+                    resultList.add(item);
+                }
+            }
+            
+            System.out.println("找到 " + resultList.size() + " 条评测结果");
+            
+            // 手动分页
+            int fromIndex = page * size;
+            int toIndex = Math.min(fromIndex + size, resultList.size());
+            
+            List<Map<String, Object>> pagedResults = fromIndex < resultList.size() ? 
+                    resultList.subList(fromIndex, toIndex) : 
+                    List.of();
+            
+            // 构建响应
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", pagedResults);
+            response.put("totalElements", resultList.size());
+            response.put("totalPages", (int) Math.ceil((double) resultList.size() / size));
+            response.put("size", size);
+            response.put("number", page);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "获取问题评测结果失败: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }

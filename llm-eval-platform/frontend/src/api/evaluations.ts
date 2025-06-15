@@ -299,6 +299,19 @@ export function getAllEvaluations(params: any) {
 }
 
 /**
+ * 获取所有评测结果（带完整信息）
+ * @param params 查询参数
+ * @returns 所有评测结果（带完整信息）
+ */
+export function getAllEvaluationsWithDetails(params: any) {
+  return request({
+    url: '/api/evaluations/all',
+    method: 'get',
+    params
+  })
+}
+
+/**
  * 删除评测结果
  * @param id 评测结果ID
  * @returns 删除结果
@@ -307,6 +320,20 @@ export function deleteEvaluation(id: number) {
   return request({
     url: `/api/evaluations/${id}`,
     method: 'delete'
+  })
+}
+
+/**
+ * 获取特定问题的所有评测结果
+ * @param questionId 问题ID
+ * @param params 查询参数
+ * @returns 问题的所有评测结果
+ */
+export function getQuestionEvaluations(questionId: number, params: any) {
+  return request({
+    url: `/api/evaluations/question/${questionId}`,
+    method: 'get',
+    params
   })
 }
 

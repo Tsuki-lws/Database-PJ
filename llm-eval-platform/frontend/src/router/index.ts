@@ -168,6 +168,11 @@ const router = createRouter({
           component: () => import('../views/evaluations/AllResults.vue')
         },
         {
+          path: 'evaluations/question/:questionId',
+          name: 'QuestionEvaluations',
+          component: () => import('../views/evaluations/QuestionEvaluations.vue')
+        },
+        {
           path: 'evaluations/manual',
           name: 'ManualEvaluation',
           component: () => import('../views/evaluations/ManualEvaluation.vue')

@@ -629,9 +629,15 @@ const viewQuestionEvaluations = (question: any) => {
     // 将状态信息存储到sessionStorage，以便在返回时恢复
     sessionStorage.setItem('evaluationReturnState', JSON.stringify(currentState))
     
+    // 跳转到问题评测结果页面
     router.push({
-      path: `/evaluations/results`,
-      query: currentState
+      path: `/evaluations/question/${question.questionId}`,
+      query: {
+        questionText: question.question,
+        from: 'modelEvaluations',
+        datasetId: currentDataset.value.datasetId,
+        datasetName: currentDataset.value.name
+      }
     })
   } else {
     ElMessage.warning('该问题暂无评测结果')

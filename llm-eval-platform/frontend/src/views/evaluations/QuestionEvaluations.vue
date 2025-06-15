@@ -1,9 +1,15 @@
 <template>
-  <div class="all-results-container">
+  <div class="question-evaluations-container">
     <div class="page-header">
-      <h2>所有评测结果</h2>
+      <h2>问题评测结果</h2>
       <el-button v-if="fromPrevious" icon="el-icon-back" link @click="goBack">返回上一页</el-button>
     </div>
+
+    <el-card shadow="never" class="question-info-card">
+      <h3>问题信息</h3>
+      <p><strong>问题：</strong>{{ questionText }}</p>
+      <p v-if="datasetName"><strong>数据集：</strong>{{ datasetName }}</p>
+    </el-card>
 
     <el-card shadow="never" class="filter-container">
       <el-form :model="queryParams" label-width="80px" :inline="true">
@@ -14,16 +20,6 @@
               :key="model.modelId"
               :label="model.name + ' ' + model.version"
               :value="model.modelId"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="数据集">
-          <el-select v-model="queryParams.datasetId" placeholder="选择数据集" clearable>
-            <el-option
-              v-for="dataset in datasets"
-              :key="dataset.datasetId"
-              :label="dataset.name"
-              :value="dataset.datasetId"
             />
           </el-select>
         </el-form-item>
@@ -42,11 +38,30 @@
     </el-card>
 
     <el-card shadow="never" class="results-card">
-      <el-table v-loading="loading" :data="resultsList" style="width: 100%">
-        <el-table-column prop="batchId" label="批次ID" width="80" />
-        <el-table-column prop="batchName" label="评测批次" />
-        <el-table-column prop="modelName" label="模型" width="150" />
-        <el-table-column prop="datasetName" label="数据集" width="150" />
+      <el-table v-loading="loading" :data="evaluationsList" style="width: 100%">
+        <el-table-column prop="evaluationId" label="评测ID" width="80" />
+        <el-table-column prop="modelName" label="模型" width="150">
+          <template #default="scope">
+            {{ scope.row.modelName }} {{ scope.row.modelVersion }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="answerContent" label="回答内容" show-overflow-tooltip>
+          <template #default="scope">
+            <el-tooltip
+              class="box-item"
+              effect="dark"
+              :content="scope.row.answerContent || '无回答内容'"
+              placement="top-start"
+              :hide-after="0"
+            >
+              <div class="answer-content-preview">
+                {{ (scope.row.answerContent && scope.row.answerContent.length > 50) 
+                   ? scope.row.answerContent.substring(0, 50) + '...' 
+                   : (scope.row.answerContent || '无回答内容') }}
+              </div>
+            </el-tooltip>
+          </template>
+        </el-table-column>
         <el-table-column prop="method" label="评测方法" width="120">
           <template #default="scope">
             <el-tag :type="getMethodType(scope.row.method)">
@@ -54,17 +69,21 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="score" label="平均得分" width="100">
+        <el-table-column prop="score" label="得分" width="100">
           <template #default="scope">
-            {{ scope.row.score.toFixed(2) }}
+            <span :class="getScoreClass(scope.row.score)">
+              {{ scope.row.score.toFixed(2) }}
+            </span>
           </template>
         </el-table-column>
-        <el-table-column prop="questionCount" label="问题数量" width="100" />
-        <el-table-column prop="completedAt" label="完成时间" width="180" />
-        <el-table-column fixed="right" label="操作" width="220">
+        <el-table-column prop="createdAt" label="评测时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column fixed="right" label="操作" width="150">
           <template #default="scope">
             <el-button link type="primary" @click="viewDetail(scope.row)">详情</el-button>
-            <!-- <el-button link type="primary" @click="compareResults(scope.row)">对比</el-button> -->
             <el-button link type="danger" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
@@ -83,42 +102,23 @@
         />
       </div>
     </el-card>
-
-    <!-- 模型对比卡片
-    <el-card shadow="never" class="comparison-card">
-      <template #header>
-        <div class="card-header">
-          <span>模型对比</span>
-          <el-button type="primary" @click="startComparison" :disabled="isComparisonDisabled">开始对比</el-button>
-        </div>
-      </template>
-      
-      <p>选择要对比的模型评测结果：</p>
-      <el-transfer
-        v-model="selectedModels"
-        :data="allModelResults"
-        :titles="['可选模型', '已选模型']"
-      >
-        <template #default="{ option }">
-          {{ option.label }}
-        </template>
-      </el-transfer>
-    </el-card>-->
-  </div> 
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getEvaluationResults, getAllEvaluations, getAllEvaluationsWithDetails, deleteEvaluation, getModelList } from '@/api/evaluations'
-import { getDatasetList } from '@/api/datasets'
+import { getQuestionEvaluations, deleteEvaluation, getModelList } from '@/api/evaluations'
 
 const router = useRouter()
 const route = useRoute()
 const loading = ref(false)
-const resultsList = ref<any[]>([])
+const evaluationsList = ref<any[]>([])
 const total = ref(0)
+const questionId = computed(() => Number(route.params.questionId))
+const questionText = ref(route.query.questionText as string || '未知问题')
+const datasetName = ref(route.query.datasetName as string || '')
 
 // 判断是否从其他页面跳转而来
 const fromPrevious = computed(() => {
@@ -129,14 +129,28 @@ const fromPrevious = computed(() => {
 const goBack = () => {
   if (route.query.from === 'modelEvaluations') {
     // 如果是从ModelEvaluations页面跳转而来
-    if (route.query.questionId) {
-      router.push({
-        path: '/evaluations/model',
-        query: {
-          view: 'answers',
-          questionId: route.query.questionId
+    const datasetId = route.query.datasetId
+    if (datasetId) {
+      // 从sessionStorage中获取保存的状态
+      const savedStateStr = sessionStorage.getItem('evaluationReturnState')
+      if (savedStateStr) {
+        try {
+          const savedState = JSON.parse(savedStateStr)
+          router.push({
+            path: '/evaluations/model',
+            query: {
+              view: 'questions',
+              datasetId: savedState.datasetId
+            }
+          })
+          return
+        } catch (e) {
+          console.error('解析保存的状态信息失败:', e)
         }
-      })
+      }
+      
+      // 如果没有保存的状态或解析失败，则直接返回模型评测页面
+      router.push('/evaluations/model')
     } else {
       router.push('/evaluations/model')
     }
@@ -151,26 +165,16 @@ const queryParams = reactive({
   page: 1,
   size: 10,
   modelId: '',
-  datasetId: '',
   method: ''
 })
 
-// 模型和数据集选项
+// 模型选项
 const models = ref<any[]>([])
-const datasets = ref<any[]>([])
-
-// 对比相关
-const allModelResults = ref<any[]>([])
-const selectedModels = ref<number[]>([])
-
-// 计算属性
-const isComparisonDisabled = computed(() => selectedModels.value.length < 2)
 
 // 初始化
 onMounted(() => {
   fetchData()
   fetchModels()
-  fetchDatasets()
 })
 
 // 获取评测结果列表
@@ -181,52 +185,52 @@ const fetchData = async () => {
       page: queryParams.page - 1, // 前端页码从1开始，后端从0开始
       size: queryParams.size,
       modelId: queryParams.modelId || undefined,
-      datasetId: queryParams.datasetId || undefined,
       method: queryParams.method || undefined
     }
     
-    const res = await getAllEvaluationsWithDetails(params)
+    const res = await getQuestionEvaluations(questionId.value, params)
     
     if (res.data) {
       if (Array.isArray(res.data)) {
         // 直接返回数组
-        resultsList.value = res.data.map(formatEvaluationResult)
+        evaluationsList.value = res.data.map(formatEvaluationData)
         total.value = res.data.length
       } else if (res.data.content) {
         // 分页格式返回
-        resultsList.value = res.data.content.map(formatEvaluationResult)
+        evaluationsList.value = res.data.content.map(formatEvaluationData)
         total.value = res.data.totalElements || 0
       } else {
-        resultsList.value = []
+        evaluationsList.value = []
         total.value = 0
       }
     } else {
-      resultsList.value = []
+      evaluationsList.value = []
       total.value = 0
     }
-    
-    // 更新对比数据
-    updateComparisonData()
   } catch (error: any) {
     ElMessage.error('获取评测结果列表失败: ' + error.message)
-    resultsList.value = []
+    evaluationsList.value = []
     total.value = 0
   } finally {
     loading.value = false
   }
 }
 
-// 格式化评测结果数据
-const formatEvaluationResult = (item: any) => {
+// 格式化评测数据，确保所有必要字段都存在
+const formatEvaluationData = (item: any) => {
   return {
-    batchId: item.evaluationId || 0,
-    batchName: `${item.modelName || '未知模型'} 评测`,
-    modelName: (item.modelName || '') + ' ' + (item.modelVersion || ''),
-    datasetName: item.datasetName || '未知数据集',
+    evaluationId: item.evaluationId || 0,
+    answerId: item.answerId || 0,
+    modelId: item.modelId || 0,
+    modelName: item.modelName || '未知模型',
+    modelVersion: item.modelVersion || '',
+    answerContent: item.answerContent || '无回答内容',
     method: item.method || 'unknown',
     score: item.score || 0,
-    questionCount: 1, // 每个评测结果对应一个问题
-    completedAt: item.createdAt || ''
+    comments: item.comments || '',
+    createdAt: item.createdAt || '',
+    questionId: item.questionId || questionId.value,
+    question: item.question || questionText.value
   }
 }
 
@@ -241,27 +245,6 @@ const fetchModels = async () => {
   }
 }
 
-// 获取数据集列表
-const fetchDatasets = async () => {
-  try {
-    const res = await getDatasetList({})
-    datasets.value = res.data || []
-  } catch (error: any) {
-    ElMessage.error('获取数据集列表失败: ' + error.message)
-    datasets.value = []
-  }
-}
-
-// 更新对比数据
-const updateComparisonData = () => {
-  allModelResults.value = resultsList.value.map(item => ({
-    key: item.batchId,
-    label: `${item.modelName} - ${item.batchName} (${item.score.toFixed(2)})`,
-    modelName: item.modelName,
-    batchId: item.batchId
-  }))
-}
-
 // 搜索
 const handleSearch = () => {
   queryParams.page = 1
@@ -272,7 +255,6 @@ const handleSearch = () => {
 const resetQuery = () => {
   queryParams.page = 1
   queryParams.modelId = ''
-  queryParams.datasetId = ''
   queryParams.method = ''
   fetchData()
 }
@@ -292,32 +274,10 @@ const handleCurrentChange = (val: number) => {
 // 查看详情
 const viewDetail = (row: any) => {
   router.push({
-    path: `/evaluations/result/${row.batchId}`,
+    path: `/evaluations/result/${row.evaluationId}`,
     query: {
-      from: 'allResults'
-    }
-  })
-}
-
-// 查看对比
-const compareResults = (row: any) => {
-  router.push(`/evaluations/results/${row.batchId}`)
-}
-
-// 开始对比
-const startComparison = () => {
-  const selected = selectedModels.value
-  if (selected.length < 2) {
-    ElMessage.warning('请至少选择两个模型进行对比')
-    return
-  }
-  
-  // 获取第一个模型的批次ID作为基准
-  const baseBatchId = selected[0]
-  router.push({
-    path: `/evaluations/results/${baseBatchId}`,
-    query: {
-      compareIds: selected.join(',')
+      from: 'questionEvaluations',
+      questionId: questionId.value
     }
   })
 }
@@ -342,6 +302,32 @@ const getMethodText = (method: string) => {
   }
 }
 
+// 获取评分样式类
+const getScoreClass = (score: number) => {
+  if (score >= 8) return 'score-high'
+  if (score >= 6) return 'score-medium'
+  return 'score-low'
+}
+
+// 格式化日期
+const formatDate = (dateString: string) => {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } catch (error) {
+    return dateString;
+  }
+}
+
 // 删除评测结果
 const handleDelete = async (row: any) => {
   try {
@@ -351,12 +337,11 @@ const handleDelete = async (row: any) => {
       type: 'warning'
     })
 
-    const res: any = await deleteEvaluation(row.batchId)
+    const res: any = await deleteEvaluation(row.evaluationId)
     
     // 204 No Content响应会被转换为 {success: true}
     if (res && (res.success || res.data)) {
       ElMessage.success('评测结果删除成功')
-      queryParams.page = 1
       fetchData()
     } else {
       ElMessage.error('评测结果删除失败')
@@ -370,7 +355,7 @@ const handleDelete = async (row: any) => {
 </script>
 
 <style scoped>
-.all-results-container {
+.question-evaluations-container {
   padding: 20px;
 }
 
@@ -381,6 +366,15 @@ const handleDelete = async (row: any) => {
   align-items: center;
 }
 
+.question-info-card {
+  margin-bottom: 20px;
+}
+
+.question-info-card h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
 .filter-container {
   margin-bottom: 20px;
 }
@@ -389,19 +383,32 @@ const handleDelete = async (row: any) => {
   margin-bottom: 20px;
 }
 
-.comparison-card {
-  margin-bottom: 20px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .pagination-container {
   display: flex;
   justify-content: flex-end;
   margin-top: 20px;
+}
+
+.score-high {
+  color: #67c23a;
+  font-weight: bold;
+}
+
+.score-medium {
+  color: #e6a23c;
+  font-weight: bold;
+}
+
+.score-low {
+  color: #f56c6c;
+  font-weight: bold;
+}
+
+.answer-content-preview {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
 }
 </style> 

@@ -250,7 +250,7 @@ const goBack = () => {
     try {
       const savedState = JSON.parse(savedStateStr)
       
-      // 如果有保存的状态，并且是从modelEvaluations页面来的
+      // 如果有保存的状态，并且是从问题列表查看评测后返回
       if (savedState.from === 'modelEvaluations') {
         if (savedState.returnToQuestions === 'true' && savedState.datasetId) {
           // 返回到问题列表页面
@@ -292,6 +292,9 @@ const goBack = () => {
     } else {
       router.push('/evaluations/model')
     }
+  } else if (route.query.from === 'allResults') {
+    // 如果是从AllResults页面跳转而来，返回到所有评测结果页面
+    router.push('/evaluations/results')
   } else {
     router.back()
   }
